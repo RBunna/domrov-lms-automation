@@ -1,8 +1,8 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { UserTokenBalance } from '../../../libs/entities/user-token-balance.entity';
-import { TransactionType, WalletTransaction } from '../../../libs/entities/wallet-transaction.entity';
+import { UserTokenBalance } from '../../../libs/entities/ai/user-token-balance.entity';
+import { TransactionType, WalletTransaction } from '../../../libs/entities/ai/wallet-transaction.entity';
 
 // Entities
 
@@ -36,8 +36,10 @@ export class WalletService {
      * Get Transaction History
      */
     async getTransactionHistory(userId: number) {
+        const wallet = await this.balanceRepo.findOne({ where: { user: { id: userId } } });
+        if (!wallet) return [];
         return this.txRepo.find({
-            where: { wallet: { user: { id: userId } } },
+            where: { wallet: { id: wallet.id } },
             order: { createdAt: 'DESC' }
         });
     }

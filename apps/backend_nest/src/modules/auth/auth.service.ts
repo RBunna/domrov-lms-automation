@@ -1,13 +1,13 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../../../libs/entities/user.entity';
+import { User } from '../../../libs/entities/user/user.entity';
 import { RegisterUserDTO } from '../../../libs/dtos/user/register-user.dto';
 import { Encryption } from '../../../libs/utils/Encryption';
 import { JwtService } from '@nestjs/jwt';
 import { LoginUserDTO } from '../../../libs/dtos/user/login.dto';
-import { UserRefreshToken } from '../../../libs/entities/user-refresh-token.entity';
-import { UserEmailOtp } from '../../../libs/entities/user-email-otp.entity';
+import { UserRefreshToken } from '../../../libs/entities/user/user-refresh-token.entity';
+import { UserEmailOtp } from '../../../libs/entities/user/user-email-otp.entity';
 import { MailerService } from '@nestjs-modules/mailer';
 import { UserStatus } from '../../../libs/enums/Status';
 import * as bcrypt from 'bcrypt';
@@ -92,28 +92,24 @@ export class AuthService {
     }
 
     async sendVerificationEmail(email: string) {
-        // const user = await this.userRepository.findOne({ where: { email } });
-        // if (!user) throw new Error('User not found');
+        const user = await this.userRepository.findOne({ where: { email } });
+        if (!user) return false;
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
-
         const expiresAt = new Date();
         expiresAt.setMinutes(expiresAt.getMinutes() + 10);
 
-        // let userOtp = await this.userEmailOtpRepository.findOne({
-        //     where: { user: { id: user.id } },
-        // });
+        let userOtp = await this.userEmailOtpRepository.findOne({
+            where: { user: { id: user.id } },
+        });
 
-        // if (userOtp) {
-        //     userOtp.otp = otp;
-        //     userOtp.expiresAt = expiresAt;
-        // } else {
-        //     userOtp = this.userEmailOtpRepository.create({
-        //         user,
-        //         otp,
-        //         expiresAt,
-        //     });
-        // }
+        if (userOtp) {
+            userOtp.otp = otp;
+            userOtp.expiresAt = expiresAt;
+        } else {
+            userOtp = this.userEmailOtpRepository.create({ user, otp, expiresAt });
+        }
+        await this.userEmailOtpRepository.save(userOtp);
 
         await this.mailerService.sendMail({
             to: email,
@@ -124,6 +120,7 @@ export class AuthService {
 
         return true;
     }
+
 
 
     async verifyEmailOtp(email: string, otp: string) {
