@@ -1,7 +1,18 @@
+import {
+  IsString,
+  IsNotEmpty,
+  IsDate,
+  IsBoolean,
+  IsNumber,
+  IsOptional,
+  IsEnum,
+  ValidateNested,
+  ArrayNotEmpty,
+} from 'class-validator';
+import { Type, Transform } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsDateString, IsBoolean, IsNumber, IsOptional, IsEnum, IsDate } from 'class-validator';
 import { SubmissionType } from '../../enums/Assessment';
-import { Transform } from 'class-transformer';
+import { CreateRubricDTO } from './create-rubric.dto';
 
 export class CreateAssessmentDTO {
   @ApiProperty()
@@ -14,16 +25,16 @@ export class CreateAssessmentDTO {
   instruction: string;
 
   @IsOptional()
-  @Transform(({ value }) => (value ? new Date(value) : undefined), { toClassOnly: true })
-  @IsDate({ message: 'dob must be a Date in format "YYYY-MM-DD"' })
-  @ApiPropertyOptional({ example: '2000-01-01', description: 'Date of birth in YYYY-MM-DD format' })
-  startDate: Date;
+  @Transform(({ value }) => (value ? new Date(value) : undefined))
+  @IsDate()
+  @ApiPropertyOptional()
+  startDate?: Date;
 
   @IsOptional()
-  @Transform(({ value }) => (value ? new Date(value) : undefined), { toClassOnly: true })
-  @IsDate({ message: 'dob must be a Date in format "YYYY-MM-DD"' })
-  @ApiPropertyOptional({ example: '2000-01-01', description: 'Date of birth in YYYY-MM-DD format' })
-  dueDate: Date;
+  @Transform(({ value }) => (value ? new Date(value) : undefined))
+  @IsDate()
+  @ApiPropertyOptional()
+  dueDate?: Date;
 
   @ApiProperty()
   @IsNumber()
@@ -39,9 +50,15 @@ export class CreateAssessmentDTO {
 
   @ApiProperty()
   @IsBoolean()
-  allowTeamSubmition: boolean; // Matches your entity typo
+  allowTeamSubmition: boolean;
 
   @ApiProperty()
   @IsNumber()
   classId: number;
+
+  @ApiProperty({ type: [CreateRubricDTO] })
+  @ArrayNotEmpty()
+  @ValidateNested({ each: true })
+  @Type(() => CreateRubricDTO)
+  rubrics: CreateRubricDTO[];
 }

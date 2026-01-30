@@ -1,7 +1,14 @@
+import {
+    IsString,
+    IsDate,
+    IsNumber,
+    IsBoolean,
+    IsOptional,
+    ValidateNested,
+} from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { IsString, IsDateString, IsNumber, IsBoolean, IsOptional, IsEnum, IsDate } from 'class-validator';
-import { SubmissionType } from '../../enums/Assessment';
-import { Transform } from 'class-transformer';
+import { UpdateRubricDTO } from './update-rubric.dto';
 
 export class UpdateAssessmentDTO {
     @ApiPropertyOptional()
@@ -15,9 +22,9 @@ export class UpdateAssessmentDTO {
     instruction?: string;
 
     @IsOptional()
-    @Transform(({ value }) => (value ? new Date(value) : undefined), { toClassOnly: true })
-    @IsDate({ message: 'dob must be a Date in format "YYYY-MM-DD"' })
-    @ApiPropertyOptional({ example: '2000-01-01', description: 'Date of birth in YYYY-MM-DD format' })
+    @Transform(({ value }) => (value ? new Date(value) : undefined))
+    @IsDate()
+    @ApiPropertyOptional()
     dueDate?: Date;
 
     @ApiPropertyOptional()
@@ -29,4 +36,10 @@ export class UpdateAssessmentDTO {
     @IsOptional()
     @IsBoolean()
     allowLate?: boolean;
+
+    @ApiPropertyOptional({ type: [UpdateRubricDTO] })
+    @IsOptional()
+    @ValidateNested({ each: true })
+    @Type(() => UpdateRubricDTO)
+    rubrics?: UpdateRubricDTO[];
 }

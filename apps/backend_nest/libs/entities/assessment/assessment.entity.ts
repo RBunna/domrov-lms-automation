@@ -12,6 +12,7 @@ import { Class } from '../classroom/class.entity';
 import { PlatformAIModel } from '../ai/platform-ai-model.entity';
 import { Submission } from './submission.entity';
 import { AssessmentResource } from '../resource/assessment-resource.entity';
+import { Rubrics } from './rubic.entity';
 
 
 @Entity({ name: 'assessments' })
@@ -19,26 +20,29 @@ export class Assessment extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
   @Column({ length: 255 })
-  title: string; 
+  title: string;
   @Column({ type: 'text' })
-  instruction: string; 
+  instruction: string;
 
   @Column({ type: 'timestamp' })
-  dueDate: Date; 
+  dueDate: Date;
 
   @Column({ type: 'timestamp' })
-  startDate: Date; 
+  startDate: Date;
 
   @Column({ type: 'int' })
-  maxScore: number; 
+  maxScore: number;
 
   @Column({ type: 'enum', enum: SubmissionType })
-  submissionType: SubmissionType; 
+  submissionType: SubmissionType;
   @Column({ default: false })
   allowLate: boolean;
 
-  @Column({ type: 'text', nullable: true })
-  evaluationCriteria: string;
+  @OneToMany(() => Rubrics, rubric => rubric.assessment, {
+    cascade: true,
+  })
+  rubrics: Rubrics[];
+
 
   @Column({ type: 'text', nullable: true })
   penaltyCriteria: string;
@@ -51,11 +55,11 @@ export class Assessment extends BaseEntity {
 
   @ManyToOne(() => Class)
   @JoinColumn()
-  class: Class; 
+  class: Class;
 
   @ManyToOne(() => PlatformAIModel)
   @JoinColumn()
-  aiModel: PlatformAIModel; 
+  aiModel: PlatformAIModel;
 
   @OneToMany(() => Submission, (submission) => submission.assessment)
   submissions: Submission[];
