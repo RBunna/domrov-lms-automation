@@ -1,0 +1,27 @@
+// submission.proto
+syntax = "proto3";
+package submission;
+
+// Service for handling code submission processing and file content retrieval.
+service SubmissionService {
+  // Processes a submission request and returns the submission response with file content.
+  rpc ProcessSubmission(SubmissionRequest) returns (SubmissionResponse);
+}
+
+message SubmissionRequest {
+  string submission_id = 1;
+  string file_path = 2;
+}
+
+message SubmissionResponse {
+  bool success = 1;
+  string message = 2;
+  FileContent file = 3;
+}
+
+message FileContent {
+  string type = 1;
+  string name = 2;
+  string path = 3;
+  repeated string content = 4;
+}

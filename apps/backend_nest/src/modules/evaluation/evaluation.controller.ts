@@ -1,12 +1,15 @@
-import { Controller, Get, Query, ValidationPipe } from '@nestjs/common';
+import { Controller, Get, Logger, Query, ValidationPipe } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { EvaluationService } from './evaluation.service';
-import { GetFilesSubmissionDto } from 'libs/dtos/submission/process-submission.dto';
+import * as grpcJs from '@grpc/grpc-js';
+import { GrpcMethod } from '@nestjs/microservices';
+import * as evaluation from '../../../libs/interfaces/evaluation';
+import { GetFilesSubmissionDto } from '../../../libs/dtos/submission/process-submission.dto';
 
 @ApiTags('evaluations')
 @Controller('evaluations')
 export class EvaluationController {
-  constructor(private readonly evaluationService: EvaluationService) {}
+  constructor(private readonly evaluationService: EvaluationService) { }
 
   @Get('process')
   @ApiResponse({
@@ -35,4 +38,42 @@ export class EvaluationController {
     const { submission_id, file_path } = query;
     return this.evaluationService.processSubmission(String(submission_id), String(file_path));
   }
+
+  @GrpcMethod('EvaluateWithAI', 'EvaluateSubmission')
+  evaluateSubmission(
+    data: evaluation.EvaluateRequest,
+    metadata: grpcJs.Metadata,
+    call: grpcJs.ServerUnaryCall<any, any>,
+  ): evaluation.EvaluateResponse {
+
+    const logger = new Logger('EvaluateSubmission');
+    logger.log(`Received EvaluateSubmission request: ${JSON.stringify(data)}`);
+    try {
+      const { submission_id, score, feedback, input_token, output_token } = data;
+
+      if (!submission_id || !score?.value?.length) {
+        logger.log(`Invalid submission or empty score criteria: submission_id=${submission_id}, score=${JSON.stringify(score)}, feedback=${feedback}, input_token=${input_token}, output_token=${output_token}`);
+        return {
+          success: false,
+          message: 'Invalid submission or empty score criteria',
+        };
+      }
+
+      // Optionally send metadata back
+      const serverMetadata = new grpcJs.Metadata();
+      serverMetadata.add('evaluated-by', 'nestjs-grpc');
+      call.sendMetadata(serverMetadata);
+
+      return {
+        success: true,
+        message: `Submission ${submission_id} evaluated successfully`,
+      };
+    } catch (err) {
+      return {
+        success: false,
+        message: err.message,
+      };
+    }
+  }
+
 }

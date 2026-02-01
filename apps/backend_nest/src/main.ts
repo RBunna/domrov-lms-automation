@@ -3,7 +3,6 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
-import { join } from 'path';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 async function bootstrap() {
@@ -46,9 +45,9 @@ async function bootstrap() {
     transport: Transport.GRPC,
     options: {
       package: 'submission',
-      protoPath: join('./src/protos/submission.proto'),
-      url: '0.0.0.0:50051',
-      loader: { keepCase: true }, // preserve underscore names
+      protoPath: './src/protos/evaluate.proto',
+      url: '0.0.0.0:50052',
+      loader: { keepCase: true },
     },
   });
 

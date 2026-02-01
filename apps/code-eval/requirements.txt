@@ -1,0 +1,15 @@
+tiktoken
+chardet
+pathspec
+GitPython
+PyGithub
+patool
+requests
+boto3
+pydantic
+redis
+rq
+ollama
+ijson
+grpcio
+grpcio-tools
