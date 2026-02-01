@@ -3,8 +3,11 @@ import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
+import { join } from 'path';
+import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 
 async function bootstrap() {
+  // --- 1. HTTP app for Swagger / REST ---
   const app = await NestFactory.create(AppModule);
 
   app.use(cookieParser());
@@ -17,36 +20,39 @@ async function bootstrap() {
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
-    forbidUnknownValues: true,
     transform: true,
+    forbidUnknownValues: true,
   }));
-
 
   const config = new DocumentBuilder()
     .setTitle('Domrov LMS-Automation')
     .setDescription('API documentation')
     .setVersion('1.0')
     .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        in: 'header',
-        name: 'Authorization',
-      },
+      { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
       'JWT-auth',
     )
     .build();
+
   const document = SwaggerModule.createDocument(app, config);
-  
   SwaggerModule.setup('api-docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true,
-      withCredentials: true,
-    }
+    swaggerOptions: { persistAuthorization: true, withCredentials: true },
   });
 
-  await app.listen(3000, '0.0.0.0');
+  await app.listen(3000);
 
+  // --- 2. gRPC microservice ---
+  const grpcApp = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+    transport: Transport.GRPC,
+    options: {
+      package: 'submission',
+      protoPath: join('./src/protos/submission.proto'),
+      url: '0.0.0.0:50051',
+      loader: { keepCase: true }, // preserve underscore names
+    },
+  });
+
+  await grpcApp.listen();
 }
+
 bootstrap();

@@ -12,6 +12,7 @@ import { AssessmentModule } from './modules/assessment/assessment.module';
 import { HttpModule } from '@nestjs/axios';
 import { PaymentService } from './services/payment.service';
 import { WalletModule } from './modules/wallet/wallet.module';
+import { EvaluationModule } from './modules/evaluation/evaluation.module';
 
 @Module({
   imports: [
@@ -27,7 +28,8 @@ import { WalletModule } from './modules/wallet/wallet.module';
     FileModule,
     AssessmentModule,
     HttpModule,
-    WalletModule
+    WalletModule,
+    EvaluationModule
   ],
   controllers: [AppController],
   providers: [AppService,PaymentService],
