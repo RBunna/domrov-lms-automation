@@ -36,8 +36,12 @@ export class EvaluationController {
     @Query(new ValidationPipe({ transform: true })) query: GetFilesSubmissionDto
   ) {
     const { submission_id, file_path } = query;
-    return this.evaluationService.processSubmission(String(submission_id), String(file_path));
+    return this.evaluationService.processSubmission(
+      String(submission_id),
+      String(file_path),
+    );
   }
+
 
   @GrpcMethod('EvaluateWithAI', 'EvaluateSubmission')
   evaluateSubmission(

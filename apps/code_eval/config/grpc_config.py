@@ -12,7 +12,8 @@ if proto_dir not in sys.path:
 from protos.out_proto import evaluate_pb2, evaluate_pb2_grpc
 
 class EvaluateClient:
-    def __init__(self, host='localhost', port=50052):
+
+    def __init__(self, host=os.getenv("BACKEND_HOST"), port=os.getenv("BACKEND_PORT")):
         self.server_address = f"{host}:{port}"
         self.channel = grpc.insecure_channel(self.server_address)
         self.stub = evaluate_pb2_grpc.EvaluateWithAIStub(self.channel)

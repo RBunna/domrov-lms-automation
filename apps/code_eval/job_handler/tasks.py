@@ -23,19 +23,19 @@ def process_submission(submission_id: int):
     job = get_current_job(connection=RedisSingleton.get_instance())
 
     try:
-        # result = evaluate(
-        #     resource_url=submission_url,
-        #     rubrics=submission_rubric,
-        #     ai_model=AIModel.GROK_CODE_FAST_1,
-        # )
-        result = {
-            "scores": [10.0, 10.0, 56.0],
-            "feedback": "Your code demonstrates a clear understanding of recursion and modular programming. The `factorial` function correctly calculates factorials for non-negative integers using a recursive approach, and variable names are meaningful.\n\nFor improvement, consider handling negative input in the `factorial` function. Currently, negative numbers lead to infinite recursion. Adding input validation or defining specific behavior for such cases would make the program more robust. Also, be mindful of potential `int` overflow for very large input numbers.",
-            "input_token": 1234,
-            "output_token": 5678,
-        }
+        result = evaluate(
+            resource_url=submission_url,
+            rubrics=submission_rubric,
+            ai_model=AIModel.GROK_CODE_FAST_1,
+        )
+        # result = {
+        #     "scores": [10.0, 10.0, 56.0],
+        #     "feedback": "Your code demonstrates a clear understanding of recursion and modular programming. The `factorial` function correctly calculates factorials for non-negative integers using a recursive approach, and variable names are meaningful.\n\nFor improvement, consider handling negative input in the `factorial` function. Currently, negative numbers lead to infinite recursion. Adding input validation or defining specific behavior for such cases would make the program more robust. Also, be mindful of potential `int` overflow for very large input numbers.",
+        #     "input_token": 1234,
+        #     "output_token": 5678,
+        # }
 
-        client = EvaluateClient(host="localhost", port=50052)
+        client = EvaluateClient() #have default already
         response = client.evaluate_submission(
             submission_id=submission_id,
             scores=result.get("scores", []),

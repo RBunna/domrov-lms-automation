@@ -1,6 +1,5 @@
 from rq import Queue, SimpleWorker
 from config.redis_connection import RedisSingleton
-import sys
 import os
 
 def start_worker():

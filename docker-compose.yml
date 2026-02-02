@@ -1,0 +1,54 @@
+version: "3.9"
+
+services:
+  postgres:
+    image: postgres:16
+    container_name: domrov_postgres
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: domrov
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7
+    container_name: domrov_redis
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./apps/backend_nest
+      dockerfile: Dockerfile.dev
+    container_name: domrov_backend
+    command: npm run start:dev
+    volumes:
+      - ./apps/backend_nest:/app
+      - /app/node_modules
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    depends_on:
+      - postgres
+      - redis
+
+  code_eval:
+    build:
+      context: ./apps/code_eval
+      dockerfile: Dockerfile.dev
+    container_name: domrov_code_eval
+    command: python main.py
+    volumes:
+      - ./apps/code_eval:/app
+    env_file:
+      - .env
+    depends_on:
+      - redis
+      - backend
+
+volumes:
+  pgdata:
