@@ -45,10 +45,10 @@ async function bootstrap() {
     transport: Transport.GRPC,
     options: {
       package: 'submission',
-      protoPath: './src/protos/evaluate.proto',
+      protoPath: '/app/shared/protos/evaluate.proto',
       url: '0.0.0.0:50052',
       loader: { keepCase: true },
-    },
+    }
   });
 
   await grpcApp.listen();

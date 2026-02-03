@@ -9,7 +9,7 @@ if proto_dir not in sys.path:
     sys.path.insert(0, proto_dir)
 
 # Now these imports will work because Python can see evaluate_pb2 at the 'top' level
-from protos.out_proto import evaluate_pb2, evaluate_pb2_grpc
+from protos import evaluate_pb2, evaluate_pb2_grpc
 
 class EvaluateClient:
 

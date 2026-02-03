@@ -6,17 +6,32 @@ interface SubmissionService {
     processSubmission(request: { submission_id: string; file_path: string }): Observable<any>;
 }
 
+interface TasksQueueService {
+    AddQueue(request: {
+        submission_id: string;
+    }): Observable<{ success: boolean; message: string }>;
+}
+
+
 @Injectable()
 export class EvaluationService implements OnModuleInit {
     private submissionService: SubmissionService;
+    private tasksQueueService: TasksQueueService
 
     constructor(
-        @Inject('SUBMISSION_PACKAGE') private readonly client: microservices.ClientGrpc,
+        @Inject('CODE_EVAL_GRPC')
+        private readonly client: microservices.ClientGrpc,
     ) { }
 
+
     onModuleInit() {
-        this.submissionService = this.client.getService<SubmissionService>('SubmissionService');
+        this.submissionService =
+            this.client.getService<SubmissionService>('SubmissionService');
+
+        this.tasksQueueService =
+            this.client.getService<TasksQueueService>('TasksQueue');
     }
+
 
     // Calls gRPC to process a submission file
     async processSubmission(submission_id: string, file_path: string) {
@@ -36,4 +51,13 @@ export class EvaluationService implements OnModuleInit {
             throw err;
         }
     }
+
+    async addTaskToQueue(submission_id: string) {
+        return await lastValueFrom(
+            this.tasksQueueService.AddQueue({
+                submission_id,
+            }),
+        );
+    }
+
 }

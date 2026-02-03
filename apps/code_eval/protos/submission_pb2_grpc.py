@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-from protos.out_proto import submission_pb2 as protos_dot_submission__pb2
+from . import submission_pb2 as submission__pb2
 
 GRPC_GENERATED_VERSION = '1.76.0'
 GRPC_VERSION = grpc.__version__
@@ -18,7 +18,7 @@ except ImportError:
 if _version_not_supported:
     raise RuntimeError(
         f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in protos/submission_pb2_grpc.py depends on'
+        + ' but the generated code in submission_pb2_grpc.py depends on'
         + f' grpcio>={GRPC_GENERATED_VERSION}.'
         + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
         + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
@@ -37,8 +37,8 @@ class SubmissionServiceStub(object):
         """
         self.ProcessSubmission = channel.unary_unary(
                 '/submission.SubmissionService/ProcessSubmission',
-                request_serializer=protos_dot_submission__pb2.SubmissionRequest.SerializeToString,
-                response_deserializer=protos_dot_submission__pb2.SubmissionResponse.FromString,
+                request_serializer=submission__pb2.SubmissionRequest.SerializeToString,
+                response_deserializer=submission__pb2.SubmissionResponse.FromString,
                 _registered_method=True)
 
 
@@ -58,8 +58,8 @@ def add_SubmissionServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
             'ProcessSubmission': grpc.unary_unary_rpc_method_handler(
                     servicer.ProcessSubmission,
-                    request_deserializer=protos_dot_submission__pb2.SubmissionRequest.FromString,
-                    response_serializer=protos_dot_submission__pb2.SubmissionResponse.SerializeToString,
+                    request_deserializer=submission__pb2.SubmissionRequest.FromString,
+                    response_serializer=submission__pb2.SubmissionResponse.SerializeToString,
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
@@ -68,7 +68,7 @@ def add_SubmissionServiceServicer_to_server(servicer, server):
     server.add_registered_method_handlers('submission.SubmissionService', rpc_method_handlers)
 
 
- # This class is part of an EXPERIMENTAL API.
+# This class is part of an EXPERIMENTAL API.
 class SubmissionService(object):
     """Service for handling code submission processing and file content retrieval.
     """
@@ -88,8 +88,8 @@ class SubmissionService(object):
             request,
             target,
             '/submission.SubmissionService/ProcessSubmission',
-            protos_dot_submission__pb2.SubmissionRequest.SerializeToString,
-            protos_dot_submission__pb2.SubmissionResponse.FromString,
+            submission__pb2.SubmissionRequest.SerializeToString,
+            submission__pb2.SubmissionResponse.FromString,
             options,
             channel_credentials,
             insecure,

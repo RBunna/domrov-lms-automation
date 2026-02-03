@@ -3,7 +3,7 @@
 import grpc
 import warnings
 
-import evaluate_pb2 as evaluate__pb2
+from . import evaluate_pb2 as evaluate__pb2
 
 GRPC_GENERATED_VERSION = '1.76.0'
 GRPC_VERSION = grpc.__version__
@@ -74,7 +74,7 @@ def add_EvaluateWithAIServicer_to_server(servicer, server):
     server.add_registered_method_handlers('submission.EvaluateWithAI', rpc_method_handlers)
 
 
- # This class is part of an EXPERIMENTAL API.
+# This class is part of an EXPERIMENTAL API.
 class EvaluateWithAI(object):
     """/
     / EvaluateWithAI is a service that provides AI-based evaluation of submissions.

@@ -7,8 +7,8 @@ from rq.registry import ScheduledJobRegistry
 
 from ai.llm.base import AIModel
 from ai.llm.evaluation import evaluate
+from .data import get_submission_by_id
 from utils.custom_exception import InputTokenLimited
-from job_handler.data import get_submission_by_id
 from config.grpc_config import EvaluateClient
 from config.redis_connection import RedisSingleton
 
@@ -62,7 +62,3 @@ def process_submission(submission_id: int):
             print(f"Job {submission_id} failed with code {code}, no retry: {e}")
         else:
             raise e
-
-
-if __name__ == "__main__":
-    process_submission(2)

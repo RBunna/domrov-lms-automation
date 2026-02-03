@@ -8,16 +8,20 @@ import { ConfigService } from '@nestjs/config';
   imports: [
     ClientsModule.registerAsync([
       {
-        name: 'SUBMISSION_PACKAGE',
-        imports: [],
+        name: 'CODE_EVAL_GRPC',
         inject: [ConfigService],
-        useFactory: (configService: ConfigService) => ({
+        useFactory: (config: ConfigService) => ({
           transport: Transport.GRPC,
           options: {
-            package: 'submission',
-            protoPath: './src/protos/submission.proto',
-            url: `${configService.get('CODE_EVAL_GRPC_CLIENT_HOST')}:${configService.get('CODE_EVAL_GRPC_CLIENT_PORT')}`,
-            loader: { keepCase: true },
+            url: `${config.get('CODE_EVAL_GRPC_CLIENT_HOST')}:${config.get('CODE_EVAL_GRPC_CLIENT_PORT')}`,
+            package: ['submission', 'submission'], 
+            protoPath: [
+              '/app/shared/protos/submission.proto',
+              '/app/shared/protos/tasks.proto',
+            ],
+            loader: {
+              keepCase: true,
+            },
           },
         }),
       },

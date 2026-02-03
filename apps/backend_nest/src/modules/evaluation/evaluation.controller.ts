@@ -1,10 +1,11 @@
-import { Controller, Get, Logger, Query, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Post, Query, ValidationPipe } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { EvaluationService } from './evaluation.service';
 import * as grpcJs from '@grpc/grpc-js';
 import { GrpcMethod } from '@nestjs/microservices';
 import * as evaluation from '../../../libs/interfaces/evaluation';
 import { GetFilesSubmissionDto } from '../../../libs/dtos/submission/process-submission.dto';
+import { AddQueueDto } from '../../../libs/dtos/submission/add-queue.dto';
 
 @ApiTags('evaluations')
 @Controller('evaluations')
@@ -41,6 +42,29 @@ export class EvaluationController {
       String(file_path),
     );
   }
+
+  @Post('queue')
+  @ApiResponse({
+    status: 200,
+    description: 'Submission added to processing queue',
+    schema: {
+      example: {
+        success: true,
+        message: 'Task queued successfully',
+      },
+    },
+  })
+  async addQueue(
+    @Body(new ValidationPipe({ transform: true }))
+    body: AddQueueDto,
+  ) {
+    const { submission_id } = body;
+
+    return this.evaluationService.addTaskToQueue(
+      String(submission_id),
+    );
+  }
+
 
 
   @GrpcMethod('EvaluateWithAI', 'EvaluateSubmission')
