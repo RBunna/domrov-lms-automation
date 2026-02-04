@@ -40,6 +40,11 @@ class SubmissionServiceStub(object):
                 request_serializer=submission__pb2.SubmissionRequest.SerializeToString,
                 response_deserializer=submission__pb2.SubmissionResponse.FromString,
                 _registered_method=True)
+        self.GetSubmission = channel.unary_unary(
+                '/submission.SubmissionService/GetSubmission',
+                request_serializer=submission__pb2.SubmissionContentRequest.SerializeToString,
+                response_deserializer=submission__pb2.SubmissionContentResponse.FromString,
+                _registered_method=True)
 
 
 class SubmissionServiceServicer(object):
@@ -53,6 +58,13 @@ class SubmissionServiceServicer(object):
         context.set_details('Method not implemented!')
         raise NotImplementedError('Method not implemented!')
 
+    def GetSubmission(self, request, context):
+        """Get submission resource and rubric
+        """
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details('Method not implemented!')
+        raise NotImplementedError('Method not implemented!')
+
 
 def add_SubmissionServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
@@ -61,6 +73,11 @@ def add_SubmissionServiceServicer_to_server(servicer, server):
                     request_deserializer=submission__pb2.SubmissionRequest.FromString,
                     response_serializer=submission__pb2.SubmissionResponse.SerializeToString,
             ),
+            'GetSubmission': grpc.unary_unary_rpc_method_handler(
+                    servicer.GetSubmission,
+                    request_deserializer=submission__pb2.SubmissionContentRequest.FromString,
+                    response_serializer=submission__pb2.SubmissionContentResponse.SerializeToString,
+            ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
             'submission.SubmissionService', rpc_method_handlers)
@@ -68,7 +85,7 @@ def add_SubmissionServiceServicer_to_server(servicer, server):
     server.add_registered_method_handlers('submission.SubmissionService', rpc_method_handlers)
 
 
-# This class is part of an EXPERIMENTAL API.
+ # This class is part of an EXPERIMENTAL API.
 class SubmissionService(object):
     """Service for handling code submission processing and file content retrieval.
     """
@@ -90,6 +107,33 @@ class SubmissionService(object):
             '/submission.SubmissionService/ProcessSubmission',
             submission__pb2.SubmissionRequest.SerializeToString,
             submission__pb2.SubmissionResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True)
+
+    @staticmethod
+    def GetSubmission(request,
+            target,
+            options=(),
+            channel_credentials=None,
+            call_credentials=None,
+            insecure=False,
+            compression=None,
+            wait_for_ready=None,
+            timeout=None,
+            metadata=None):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            '/submission.SubmissionService/GetSubmission',
+            submission__pb2.SubmissionContentRequest.SerializeToString,
+            submission__pb2.SubmissionContentResponse.FromString,
             options,
             channel_credentials,
             insecure,

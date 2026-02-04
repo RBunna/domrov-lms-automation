@@ -38,7 +38,7 @@ class EvaluateWithAIStub(object):
             channel: A grpc.Channel.
         """
         self.EvaluateSubmission = channel.unary_unary(
-                '/submission.EvaluateWithAI/EvaluateSubmission',
+                '/evaluation.EvaluateWithAI/EvaluateSubmission',
                 request_serializer=evaluate__pb2.EvaluateRequest.SerializeToString,
                 response_deserializer=evaluate__pb2.EvaluateResponse.FromString,
                 _registered_method=True)
@@ -69,12 +69,12 @@ def add_EvaluateWithAIServicer_to_server(servicer, server):
             ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'submission.EvaluateWithAI', rpc_method_handlers)
+            'evaluation.EvaluateWithAI', rpc_method_handlers)
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('submission.EvaluateWithAI', rpc_method_handlers)
+    server.add_registered_method_handlers('evaluation.EvaluateWithAI', rpc_method_handlers)
 
 
-# This class is part of an EXPERIMENTAL API.
+ # This class is part of an EXPERIMENTAL API.
 class EvaluateWithAI(object):
     """/
     / EvaluateWithAI is a service that provides AI-based evaluation of submissions.
@@ -95,7 +95,7 @@ class EvaluateWithAI(object):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/submission.EvaluateWithAI/EvaluateSubmission',
+            '/evaluation.EvaluateWithAI/EvaluateSubmission',
             evaluate__pb2.EvaluateRequest.SerializeToString,
             evaluate__pb2.EvaluateResponse.FromString,
             options,

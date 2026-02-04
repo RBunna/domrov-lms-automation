@@ -14,7 +14,7 @@ import { ConfigService } from '@nestjs/config';
           transport: Transport.GRPC,
           options: {
             url: `${config.get('CODE_EVAL_GRPC_CLIENT_HOST')}:${config.get('CODE_EVAL_GRPC_CLIENT_PORT')}`,
-            package: ['submission', 'submission'], 
+            package: 'submission', 
             protoPath: [
               '/app/shared/protos/submission.proto',
               '/app/shared/protos/tasks.proto',

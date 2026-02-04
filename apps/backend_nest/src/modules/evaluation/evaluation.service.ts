@@ -47,7 +47,6 @@ export class EvaluationService implements OnModuleInit {
             if (err.code === 5) {
                 throw new NotFoundException(`File not found or empty: ${file_path}`);
             }
-
             throw err;
         }
     }

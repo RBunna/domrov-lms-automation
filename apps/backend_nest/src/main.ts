@@ -41,12 +41,13 @@ async function bootstrap() {
   await app.listen(3000);
 
   // --- 2. gRPC microservice ---
-  const grpcApp = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, {
+  const grpcApp = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, 
+    {
     transport: Transport.GRPC,
     options: {
-      package: 'submission',
-      protoPath: '/app/shared/protos/evaluate.proto',
-      url: '0.0.0.0:50052',
+      package: ['evaluation','submission'],
+      protoPath: ['/app/shared/protos/evaluate.proto', '/app/shared/protos/submission.proto'],
+      url: 'backend:50052',
       loader: { keepCase: true },
     }
   });

@@ -3,11 +3,12 @@ import grpc
 from concurrent import futures
 
 from rq import Queue, Retry
+from utils.download_file_r2 import downloadFiles
 from config.redis_connection import RedisSingleton
 
 from protos import tasks_pb2, tasks_pb2_grpc
 from protos import submission_pb2, submission_pb2_grpc
-from utils.find_file import read_file_to_json
+from utils.find_file import is_dir_cache, read_file_to_json
 from job_handler.tasks import process_submission
 from utils.find_file import read_file_to_json
 
@@ -16,6 +17,9 @@ class SubmissionServicer(submission_pb2_grpc.SubmissionServiceServicer):
     def ProcessSubmission(self, request, context):
         submission_id = request.submission_id
         file_path = "files_cache/" + submission_id + "/" + request.file_path
+        # if not is_dir_cache('/files_cache',file_path):
+        #     downloadFiles()
+        pass
         try:
             file_data = read_file_to_json(file_path)
             if not file_data:
@@ -43,7 +47,7 @@ class TasksQueueServicer(tasks_pb2_grpc.TasksQueueServicer):
         self.q = Queue("submission_queue", connection=RedisSingleton.get_instance())
 
     def AddQueue(self, request, context):
-        submission_id = int(request.submission_id)
+        submission_id:str = request.submission_id
 
         try: 
             self.q.enqueue(
@@ -71,7 +75,8 @@ def start_grpc_server():
         server
     )
     server.add_insecure_port(
-        f"{os.getenv('CODE_EVAL_GRPC_HOST')}:{os.getenv('CODE_EVAL_GRPC_PORT')}"
+        # f"{os.getenv('CODE_EVAL_GRPC_HOST')}:{os.getenv('CODE_EVAL_GRPC_PORT')}"
+        f"0.0.0.0:50051"
     )
     server.start()
     print("gRPC server running on port 50051")
