@@ -42,6 +42,8 @@ import { TokenPackage } from '../../libs/entities/ai/token-package.entity';
 import { UserTokenBalance } from '../../libs/entities/ai/user-token-balance.entity';
 import { WalletTransaction } from '../../libs/entities/ai/wallet-transaction.entity';
 import { OAuthAccount } from '../../libs/entities/user/oauth-account.entity';
+import { EvaluationRubricScore } from '../../libs/entities/assessment/evaluation-rubric-score.entity';
+import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-feedback.entity';
 
 @Module({
   imports: [
@@ -84,6 +86,9 @@ import { OAuthAccount } from '../../libs/entities/user/oauth-account.entity';
           TokenPackage,
           UserTokenBalance,
           WalletTransaction,
+          EvaluationFeedback,
+          EvaluationRubricScore,
+
         ],
 
         synchronize:true,
