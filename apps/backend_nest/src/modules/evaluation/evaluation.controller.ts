@@ -1,3 +1,5 @@
+import { Body, Controller, Get, Logger, Param, ParseIntPipe, Post, Query, UseGuards, ValidationPipe } from '@nestjs/common';
+import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { Body, Controller, Get, Logger, Post, Query, ValidationPipe } from '@nestjs/common';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { EvaluationService } from './evaluation.service';
@@ -7,9 +9,14 @@ import * as evaluation from '../../../libs/interfaces/evaluation';
 import * as submission from '../../../libs/interfaces/submission';
 
 import { GetFilesSubmissionDto } from '../../../libs/dtos/submission/process-submission.dto';
+import { UserId } from '../../common/decorators/user.decorator';
+import { EvaluationDto } from '../../../libs/dtos/assessment/evaluation.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AddQueueDto } from '../../../libs/dtos/submission/add-queue.dto';
 
 @ApiTags('evaluations')
+@ApiBearerAuth('JWT-auth')
+@UseGuards(JwtAuthGuard)
 @Controller('evaluations')
 export class EvaluationController {
   constructor(private readonly evaluationService: EvaluationService) { }
@@ -164,5 +171,30 @@ export class EvaluationController {
       ],
     };
   }
+@Post('submission/:id')
+@ApiResponse({
+  status: 201,
+  description: 'Evaluation created successfully',
+})
+@ApiResponse({
+  status: 400,
+  description: 'Unauthorized or already evaluated',
+})
+@ApiResponse({
+  status: 404,
+  description: 'Submission not found',
+})
+async createEvaluation(
+  @UserId() userId: number,
+  @Param('id', ParseIntPipe) submissionId: number,
+  @Body() dto: EvaluationDto,
+) {
+  return this.evaluationService.createEvaluation(
+    userId,
+    submissionId,
+    dto,
+  );
+}
+
 
 }
