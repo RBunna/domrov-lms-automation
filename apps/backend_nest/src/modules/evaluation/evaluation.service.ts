@@ -41,14 +41,18 @@ export class EvaluationService implements OnModuleInit {
                 this.submissionService.processSubmission({ submission_id, file_path }),
             );
             return result;
-        } catch (err) {
-            console.error('gRPC error:', err.message);
+        } catch (err: unknown) {
+            const grpcError = err as { code?: number; message?: string };
 
-            if (err.code === 5) {
+            console.error('gRPC error:', grpcError.message);
+
+            if (grpcError.code === 5) {
                 throw new NotFoundException(`File not found or empty: ${file_path}`);
             }
+
             throw err;
         }
+
     }
 
     async addTaskToQueue(submission_id: string) {
