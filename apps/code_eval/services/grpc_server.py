@@ -2,6 +2,7 @@ import os
 import grpc
 from concurrent import futures
 
+from redis import RedisError
 from rq import Queue, Retry
 from utils.download_file_r2 import downloadFiles
 from config.redis_connection import RedisSingleton
@@ -47,21 +48,29 @@ class TasksQueueServicer(tasks_pb2_grpc.TasksQueueServicer):
         self.q = Queue("submission_queue", connection=RedisSingleton.get_instance())
 
     def AddQueue(self, request, context):
-        submission_id:str = request.submission_id
+        submission_id = request.submission_id.strip()
 
-        try: 
-            self.q.enqueue(
+        if not submission_id:
+            context.abort(grpc.StatusCode.INVALID_ARGUMENT, "submission_id is required")
+
+        try:
+            job = self.q.enqueue(
                 process_submission,
                 submission_id,
                 retry=Retry(max=3),
             )
 
             return tasks_pb2.TasksResponse(
-                success=True, message="Task queued successfully"
+                success=True,
+                message="Task queued successfully",
+                job_id=job.id,
             )
 
+        except RedisError as e:
+            context.abort(grpc.StatusCode.UNAVAILABLE, f"Redis unavailable: {str(e)}")
+
         except Exception as e:
-            return tasks_pb2.TasksResponse(success=False, message=str(e))
+            context.abort(grpc.StatusCode.INTERNAL, f"Failed to enqueue task: {str(e)}")
 
 
 def start_grpc_server():

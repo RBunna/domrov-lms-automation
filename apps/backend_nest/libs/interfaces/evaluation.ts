@@ -14,3 +14,8 @@ export interface EvaluateResponse {
     success: boolean;
     message: string;
 }
+export interface TasksResponse {
+    success: boolean;
+    message: string;
+    job_id?: string;
+}

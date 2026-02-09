@@ -1,6 +1,7 @@
 import { Injectable, OnModuleInit, Inject, NotFoundException } from '@nestjs/common';
 import * as microservices from '@nestjs/microservices';
-import { lastValueFrom, Observable } from 'rxjs';
+import { catchError, lastValueFrom, Observable } from 'rxjs';
+import { TasksResponse } from '../../../libs/interfaces/evaluation';
 
 interface SubmissionService {
     processSubmission(request: { submission_id: string; file_path: string }): Observable<any>;
@@ -56,11 +57,30 @@ export class EvaluationService implements OnModuleInit {
     }
 
     async addTaskToQueue(submission_id: string) {
-        return await lastValueFrom(
-            this.tasksQueueService.AddQueue({
-                submission_id,
-            }),
+    try {
+        const res = await lastValueFrom<TasksResponse>(
+            this.tasksQueueService
+                .AddQueue({ submission_id })
+                .pipe(
+                    catchError(err => {
+                        throw new microservices.RpcException({
+                            message: err.details || 'Queue service error',
+                            code: err.code,
+                        });
+                    }),
+                ),
         );
+
+        if (!res.success) {
+            throw new Error(res.message);
+        }
+        //will implment logic later 
+        return res;
+    } catch (err) {
+        throw err;
     }
+}
+
+
 
 }
