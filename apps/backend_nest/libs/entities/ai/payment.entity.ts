@@ -48,4 +48,6 @@ export class Payment extends BaseEntity {
   @ManyToOne(() => TokenPackage)
   @JoinColumn()
   tokenPackage: TokenPackage;
+
+  
 }

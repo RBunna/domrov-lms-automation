@@ -10,6 +10,8 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule } from '@nestjs/config';
 import { MailModule } from '../../config/mailer.config';
 import { TeamMember } from '../../../libs/entities/classroom/user-team.entity';
+import { ClassService } from '../class/class.service';
+import { ClassModule } from '../class/class.module';
 
 @Module({
   imports: [
@@ -17,7 +19,8 @@ import { TeamMember } from '../../../libs/entities/classroom/user-team.entity';
     AuthModule,
     JwtModule,
     ConfigModule,
-    MailModule
+    MailModule,
+    ClassModule
   ],
   controllers: [TeamController],
   providers: [TeamService],

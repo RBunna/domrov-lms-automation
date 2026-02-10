@@ -37,7 +37,7 @@ export class User extends BaseEntity {
   @Column({ nullable: true })
   dob: Date;
 
-  @Column({ length: 20, unique: true, nullable: true })
+  @Column({ length: 50, unique: true, nullable: true })
   phoneNumber: string;
 
   @Column({ length: 150, unique: true })

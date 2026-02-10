@@ -2,12 +2,12 @@ import { Module } from '@nestjs/common';
 import { EvaluationService } from './evaluation.service';
 import { EvaluationController } from './evaluation.controller';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { ConfigService } from '@nestjs/config';
 import { Submission } from '../../../libs/entities/assessment/submission.entity';
 import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
 import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
-import { EvaluationRubricScore } from '../../../libs/entities/assessment/evaluation-rubric-score.entity';
+// import { EvaluationRubricScore } from '../../../libs/entities/assessment/evaluation-rubric-score.entity';
 import { TypeOrmModule } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -15,7 +15,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
       Submission,
       Evaluation,
       EvaluationFeedback,
-      EvaluationRubricScore,
+      // EvaluationRubricScore,
     ]),
     ClientsModule.registerAsync([
       {

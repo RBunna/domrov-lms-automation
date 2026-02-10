@@ -1,16 +1,12 @@
 import { ApiProperty } from "@nestjs/swagger";
 import { IsEnum, IsNumber, IsOptional, IsString } from "class-validator";
+import { FeedbackType } from "../../entities/assessment/evaluation-feedback.entity";
 
-export enum FeedbackType {
-  suggestion = 'suggestion',
-  warning = 'warning',
-  error = 'error',
-}
 
 export class FeedbackItemDto {
   @ApiProperty({ example: 'main.cpp' })
   @IsString()
-  path: string;
+  path: string; // Used as filePath in service mapping
 
   @ApiProperty({ example: 9, required: false })
   @IsOptional()
@@ -26,12 +22,12 @@ export class FeedbackItemDto {
   @IsString()
   message: string;
 
-  @ApiProperty({ enum: FeedbackType, example: FeedbackType.suggestion })
+  @ApiProperty({ enum: FeedbackType, example: FeedbackType.SUGGESTION })
   @IsEnum(FeedbackType)
-  type: FeedbackType;
+  type: FeedbackType; // Used as feedbackType in service mapping
 
   @ApiProperty({ example: 'uuid', required: false })
   @IsOptional()
   @IsString()
-  id?: string; // optional, used for updating existing feedback
+  id?: string; 
 }

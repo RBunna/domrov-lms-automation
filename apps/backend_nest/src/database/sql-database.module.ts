@@ -42,7 +42,7 @@ import { TokenPackage } from '../../libs/entities/ai/token-package.entity';
 import { UserTokenBalance } from '../../libs/entities/ai/user-token-balance.entity';
 import { WalletTransaction } from '../../libs/entities/ai/wallet-transaction.entity';
 import { OAuthAccount } from '../../libs/entities/user/oauth-account.entity';
-import { EvaluationRubricScore } from '../../libs/entities/assessment/evaluation-rubric-score.entity';
+// import { EvaluationRubricScore } from '../../libs/entities/assessment/evaluation-rubric-score.entity';
 import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-feedback.entity';
 
 @Module({
@@ -87,8 +87,7 @@ import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-fe
           UserTokenBalance,
           WalletTransaction,
           EvaluationFeedback,
-          EvaluationRubricScore,
-
+          // EvaluationRubricScore,
         ],
 
         synchronize:true,

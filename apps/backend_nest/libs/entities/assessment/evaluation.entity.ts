@@ -10,7 +10,7 @@ import { BaseEntity } from '../base.entity';
 import { EvaluationType } from '../../enums/Assessment';
 import { Submission } from './submission.entity';
 import { EvaluationFeedback } from './evaluation-feedback.entity';
-import { EvaluationRubricScore } from './evaluation-rubric-score.entity';
+// import { EvaluationRubricScore } from './evaluation-rubric-score.entity';
 
 @Entity({ name: 'evaluations' })
 export class Evaluation extends BaseEntity {
@@ -49,8 +49,11 @@ export class Evaluation extends BaseEntity {
     cascade: true,
   })
   feedbacks: EvaluationFeedback[];
-  @OneToMany(() => EvaluationRubricScore, (rs) => rs.evaluation, {
-    cascade: true,
-  })
-  rubricScores: EvaluationRubricScore[];
+
+  // @OneToMany(() => EvaluationRubricScore, (rs) => rs.evaluation, {
+  //   cascade: true,
+  // })
+  // rubricScores: EvaluationRubricScore[];
+
+  
 }

@@ -9,9 +9,5 @@ export class RubricScoreDto {
   @ApiProperty({ example: 10 })
   @IsNumber()
   score: number;
-
-  @ApiProperty({ example: 'Great logic implementation' })
-  @IsOptional()
-  @IsString()
-  comment?: string;
+  
 }

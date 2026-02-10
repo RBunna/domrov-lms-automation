@@ -8,32 +8,14 @@ import {
   IsEnum,
   ValidateNested,
   ArrayNotEmpty,
-  ValidatorConstraint,
-  ValidatorConstraintInterface,
-  ValidationArguments,
   Validate,
 } from 'class-validator';
-import { Type, Transform } from 'class-transformer';
+import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { SubmissionType } from '../../enums/Assessment';
+import { SubmissionMethod, SubmissionType } from '../../enums/Assessment';
 import { CreateRubricDTO } from './create-rubric.dto';
-
-
-// Custom validator: dueDate > startDate
-@ValidatorConstraint({ name: 'IsAfterStartDate', async: false })
-export class IsAfterStartDate
-  implements ValidatorConstraintInterface
-{
-  validate(dueDate: Date, args: ValidationArguments) {
-    const obj = args.object as any;
-    return dueDate > obj.startDate;
-  }
-
-  defaultMessage() {
-    return 'dueDate must be after startDate';
-  }
-}
-
+import { IsAfterStartDate } from '../../../src/common/decorators/IsAfterStartDate';
+import { ResourceDTO } from '../file/resource.dto';
 export class CreateAssessmentDTO {
   @ApiProperty()
   @IsString()
@@ -45,21 +27,19 @@ export class CreateAssessmentDTO {
   instruction: string;
 
   @IsOptional()
-  @Transform(({ value }) => (value ? new Date(value) : undefined))
+  @Type(() => Date)
   @IsDate()
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ format: 'date-time' })
   startDate?: Date;
 
   @IsOptional()
-  @Transform(({ value }) => (value ? new Date(value) : undefined))
-  @IsDate()
   @Type(() => Date)
+  @IsDate()
   @Validate(IsAfterStartDate)
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ format: 'date-time' })
   dueDate?: Date;
 
   @ApiProperty()
-  @Transform(({ value }) => Number(value))
   @IsNumber()
   maxScore: number;
 
@@ -68,35 +48,32 @@ export class CreateAssessmentDTO {
   submissionType: SubmissionType;
 
   @ApiProperty()
-  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   allowLate: boolean;
 
   @ApiProperty()
-  @Transform(({ value }) => value === 'true' || value === true)
   @IsBoolean()
   allowTeamSubmition: boolean;
 
-  @ApiProperty()
-  @Transform(({ value }) => Number(value))
-  @IsNumber()
-  classId: number;
+  @ApiProperty({ description: 'Enable AI evaluation', default: false })
+  @IsBoolean()
+  @IsOptional()
+  aiEvaluationEnable?: boolean;
+
+  @ApiProperty({ enum: SubmissionMethod })
+  @IsEnum(SubmissionMethod)
+  allowedSubmissionMethod: SubmissionMethod; 
 
   @ApiProperty({ type: [CreateRubricDTO] })
   @ArrayNotEmpty()
   @ValidateNested({ each: true })
-  @Transform(({ value }) => {
-    if (!value) return [];
-    if (typeof value === 'string') {
-      try {
-        const parsed = JSON.parse(value);
-        return parsed.map((item) => Object.assign(new CreateRubricDTO(), item));
-      } catch {
-        return [];
-      }
-    }
-    return value;
-  })
   @Type(() => CreateRubricDTO)
   rubrics: CreateRubricDTO[];
+
+
+  @ApiPropertyOptional({ type: [ResourceDTO] })
+  @IsOptional()
+  @ValidateNested({ each: true })
+  @Type(() => ResourceDTO)
+  resources?: ResourceDTO[];
 }

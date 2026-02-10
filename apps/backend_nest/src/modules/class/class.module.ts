@@ -23,5 +23,6 @@ import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity'
   ],
   controllers: [ClassController],
   providers: [ClassService],
+  exports:[ClassService]
 })
 export class ClassModule { }

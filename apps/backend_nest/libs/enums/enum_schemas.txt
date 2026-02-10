@@ -1,0 +1,95 @@
+================================================================================
+FILE: .\Assessment.ts
+================================================================================
+
+export enum SubmissionFileType {
+  FILE_UPLOAD = 'FILE_UPLOAD',
+  TEXT_ENTRY = 'TEXT_ENTRY',
+  URL = 'URL',
+}
+
+export enum SubmissionType {
+  INDIVIDUAL = 'INDIVIDUAL',
+  TEAM = 'TEAM',
+}
+
+export enum EvaluationType {
+  AI = 'AI',
+  MANUAL = 'MANUAL',
+}
+
+export enum QuizType {
+  GRADED = 'GRADED',
+  PRACTICE = 'PRACTICE',
+}
+
+================================================================================
+FILE: .\Payment.ts
+================================================================================
+
+export enum PaymentMethod {
+  CREDIT_CARD = 'CREDIT_CARD',
+  PAYPAL = 'PAYPAL',
+  BAKOGN='BAKOGN'
+}
+export enum Currency {
+  USD = 'USD',
+  EUR = 'EUR',
+}
+
+================================================================================
+FILE: .\Resource.ts
+================================================================================
+
+export enum ResourceType {
+  FILE = 'FILE',
+  URL = 'URL',
+  VIDEO = 'VIDEO',
+}
+
+
+
+================================================================================
+FILE: .\Role.ts
+================================================================================
+
+export enum UserRole {
+    Teacher = 'Teacher',
+    Student = 'Student',
+    TeacherAssistant = 'TeacherAssistant',
+    ClassMonitor = 'ClassMonitor',
+    AcademicStaff ='AcademicStaff'
+}
+
+export enum SystemRole{
+
+}
+
+================================================================================
+FILE: .\Status.ts
+================================================================================
+
+export enum UserStatus {
+  ACTIVE = 'ACTIVE',
+  INACTIVE = 'INACTIVE',
+  BANNED = 'BANNED',
+}
+export enum ClassStatus {
+  BEING_START ='BEING_START',
+  ACTIVE = 'ACTIVE',
+  END = 'END',
+}
+
+export enum SubmissionStatus {
+  PENDING = 'PENDING',
+  SUBMITTED = 'SUBMITTED',
+  GRADED = 'GRADED',
+  RESUBMITTED = 'RESUBMITTED',
+  LATE = 'LATE',
+}
+export enum PaymentStatus {
+  PENDING = 'PENDING',
+  COMPLETED = 'COMPLETED',
+  FAILED = 'FAILED',
+}
+

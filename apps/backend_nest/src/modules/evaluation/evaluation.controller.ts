@@ -1,7 +1,4 @@
 import { Body, Controller, Get, Logger, Param, ParseIntPipe, Post, Query, UseGuards, ValidationPipe } from '@nestjs/common';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
-import { Body, Controller, Get, Logger, Post, Query, ValidationPipe } from '@nestjs/common';
-import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { EvaluationService } from './evaluation.service';
 import * as grpcJs from '@grpc/grpc-js';
 import { GrpcMethod, RpcException } from '@nestjs/microservices';
@@ -9,10 +6,9 @@ import * as evaluation from '../../../libs/interfaces/evaluation';
 import * as submission from '../../../libs/interfaces/submission';
 
 import { GetFilesSubmissionDto } from '../../../libs/dtos/submission/process-submission.dto';
-import { UserId } from '../../common/decorators/user.decorator';
-import { EvaluationDto } from '../../../libs/dtos/assessment/evaluation.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AddQueueDto } from '../../../libs/dtos/submission/add-queue.dto';
+import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
 
 @ApiTags('evaluations')
 @ApiBearerAuth('JWT-auth')
@@ -21,7 +17,7 @@ import { AddQueueDto } from '../../../libs/dtos/submission/add-queue.dto';
 export class EvaluationController {
   constructor(private readonly evaluationService: EvaluationService) { }
 
-  @Get('process')
+  @Get('submission')
   @ApiResponse({
     status: 200,
     description: 'Submission processed',
@@ -105,13 +101,20 @@ export class EvaluationController {
         success: true,
         message: `Submission ${submission_id} evaluated successfully`,
       };
-    } catch (err) {
+    } catch (err: unknown) {
+      let message = 'Unknown error occurred';
+
+      if (err instanceof Error) {
+        message = err.message;
+      }
+
       return {
         success: false,
-        message: err.message,
+        message,
       };
     }
-  } 
+
+  }
 
   @GrpcMethod('SubmissionService', 'GetSubmission')
   getSubmission(
@@ -171,30 +174,4 @@ export class EvaluationController {
       ],
     };
   }
-@Post('submission/:id')
-@ApiResponse({
-  status: 201,
-  description: 'Evaluation created successfully',
-})
-@ApiResponse({
-  status: 400,
-  description: 'Unauthorized or already evaluated',
-})
-@ApiResponse({
-  status: 404,
-  description: 'Submission not found',
-})
-async createEvaluation(
-  @UserId() userId: number,
-  @Param('id', ParseIntPipe) submissionId: number,
-  @Body() dto: EvaluationDto,
-) {
-  return this.evaluationService.createEvaluation(
-    userId,
-    submissionId,
-    dto,
-  );
-}
-
-
 }

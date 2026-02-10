@@ -19,6 +19,7 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { TeamMember } from '../../../libs/entities/classroom/user-team.entity';
+import { ClassService } from '../class/class.service';
 
 @Injectable()
 export class TeamService {
@@ -34,6 +35,7 @@ export class TeamService {
         private readonly teamMemberRepository: Repository<TeamMember>,
 
         private readonly mailerService: MailerService,
+        private readonly classService:ClassService,
         private config: ConfigService,
         private jwtService: JwtService
 
@@ -260,7 +262,7 @@ export class TeamService {
     }
 
     async getTeamsWithMembersInClass(classId: number, userId: number) {
-        await this.findUserAndVerifyEnrollment(userId, classId);
+        await this.classService.findClassAndVerifyMember(userId, classId);
 
         const teams = await this.teamRepository.find({
             where: { class: { id: classId } },

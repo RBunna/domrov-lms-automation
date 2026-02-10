@@ -39,7 +39,6 @@
 
     // --- ADD THIS TO SUPPORT TEAM SUBMISSIONS ---
     @ManyToOne(() => Team, { nullable: true })
-    @JoinColumn()
     team: Team;
 
     @ManyToOne(() => Assessment, (assessment) => assessment.submissions)

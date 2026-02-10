@@ -3,7 +3,7 @@ import { BaseEntity } from '../base.entity';
 import { Assessment } from '../assessment/assessment.entity';
 import { Resource } from './resource.entity';
 
-@Entity({ name: 'assignment_resources' })
+@Entity({ name: 'assessment_resources' })
 export class AssessmentResource extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

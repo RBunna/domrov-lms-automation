@@ -1,11 +1,18 @@
-import { ApiProperty } from '@nestjs/swagger';
-import { IsOptional, IsString, IsUrl } from 'class-validator';
+import { ApiPropertyOptional } from '@nestjs/swagger';
+import { IsString, IsOptional, IsArray, ValidateNested, IsUrl } from 'class-validator';
+import { Type } from 'class-transformer';
+import { ResourceDTO } from '../file/resource.dto';
 
-export class SubmitAssignmentDTO {
-  @ApiProperty({ description: 'GitHub URL or external link', required: false })
+export class SubmitAssignmentDto {
+  @ApiPropertyOptional({ type: [ResourceDTO] })
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ResourceDTO)
+  resources?: ResourceDTO[];
+
+  @ApiPropertyOptional()
   @IsOptional()
   @IsUrl()
-  link?: string;
-  
-  // Note: Binary files are handled by the Interceptor in the Controller
+  githubUrl?: string; // For GIT submissions
 }

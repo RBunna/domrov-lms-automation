@@ -1,0 +1,1260 @@
+================================================================================
+FILE: .\base.entity.ts
+================================================================================
+
+import { CreateDateColumn, UpdateDateColumn } from 'typeorm';
+
+export abstract class BaseEntity {
+  @CreateDateColumn({ type: 'timestamp' })
+  created_at: Date;
+
+  @UpdateDateColumn({ type: 'timestamp' })
+  updated_at: Date;
+}
+
+
+================================================================================
+FILE: .\ai\ai-usage-log.entity.ts
+================================================================================
+
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    ManyToOne,
+    JoinColumn,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { User } from '../user/user.entity';
+import { PlatformAIModel } from './platform-ai-model.entity';
+
+@Entity({ name: 'ai_usage_logs' })
+export class AIUsageLog extends BaseEntity {
+    @PrimaryGeneratedColumn()
+    id: number;
+    @Column({ length: 255 })
+    title: string;
+
+    @Column({ type: 'timestamp' })
+    usingDate: Date;
+
+    @Column({ type: 'int' })
+    inputTokenCount: number;
+
+    @Column({ type: 'int' })
+    outputTokenCount: number;
+
+    @ManyToOne(() => User, (user) => user.usageLogs)
+    @JoinColumn()
+    user: User;
+
+    @ManyToOne(() => PlatformAIModel, (model) => model.usageLogs)
+    @JoinColumn()
+    model: PlatformAIModel;
+}
+
+================================================================================
+FILE: .\ai\payment.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { User } from '../user/user.entity';
+import { TokenPackage } from './token-package.entity';
+import { Currency, PaymentMethod } from '../../enums/Payment';
+import { PaymentStatus } from '../../enums/Status';
+
+
+@Entity({ name: 'payments' })
+export class Payment extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'enum', enum: PaymentMethod })
+  paymentMethod: PaymentMethod;
+
+  @Column({ type: 'float' })
+  amount: number; // Real Money Amount (e.g. $10.00)
+
+  @Column({ type: 'enum', enum: Currency })
+  currency: Currency;
+
+  // Store the External ID from Stripe/PayPal
+  @Column({ nullable: true })
+  providerTransactionId: string;
+
+  @CreateDateColumn()
+  transactionDate: Date;
+
+  @Column({
+    type: 'enum',
+    enum: PaymentStatus,
+    default: PaymentStatus.PENDING,
+  })
+  status: PaymentStatus;
+
+  @ManyToOne(() => User)
+  @JoinColumn()
+  user: User;
+
+  @ManyToOne(() => TokenPackage)
+  @JoinColumn()
+  tokenPackage: TokenPackage;
+}
+
+================================================================================
+FILE: .\ai\platform-ai-model.entity.ts
+================================================================================
+
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { AIUsageLog } from './ai-usage-log.entity';
+import { Assessment } from '../assessment/assessment.entity';
+
+@Entity({ name: 'platform_ai_models' })
+export class PlatformAIModel extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ length: 100 })
+  name: string;
+
+  @Column()
+  apiUrl: string;
+
+  @Column({ type: 'float', nullable: true })
+  accuracy: number;
+
+  // Cost per token usage (to calculate how much to deduct from wallet)
+  @Column({ type: 'float', default: 1 })
+  costPerInputToken: number;
+
+  @Column({ type: 'float', default: 1 })
+  costPerOutputToken: number;
+
+  @OneToMany(() => AIUsageLog, (log) => log.model)
+  usageLogs: AIUsageLog[];
+
+  @OneToMany(() => Assessment, (assessment) => assessment.aiModel)
+  assessments: Assessment[];
+}
+
+================================================================================
+FILE: .\ai\token-package.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { Currency } from '../../enums/Payment';
+import { Payment } from './payment.entity';
+
+@Entity({ name: 'token_packages' })
+export class TokenPackage extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ length: 150 })
+  name: string;
+
+  @Column({ type: 'float' })
+  tokenAmount: number;
+
+  @Column({ type: 'float', default: 0 })
+  bonusTokenAmount: number; 
+
+  @Column({ type: 'float' })
+  price: number;
+
+  @Column({ type: 'enum', enum: Currency, default: Currency.USD })
+  currency: Currency;
+
+  @Column({ type: 'float', default: 0 })
+  discountInPercent: number;
+
+  @Column({ default: true })
+  isActive: boolean; 
+
+  @OneToMany(() => Payment, (payment) => payment.tokenPackage)
+  payments: Payment[];
+}
+
+================================================================================
+FILE: .\ai\user-token-balance.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { User } from '../user/user.entity';
+import { WalletTransaction } from './wallet-transaction.entity';
+
+@Entity({ name: 'user_token_balances' })
+export class UserTokenBalance extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'float', default: 0 })
+  tokenBalance: number;
+
+  // Changed to OneToOne: One user has exactly one wallet
+  @OneToOne(() => User)
+  @JoinColumn()
+  user: User;
+
+  // Link to transaction history
+  @OneToMany(() => WalletTransaction, (tx) => tx.wallet)
+  transactions: WalletTransaction[];
+}
+
+================================================================================
+FILE: .\ai\wallet-transaction.entity.ts
+================================================================================
+
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    ManyToOne,
+    JoinColumn,
+    CreateDateColumn,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { UserTokenBalance } from './user-token-balance.entity';
+import { Payment } from './payment.entity';
+
+export enum TransactionType {
+    PURCHASE = 'PURCHASE',   // Bought tokens
+    SPEND = 'SPEND',         // Used AI
+    REFUND = 'REFUND',       // Admin refunded
+    GIFT = 'GIFT',           // Sent to another user
+    BONUS = 'BONUS'          // System reward
+}
+
+@Entity({ name: 'wallet_transactions' })
+export class WalletTransaction extends BaseEntity {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column({ type: 'enum', enum: TransactionType })
+    type: TransactionType;
+
+    @Column({ type: 'float' })
+    amount: number; // Positive for add, Negative for deduct
+
+    @Column({ type: 'float' })
+    balanceAfter: number; // Snapshot of balance after tx
+
+    @Column({ nullable: true })
+    description: string; // e.g. "Usage for GPT-4", "Gold Package Purchase"
+
+    @CreateDateColumn()
+    createdAt: Date;
+
+    @ManyToOne(() => UserTokenBalance, (wallet) => wallet.transactions)
+    @JoinColumn()
+    wallet: UserTokenBalance;
+
+    // Optional: Link to a specific Payment if this was a Purchase
+    @ManyToOne(() => Payment, { nullable: true })
+    @JoinColumn()
+    payment: Payment;
+}
+
+================================================================================
+FILE: .\assessment\assessment.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { SubmissionType } from '../../enums/Assessment';
+import { Class } from '../classroom/class.entity';
+import { PlatformAIModel } from '../ai/platform-ai-model.entity';
+import { Submission } from './submission.entity';
+import { AssessmentResource } from '../resource/assessment-resource.entity';
+import { Rubrics } from './rubic.entity';
+import { EvaluationRubricScore } from './evaluation-rubric-score.entity';
+
+
+@Entity({ name: 'assessments' })
+export class Assessment extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+  @Column({ length: 255 })
+  title: string;
+  @Column({ type: 'text' })
+  instruction: string;
+
+  @Column({ type: 'timestamp' })
+  dueDate: Date;
+
+  @Column({ type: 'timestamp' })
+  startDate: Date;
+
+  @Column({ type: 'int' })
+  maxScore: number;
+
+  @Column({ type: 'enum', enum: SubmissionType })
+  submissionType: SubmissionType;
+  @Column({ default: false })
+  allowLate: boolean;
+
+  @OneToMany(() => Rubrics, rubric => rubric.assessment, {
+    cascade: true,
+  })
+  rubrics: Rubrics[];
+
+
+  @Column({ type: 'text', nullable: true })
+  penaltyCriteria: string;
+
+  @Column({ default: false })
+  aiEvaluationEnable: boolean;
+
+  @Column({ default: false })
+  allowTeamSubmition: boolean;
+
+  @ManyToOne(() => Class)
+  @JoinColumn()
+  class: Class;
+
+  @ManyToOne(() => PlatformAIModel)
+  @JoinColumn()
+  aiModel: PlatformAIModel;
+
+  @OneToMany(() => Submission, (submission) => submission.assessment)
+  submissions: Submission[];
+
+  @OneToMany(() => AssessmentResource, (ar) => ar.assessment)
+  resources: AssessmentResource[];
+  @OneToMany(() => EvaluationRubricScore, (rs) => rs.evaluation, {
+    cascade: true,
+  })
+  rubricScores: EvaluationRubricScore[];
+}
+
+================================================================================
+FILE: .\assessment\evaluation-feedback.entity.ts
+================================================================================
+
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  CreateDateColumn,
+} from 'typeorm';
+import { Evaluation } from './evaluation.entity';
+
+export enum FeedbackType {
+  SUGGESTION = 'suggestion',
+  WARNING = 'warning',
+  ERROR = 'error',
+}
+
+@Entity('evaluation_feedback')
+export class EvaluationFeedback {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
+
+  @ManyToOne(() => Evaluation, (evaluation) => evaluation.feedbacks, {
+    onDelete: 'CASCADE',
+  })
+  evaluation: Evaluation;
+
+  @Column({ type: 'text' })
+  filePath: string;
+
+  @Column({ type: 'int', nullable: true })
+  startLine: number;
+
+  @Column({ type: 'int', nullable: true })
+  endLine: number;
+
+  @Column({ type: 'text' })
+  message: string;
+
+  @Column({
+    type: 'enum',
+    enum: FeedbackType,
+  })
+  feedbackType: FeedbackType;
+
+  @CreateDateColumn()
+  createdAt: Date;
+}
+
+
+================================================================================
+FILE: .\assessment\evaluation-rubric-score.entity.ts
+================================================================================
+
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne } from 'typeorm';
+import { Evaluation } from './evaluation.entity';
+
+@Entity('evaluation_rubric_scores')
+export class EvaluationRubricScore {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column()
+  rubricId: number; // Links to your Rubric definition
+
+  @Column({ type: 'float' })
+  score: number;
+
+  @Column({ type: 'text', nullable: true })
+  comment: string;
+
+@ManyToOne(() => Evaluation, (evaluation) => evaluation.rubricScores, {
+  onDelete: 'CASCADE',
+})
+evaluation: Evaluation;
+}
+
+================================================================================
+FILE: .\assessment\evaluation.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { EvaluationType } from '../../enums/Assessment';
+import { Submission } from './submission.entity';
+import { EvaluationFeedback } from './evaluation-feedback.entity';
+import { EvaluationRubricScore } from './evaluation-rubric-score.entity';
+
+@Entity({ name: 'evaluations' })
+export class Evaluation extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ type: 'float' })
+  score: number;
+
+  @Column({ type: 'text', nullable: true })
+  feedback: string;
+
+  @Column({ type: 'float', default: 0 })
+  penaltyScore: number;
+
+  @Column({ default: false })
+  isApproved: boolean;
+
+  @Column({ default: false })
+  isModified: boolean;
+
+  @Column({ type: 'enum', enum: EvaluationType })
+  evaluationType: EvaluationType;
+
+  @Column({ type: 'text', nullable: true })
+  aiOutput: string;
+
+  @Column({ length: 100, nullable: true })
+  confidencePoint: string;
+
+  @OneToOne(() => Submission, (submission) => submission.evaluation)
+  @JoinColumn()
+  submission: Submission;
+
+  @OneToMany(() => EvaluationFeedback, (feedback) => feedback.evaluation, {
+    cascade: true,
+  })
+  feedbacks: EvaluationFeedback[];
+  @OneToMany(() => EvaluationRubricScore, (rs) => rs.evaluation, {
+    cascade: true,
+  })
+  rubricScores: EvaluationRubricScore[];
+}
+
+
+================================================================================
+FILE: .\assessment\rubic.entity.ts
+================================================================================
+
+import { BaseEntity, Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from "typeorm";
+import { Assessment } from "./assessment.entity";
+
+@Entity({ name: 'rubrics' })
+export class Rubrics extends BaseEntity {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column(({ type: 'text', }))
+    definition: string;
+
+    @Column({ type: 'float' })
+    totalScore: number;
+
+    @ManyToOne(() => Assessment, assessment => assessment.rubrics, {
+        onDelete: 'CASCADE',
+    })
+    @JoinColumn({ name: 'assessment_id' })
+    assessment: Assessment;
+
+}
+
+
+================================================================================
+FILE: .\assessment\submission.entity.ts
+================================================================================
+
+  import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    ManyToOne,
+    JoinColumn,
+    OneToOne,
+    OneToMany,
+  } from 'typeorm';
+  import { BaseEntity } from '../base.entity';
+  import { User } from '../user/user.entity';
+  import { Team } from '../classroom/team.entity'; // Make sure this import exists
+  import { Assessment } from './assessment.entity';
+  import { Evaluation } from './evaluation.entity';
+  import { SubmissionStatus } from '../../enums/Status';
+  import { SubmissionResource } from '../resource/submission-resource.entity';
+
+  @Entity({ name: 'submissions' })
+  export class Submission extends BaseEntity {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+    submissionTime: Date;
+
+    @Column({
+      type: 'enum',
+      enum: SubmissionStatus,
+      default: SubmissionStatus.PENDING,
+    })
+    status: SubmissionStatus;
+
+    @Column({ default: 1 })
+    attemptNumber: number;
+
+    @ManyToOne(() => User, { nullable: true }) // Nullable because a Team might submit without a specific user owner context in some designs
+    @JoinColumn()
+    user: User;
+
+    // --- ADD THIS TO SUPPORT TEAM SUBMISSIONS ---
+    @ManyToOne(() => Team, { nullable: true })
+    @JoinColumn()
+    team: Team;
+
+    @ManyToOne(() => Assessment, (assessment) => assessment.submissions)
+    @JoinColumn()
+    assessment: Assessment;
+
+    @OneToOne(() => Evaluation, (evaluation) => evaluation.submission)
+    evaluation: Evaluation;
+
+    @OneToMany(() => SubmissionResource, (sr) => sr.submission)
+    resources: SubmissionResource[];
+  }
+
+================================================================================
+FILE: .\classroom\class.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  BaseEntity,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
+import { User } from '../user/user.entity';
+import { Enrollment } from './enrollment.entity';
+import { Team } from './team.entity';
+import { Assessment } from '../assessment/assessment.entity';
+import { ClassResource } from '../resource/class-resource.entity';
+import { ClassStatus } from '../../enums/Status'; 
+import { Module } from '../lesson/module.entity';
+
+@Entity({ name: 'classes' })
+export class Class extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number; 
+
+  @Column({ length: 300 })
+  name: string; 
+
+  @Column({ nullable: true })
+  description: string; 
+
+  @Column({ unique: true, length: 6 })
+  joinCode: string; 
+
+  @Column({ nullable: true })
+  coverImageUrl: string; 
+
+  @Column({
+    type: 'enum',
+    enum: ClassStatus,
+    default: ClassStatus.ACTIVE,
+  })
+  status: ClassStatus;
+
+
+  @ManyToOne(() => User, (user) => user.classes)
+  @JoinColumn() 
+  owner: User; 
+
+  @OneToMany(() => Enrollment, (enrollment) => enrollment.class)
+  enrollments: Enrollment[]; 
+
+  @OneToMany(() => Team, (team) => team.class)
+  teams: Team[]; 
+
+  @OneToMany(() => Module, (module) => module.class)
+  modules: Module[]; 
+
+
+  @OneToMany(() => Assessment, (assessment) => assessment.class)
+  assessments: Assessment[]; 
+
+  @OneToMany(() => ClassResource, (cr) => cr.class)
+  resources: ClassResource[]; 
+}
+
+================================================================================
+FILE: .\classroom\enrollment.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  BaseEntity,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { User } from '../user/user.entity';
+import { Class } from './class.entity';
+import { UserRole } from '../../enums/Role';
+
+@Entity({ name: 'enrollments' })
+export class Enrollment extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => User, (user) => user.enrollments)
+  @JoinColumn()
+  user: User;
+
+  @ManyToOne(() => Class, (cls) => cls.enrollments)
+  @JoinColumn()
+  class: Class;
+
+  @Column({ type: "enum", enum: UserRole, default: UserRole.Student })
+  role: UserRole;
+
+}
+
+
+================================================================================
+FILE: .\classroom\team.entity.ts
+================================================================================
+
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    Column,
+    BaseEntity,
+    ManyToOne,
+    JoinColumn,
+    OneToMany,
+} from 'typeorm';
+import { User } from '../user/user.entity';
+import { Class } from './class.entity';
+import { TeamMember } from './user-team.entity';
+
+@Entity({ name: 'teams' })
+export class Team extends BaseEntity {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @Column({ unique: true, length: 300 })
+    name: string;
+
+    @Column({ unique: true, length: 6 })
+    joinCode: string;
+
+    @Column()
+    maxMember: number;
+
+    @ManyToOne(() => User, (user) => user.leadTeams ,{nullable: true})
+    @JoinColumn()
+    leader: User;
+
+    @ManyToOne(() => Class, (cls) => cls.teams)
+    @JoinColumn()
+    class: Class;
+
+    @OneToMany(() => TeamMember, (member) => member.team)
+    members: TeamMember[];
+}
+
+
+================================================================================
+FILE: .\classroom\user-team.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+  Column,
+  BaseEntity,
+  Unique,
+} from 'typeorm';
+import { Team } from './team.entity';
+import { User } from '../user/user.entity';
+
+@Entity({ name: 'team_members' })
+@Unique(['user', 'team'])
+export class TeamMember extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => Team, (team) => team.members)
+  @JoinColumn()
+  team: Team;
+
+  @ManyToOne(() => User, (user) => user.teamMemberships)
+  @JoinColumn()
+  user: User;
+
+  @Column({ type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  enrollDate: Date;
+
+  @Column({ default: false })
+  isApproved: boolean;
+}
+
+
+================================================================================
+FILE: .\lesson\module.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { Class } from '../classroom/class.entity';
+import { Topic } from './topic.entity';
+import { ModuleResource } from '../resource/module-resource.entity';
+
+@Entity({ name: 'modules' })
+export class Module extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number; 
+
+  @Column({ length: 255 })
+  title: string; 
+
+  @Column({ type: 'text', nullable: true })
+  description: string; 
+
+  @ManyToOne(() => Class)
+  @JoinColumn()
+  class: Class; 
+
+  @OneToMany(() => Topic, (topic) => topic.module)
+  topics: Topic[];
+
+  @OneToMany(() => ModuleResource, (mr) => mr.module)
+  resources: ModuleResource[];
+}
+
+================================================================================
+FILE: .\lesson\topic.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { Module } from './module.entity';
+import { TopicResource } from '../resource/topic-resource.entity';
+
+@Entity({ name: 'topics' })
+export class Topic extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number; 
+
+  @Column({ length: 255 })
+  title: string; 
+
+  @Column({ type: 'text', nullable: true })
+  description: string; 
+
+  @ManyToOne(() => Module, (module) => module.topics)
+  @JoinColumn()
+  module: Module; 
+
+  @OneToMany(() => TopicResource, (tr) => tr.topic)
+  resources: TopicResource[];
+}
+
+================================================================================
+FILE: .\resource\assessment-resource.entity.ts
+================================================================================
+
+import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { Assessment } from '../assessment/assessment.entity';
+import { Resource } from './resource.entity';
+
+@Entity({ name: 'assignment_resources' })
+export class AssessmentResource extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => Assessment, (assessment) => assessment.resources)
+  @JoinColumn()
+  assessment: Assessment; 
+
+  @ManyToOne(() => Resource)
+  @JoinColumn()
+  resource: Resource; 
+}
+
+================================================================================
+FILE: .\resource\class-resource.entity.ts
+================================================================================
+
+import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { Class } from '../classroom/class.entity';
+import { Resource } from './resource.entity';
+
+@Entity({ name: 'class_resources' })
+export class ClassResource extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => Class)
+  @JoinColumn()
+  class: Class; 
+
+  @ManyToOne(() => Resource)
+  @JoinColumn()
+  resource: Resource; 
+}
+
+================================================================================
+FILE: .\resource\module-resource.entity.ts
+================================================================================
+
+import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { Resource } from './resource.entity';
+import { Module } from '../lesson/module.entity';
+
+@Entity({ name: 'module_resources' })
+export class ModuleResource extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => Module, (module) => module.resources)
+  @JoinColumn({ name: 'module_id' })
+  module: Module; 
+
+  @ManyToOne(() => Resource)
+  @JoinColumn()
+  resource: Resource; 
+}
+
+================================================================================
+FILE: .\resource\resource.entity.ts
+================================================================================
+
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { ResourceType } from '../../enums/Resource';
+import { ModuleResource } from './module-resource.entity';
+import { TopicResource } from './topic-resource.entity';
+import { ClassResource } from './class-resource.entity';
+import { SubmissionResource } from './submission-resource.entity';
+import { AssessmentResource } from './assessment-resource.entity';
+
+@Entity({ name: 'resources' })
+export class Resource extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number; 
+
+  @Column({ length: 255 })
+  title: string; 
+
+  @Column({ type: 'enum', enum: ResourceType })
+  type: ResourceType;
+
+  @Column()
+  url: string; 
+
+  @Column({ length: 100 })
+  owner: string; 
+
+  @Column({ type: 'text', nullable: true })
+  description: string; 
+
+  @OneToMany(() => ModuleResource, (mr) => mr.resource)
+  moduleResources: ModuleResource[]; 
+
+  @OneToMany(() => TopicResource, (tr) => tr.resource)
+  topicResources: TopicResource[]; 
+
+  @OneToMany(() => AssessmentResource, (ar) => ar.resource)
+  assessmentResource: AssessmentResource[]; 
+
+  @OneToMany(() => ClassResource, (cr) => cr.resource)
+  classResources: ClassResource[]; 
+
+  @OneToMany(() => SubmissionResource, (sr) => sr.resource)
+  submissionResources: SubmissionResource[]; 
+}
+
+================================================================================
+FILE: .\resource\submission-resource.entity.ts
+================================================================================
+
+import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { Submission } from '../assessment/submission.entity';
+import { Resource } from './resource.entity';
+
+@Entity({ name: 'submission_resources' })
+export class SubmissionResource extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => Submission, (submission) => submission.resources)
+  @JoinColumn()
+  submission: Submission;
+
+  @ManyToOne(() => Resource)
+  @JoinColumn()
+  resource: Resource;
+}
+
+================================================================================
+FILE: .\resource\topic-resource.entity.ts
+================================================================================
+
+import { Entity, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { Topic } from '../lesson/topic.entity';
+import { Resource } from './resource.entity';
+
+@Entity({ name: 'topic_resources' })
+export class TopicResource extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @ManyToOne(() => Topic, (topic) => topic.resources)
+  @JoinColumn()
+  topic: Topic;
+
+  @ManyToOne(() => Resource)
+  @JoinColumn()
+  resource: Resource; 
+}
+
+================================================================================
+FILE: .\user\oauth-account.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { User } from './user.entity';
+import { OAuthProvider } from './oauth-provider.entity';
+
+@Entity({ name: 'oauth_accounts' })
+export class OAuthAccount extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number; 
+
+  @Column()
+  accountId: string; 
+
+  @ManyToOne(() => User)
+  @JoinColumn()
+  user: User; 
+
+  @ManyToOne(() => OAuthProvider, (provider) => provider.accounts)
+  @JoinColumn()
+  provider: OAuthProvider; 
+}
+
+================================================================================
+FILE: .\user\oauth-provider.entity.ts
+================================================================================
+
+import { Entity, PrimaryGeneratedColumn, Column, OneToMany } from 'typeorm';
+import { BaseEntity } from '../base.entity'; 
+import { OAuthAccount } from './oauth-account.entity';
+
+@Entity({ name: 'oauth_providers' })
+export class OAuthProvider extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number; 
+
+  @Column({ length: 100, unique: true })
+  name: string; 
+
+  @Column()
+  authUrl: string; 
+
+  @Column()
+  clientId: string; 
+
+  @Column()
+  clientSecret: string; 
+
+  @OneToMany(() => OAuthAccount, (account) => account.provider)
+  accounts: OAuthAccount[];
+}
+
+================================================================================
+FILE: .\user\telegram-chat.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
+import { BaseEntity } from '../base.entity';
+import { User } from './user.entity';
+
+@Entity({ name: 'telegram_chats' })
+export class TelegramChat extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number; 
+
+  @Column({ unique: true })
+  chatId: string; 
+
+  @ManyToOne(() => User)
+  @JoinColumn()
+  user: User;
+}
+
+================================================================================
+FILE: .\user\user-email-otp.entity.ts
+================================================================================
+
+import { BaseEntity, Column, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { User } from "./user.entity";
+
+@Entity({ name: 'user_email_otp' })
+export class UserEmailOtp extends BaseEntity {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @OneToOne(() => User, (user) => user.emailOtps)
+    @JoinColumn()
+    user: User;
+
+    @Column()
+    otp: string; 
+
+    @Column({ type: 'timestamp' })
+    expiresAt: Date;
+}
+
+
+================================================================================
+FILE: .\user\user-refresh-token.entity.ts
+================================================================================
+
+import {
+    Entity,
+    PrimaryGeneratedColumn,
+    ManyToOne,
+    JoinColumn,
+    Column,
+    BaseEntity,
+    Index,
+    OneToOne,
+} from 'typeorm';
+import { User } from './user.entity';
+
+@Entity({ name: 'user_refresh_token' })
+export class UserRefreshToken extends BaseEntity {
+    @PrimaryGeneratedColumn()
+    id: number;
+
+    @ManyToOne(() => User, (user) => user.refreshTokens)
+    user: User;
+
+    @Column()
+    refreshToken: string;
+
+    @Column()
+    expiresAt: Date;
+
+}
+
+
+================================================================================
+FILE: .\user\user.entity.ts
+================================================================================
+
+import {
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  OneToMany,
+  BaseEntity,
+  OneToOne,
+} from 'typeorm';
+import { UserStatus } from '../../enums/Status';
+import { Class } from '../classroom/class.entity';
+import { Enrollment } from '../classroom/enrollment.entity';
+import { Team } from '../classroom/team.entity';
+import { TeamMember } from '../classroom/user-team.entity';
+import { OAuthAccount } from './oauth-account.entity';
+import { TelegramChat } from './telegram-chat.entity';
+import { AIUsageLog } from '../ai/ai-usage-log.entity';
+import { UserTokenBalance } from '../ai/user-token-balance.entity';
+import { Payment } from '../ai/payment.entity';
+import { Submission } from '../assessment/submission.entity';
+import { UserRefreshToken } from './user-refresh-token.entity';
+import { UserEmailOtp } from './user-email-otp.entity';
+
+@Entity({ name: 'users' })
+export class User extends BaseEntity {
+  @PrimaryGeneratedColumn()
+  id: number;
+
+  @Column({ length: 100 })
+  firstName: string;
+
+  @Column({ length: 100 ,nullable:true})
+  lastName?: string;
+
+  @Column({ length: 10, nullable: true })
+  gender: string;
+
+  @Column({ nullable: true })
+  dob: Date;
+
+  @Column({ length: 20, unique: true, nullable: true })
+  phoneNumber: string;
+
+  @Column({ length: 150, unique: true })
+  email: string;
+
+  @Column({ length: 255 })
+  password: string;
+
+  @Column({ nullable: true })
+  profilePictureUrl: string;
+
+  @Column({ default: false })
+  isVerified: boolean;
+
+  @Column({ default: false })
+  isTwoFactorEnable: boolean;
+
+  @Column({
+    type: 'enum',
+    enum: UserStatus,
+    default: UserStatus.INACTIVE,
+  })
+  status: UserStatus;
+
+  @OneToMany(() => Class, (cls) => cls.owner)
+  classes: Class[];
+
+  @OneToMany(() => Enrollment, (enrollment) => enrollment.user)
+  enrollments: Enrollment[];
+
+  @OneToMany(() => Team, (team) => team.leader)
+  leadTeams: Team[];
+
+  @OneToMany(() => TeamMember, (member) => member.user)
+  teamMemberships: TeamMember[];
+
+  @OneToMany(() => OAuthAccount, (account) => account.user)
+  oauthAccounts: OAuthAccount[];
+
+  @OneToMany(() => TelegramChat, (chat) => chat.user)
+  telegramChats: TelegramChat[];
+
+  @OneToMany(() => AIUsageLog, (log) => log.user)
+  usageLogs: AIUsageLog[];
+
+  @OneToMany(() => UserTokenBalance, (balance) => balance.user)
+  tokenBalances: UserTokenBalance[];
+
+  @OneToMany(() => Payment, (payment) => payment.user)
+  payments: Payment[];
+
+  @OneToMany(() => Submission, (submission) => submission.user)
+  submissions: Submission[];
+
+  @OneToMany(() => UserRefreshToken, (token) => token.user)
+  refreshTokens: UserRefreshToken[];
+
+  @OneToOne(() => UserEmailOtp, (ueo) => ueo.user)
+  emailOtps: UserEmailOtp;
+
+}
+

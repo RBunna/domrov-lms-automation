@@ -18,3 +18,9 @@ export enum QuizType {
   GRADED = 'GRADED',
   PRACTICE = 'PRACTICE',
 }
+
+export enum SubmissionMethod {
+  ZIP = 'ZIP ',
+  GITHUB = 'GITHUB',
+  ANY = 'ANY',
+}

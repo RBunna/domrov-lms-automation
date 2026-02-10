@@ -24,6 +24,7 @@ import { UpdateClassDto } from '../../../libs/dtos/class/update-class.dto';
 import { Assessment } from '../../../libs/entities/assessment/assessment.entity';
 import { Submission } from '../../../libs/entities/assessment/submission.entity';
 import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
+import { UserResponseDto } from '../../../libs/dtos/user/user-response.dto';
 @Injectable()
 export class ClassService {
 
@@ -170,20 +171,30 @@ export class ClassService {
         classId: number,
         teacherId: number,
     ) {
+        // 1. Find the class directly to check ownership
+        const classEntity = await this.classRepository.findOne({
+            where: { id: classId },
+            relations: ['owner'],
+        });
+
+        // 2. Check if user is the owner
+        // Added optional chaining (?.) for safety
+        if (classEntity && classEntity.owner?.id === teacherId) {
+            return { class: classEntity };
+        }
+
+        // 3. If not owner, check for explicit Teacher enrollment
         const enrollment = await this.enrollmentRepository.findOne({
             where: {
                 class: { id: classId },
                 user: { id: teacherId },
+                role: UserRole.Teacher, // Must be teacher
             },
             relations: ['class'],
         });
 
         if (!enrollment) {
-            throw new NotFoundException('Class not found or you are not enrolled');
-        }
-
-        if (enrollment.role !== UserRole.Teacher) {
-            throw new ForbiddenException('You do not have permission for this action');
+            throw new NotFoundException('Class not found or you are not authorized');
         }
 
         return { class: enrollment.class, enrollment };
@@ -202,14 +213,36 @@ export class ClassService {
     }
 
     async getClassesForUser(userId: number) {
+        // 1. Get classes where user is the owner
+        const ownedClasses = await this.classRepository.find({
+            where: { owner: { id: userId } },
+            relations: ['owner'],
+        });
+
+        // 2. Get classes where user is enrolled
         const enrollments = await this.enrollmentRepository.find({
-            where: {
-                user: { id: userId },
-            },
+            where: { user: { id: userId } },
             relations: ['class', 'class.owner'],
         });
 
-        return enrollments.map((enrollment) => {
+        // 3. Combine and map them
+        const mappedOwned = ownedClasses.map(cls => ({
+            id: cls.id,
+            name: cls.name,
+            description: cls.description,
+            coverImageUrl: cls.coverImageUrl,
+            status: cls.status,
+            owner: {
+                id: cls.owner.id,
+                firstName: cls.owner.firstName,
+                lastName: cls.owner.lastName,
+                email: cls.owner.email,
+            },
+            role: UserRole.Teacher, // Owners are effectively teachers
+            joinCode: cls.joinCode,
+        }));
+
+        const mappedEnrolled = enrollments.map((enrollment) => {
             const classData = enrollment.class;
             const owner = classData.owner;
 
@@ -231,10 +264,19 @@ export class ClassService {
                 }),
             };
         });
+
+        // Merge arrays and remove duplicates based on class ID
+        const combinedClasses = [...mappedOwned, ...mappedEnrolled];
+        const uniqueClasses = Array.from(new Map(combinedClasses.map(cls => [cls.id, cls])).values());
+
+        return uniqueClasses;
     }
 
-    async getStudentsInClass(classId: number, teacherId: number) {
-        await this.findClassAndVerifyTeacher(classId, teacherId);
+    async getStudentsInClass(classId: number, userId: number) {
+        // 1. Verify that the class exists and the user is authorized (is a student/member)
+        await this.findClassAndVerifyMember(classId, userId);
+
+        // 2. Fetch all enrollments for this class that are students
         const enrollments = await this.enrollmentRepository.find({
             where: {
                 class: { id: classId },
@@ -243,12 +285,44 @@ export class ClassService {
             relations: ['user'],
         });
 
-        return enrollments.map((enrollment) => {
-            const { password, refreshTokens, emailOtps, ...studentDetails } =
-                enrollment.user;
-            return studentDetails;
-        });
+        // 3. Map the raw user data into the tailored UserResponseDto
+        return enrollments.map((enrollment) => UserResponseDto.toDto(enrollment.user));
     }
+
+    async findClassAndVerifyMember(
+        classId: number,
+        userId: number,
+    ) {
+        // 1. Check for explicit Enrollment (Student or Teacher)
+        const enrollment = await this.enrollmentRepository.findOne({
+            where: {
+                class: { id: classId },
+                user: { id: userId },
+            },
+            relations: ['class'],
+        });
+
+        // 2. If enrolled, authorize immediately
+        if (enrollment) {
+            return { class: enrollment.class, enrollment };
+        }
+
+        // 3. If not enrolled, check if user is the Class Owner
+        const classEntity = await this.classRepository.findOne({
+            where: { id: classId, owner: { id: userId } },
+        });
+
+        if (classEntity) {
+            // Return only the class, enrollment is null
+            return { class: classEntity, enrollment: null };
+        }
+
+        // 4. If neither enrolled nor owner, deny access
+        throw new NotFoundException(
+            `Class with ID ${classId} not found, or you are not authorized to view this data.`
+        );
+    }
+    
 
     async transferOwnership(transferOwnershipDto: TransferOwnershipDto, currentOwnerId: number) {
         const { classId, newOwnerId } = transferOwnershipDto;

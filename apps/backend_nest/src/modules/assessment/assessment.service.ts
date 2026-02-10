@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 
@@ -22,7 +22,11 @@ import { FileService } from '../file/file.service';
 import { UpdateAssessmentDTO } from '../../../libs/dtos/assessment/update-assessment.dto';
 import { SubmissionResource } from '../../../libs/entities/resource/submission-resource.entity';
 import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
-import { EvaluationType } from '../../../libs/enums/Assessment';
+import { EvaluationType, SubmissionMethod } from '../../../libs/enums/Assessment';
+import { Readable } from 'stream';
+import { SubmitAssignmentDto } from '../../../libs/dtos/submission/submit-assignment.dto';
+import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
+import { FeedbackItemDto } from '../../../libs/dtos/submission/feedback-item.dto';
 
 @Injectable()
 export class AssessmentService {
@@ -44,23 +48,27 @@ export class AssessmentService {
     @InjectRepository(Enrollment)
     private enrollmentRepo: Repository<Enrollment>,
     @InjectRepository(Rubrics) private rubricsRepo: Repository<Rubrics>,
-    private fileService: FileService,
-  ) {}
+    @InjectRepository(EvaluationFeedback)
+    private readonly evaluationFeedbackRepo: Repository<EvaluationFeedback>,
+  ) { }
 
-  // --- 1. Create Assessment ---
+  // assessment.service.ts
   async createAssessment(
     userId: number,
+    classId: number,
     dto: CreateAssessmentDTO,
-    files?: Array<Express.Multer.File>,
   ) {
+    // 1. Verify class existence and ownership
     const classEntity = await this.classRepo.findOne({
-      where: { id: dto.classId },
+      where: { id: classId },
       relations: ['owner'],
     });
 
     if (!classEntity) throw new NotFoundException('Class not found');
     if (classEntity.owner.id !== userId)
-      throw new BadRequestException('unauthorized');
+      throw new BadRequestException('Unauthorized');
+
+    // 2. Save Assessment Metadata mapping to DB columns
     const assessment = await this.assessmentRepo.save({
       title: dto.title,
       instruction: dto.instruction,
@@ -71,47 +79,28 @@ export class AssessmentService {
       startDate: dto.startDate,
       dueDate: dto.dueDate,
       class: classEntity,
+      aiEvaluationEnable: dto.aiEvaluationEnable,
+      allowedSubmissionMethod: dto.allowedSubmissionMethod,
     });
-    for (const rubricDto of dto.rubrics) {
-      await this.rubricsRepo.save({
-        definition: rubricDto.criterion, // map criteria → definition
-        totalScore: rubricDto.maxScore, // map score → totalScore
-        assessment: assessment,
-        // link to assessment
-      });
-    }
 
-    // const assessment = await this.assessmentRepo.save({
-    //     ...dto,
-    //     class: classEntity,
-    // });
-
-    //   // Handle Instructor Resources
-    //   if (files && files.length > 0) {
-    //     for (const file of files) {
-    //       const url = await this.fileService.mockUploadFile(file);
-    //       const resource = await this.resourceRepo.save({
-    //         title: file.originalname,
-    //         type: ResourceType.FILE,
-    //         url: url,
-    //         owner: `Instructor:${userId}`,
-    //       });
-    //       // await this.assessResRepo.save({ assessment, resource });
-    //     }
-    //   }
-    if (files && files.length > 0) {
-      const result = await this.fileService.uploadFiles(files);
-      if (result) {
-        const resource = await this.resourceRepo.save({
-          title: result.filename,
-          type: ResourceType.FILE,
-          url: result.url,
-          owner: `Instructor:${userId}`,
-        });
-
-        await this.assessResRepo.save({
+    // 3. Save Rubrics (Cascade will handle linking to assessment)
+    if (dto.rubrics && dto.rubrics.length > 0) {
+      for (const rubricDto of dto.rubrics) {
+        await this.rubricsRepo.save({
+          definition: rubricDto.criterion,
+          totalScore: rubricDto.maxScore,
           assessment: assessment,
-          resource: resource,
+        });
+      }
+    }
+    if (dto.resources && dto.resources.length > 0) {
+      for (const resDto of dto.resources) {
+        await this.resourceRepo.save({
+          title: resDto.title,
+          url: resDto.url,
+          type: ResourceType.FILE, // Assuming file type, adjust as needed
+          owner: `Instructor:${userId}`,
+          assessment: assessment // Link to assessment
         });
       }
     }
@@ -126,21 +115,48 @@ export class AssessmentService {
   async submitAssignment(
     userId: number,
     assessmentId: number,
-    files: Array<Express.Multer.File>,
+    dto: SubmitAssignmentDto,
   ) {
+    // 1. Fetch assessment with submission settings and class info
     const assessment = await this.assessmentRepo.findOne({
       where: { id: assessmentId },
       relations: ['class'],
     });
     if (!assessment) throw new NotFoundException('Assessment not found');
 
+    const isEnrolled = await this.enrollmentRepo.findOne({
+      where: {
+        user: { id: userId },
+        class: { id: assessment.class.id }
+      }
+    });
+
+    if (!isEnrolled) {
+      throw new ForbiddenException('You are not enrolled in the class required for this assessment.');
+    }
+
+    // 3. Validate Submission Method based on Assessment Settings
+    const hasResources = dto.resources && dto.resources.length > 0;
+    const hasGit = !!dto.githubUrl;
+
+    if (assessment.allowedSubmissionMethod === SubmissionMethod.ZIP && !hasResources) {
+      throw new BadRequestException('This assessment requires file submissions.');
+    }
+
+    if (assessment.allowedSubmissionMethod === SubmissionMethod.GITHUB && !hasGit) {
+      throw new BadRequestException('This assessment requires a GitHub repository URL.');
+    }
+
+    if (assessment.allowedSubmissionMethod === SubmissionMethod.ANY && !hasResources && !hasGit) {
+      throw new BadRequestException('Please submit either files or a GitHub repository URL.');
+    }
+
+    // 4. Team Logic
     const user = await this.userRepo.findOne({ where: { id: userId } });
     if (!user) throw new NotFoundException('User not found');
 
-    // -- TEAM LOGIC --
-    let team;
+    let team: Team;
     if (assessment.allowTeamSubmition) {
-      // Find the team this user belongs to in this class
       team = await this.teamRepo.findOne({
         where: {
           class: { id: assessment.class.id },
@@ -154,7 +170,7 @@ export class AssessmentService {
         );
     }
 
-    // -- STATUS LOGIC --
+    // 5. Status Logic (Deadline Check)
     const now = new Date();
     let status = SubmissionStatus.SUBMITTED;
     if (now > assessment.dueDate) {
@@ -163,8 +179,7 @@ export class AssessmentService {
       status = SubmissionStatus.LATE;
     }
 
-    // -- FIND EXISTING SUBMISSION --
-    // If team, check by TeamID. If individual, check by UserID.
+    // 6. Find or Create Submission Entity
     let submission = await this.submissionRepo.findOne({
       where: assessment.allowTeamSubmition
         ? { assessment: { id: assessmentId }, team: { id: team.id } }
@@ -174,55 +189,63 @@ export class AssessmentService {
     if (submission) {
       // Resubmission Logic
       submission.submissionTime = now;
-      submission.status =
-        status === SubmissionStatus.LATE
-          ? SubmissionStatus.LATE
-          : SubmissionStatus.RESUBMITTED;
+      submission.status = status === SubmissionStatus.LATE ? SubmissionStatus.LATE : SubmissionStatus.RESUBMITTED;
       submission.attemptNumber += 1;
-      // Update the user who made the specific edit
       submission.user = user;
+      // Clear old resources to replace them with new ones
+      await this.subResourceRepo.delete({ submission: { id: submission.id } });
     } else {
       // New Submission Logic
       submission = this.submissionRepo.create({
         assessment,
         submissionTime: now,
         status,
-        user: user, // The specific student who clicked "Submit"
-        team: team, // Null if individual
+        user: user,
+        team: team,
       });
     }
 
     const savedSubmission = await this.submissionRepo.save(submission);
 
-    // // -- HANDLE FILES --
-    // if (files && files.length > 0) {
-    //     for (const file of files) {
-    //         const url = await this.fileService.mockUploadFile(file);
-    //         const resource = await this.resourceRepo.save({
-    //             title: file.originalname,
-    //             type: ResourceType.FILE,
-    //             url: url,
-    //             owner: user.email,
-    //         });
-    //         await this.subResourceRepo.save({ submission: savedSubmission, resource });
-    //     }
-    // }
-    if (files && files.length > 0) {
-      const result = await this.fileService.uploadFiles(files);
-      if (result) {
+    // 7. Link Resources (URLs) to the Submission
+
+    // Link File URLs
+    if (hasResources) {
+      for (const resDto of dto.resources) {
         const resource = await this.resourceRepo.save({
-          title: result.filename,
+          title: resDto.title,
           type: ResourceType.FILE,
-          url: result.url,
-          owner: `Instructor:${userId}`,
+          url: resDto.url,
+          owner: `Student:${userId}`,
         });
 
-        await this.assessResRepo.save({
-          assessment: assessment,
+        await this.subResourceRepo.save({
+          submission: savedSubmission,
           resource: resource,
         });
       }
     }
+
+    // Link Git URL
+    if (hasGit) {
+      const resource = await this.resourceRepo.save({
+        title: `GitHub: ${assessment.title}`,
+        type: ResourceType.URL,
+        url: dto.githubUrl,
+        owner: `Student:${userId}`,
+      });
+
+      await this.subResourceRepo.save({
+        submission: savedSubmission,
+        resource: resource,
+      });
+    }
+
+    // 8. Trigger AI Evaluation if Enabled
+    if (assessment.aiEvaluationEnable) {
+      // this.aiEvaluationService.queueEvaluation(savedSubmission.id);
+    }
+
     return {
       message: 'Submitted successfully',
       submissionId: savedSubmission.id,
@@ -235,6 +258,7 @@ export class AssessmentService {
     submissionId: number,
     dto: GradeSubmissionDTO,
   ) {
+    // 1. Fetch submission with evaluation and relationship relations
     const submission = await this.submissionRepo.findOne({
       where: { id: submissionId },
       relations: [
@@ -252,15 +276,21 @@ export class AssessmentService {
       throw new BadRequestException('Unauthorized');
     }
 
+    // 2. 👈 Check if evaluation exists, if not create a new one
     let evaluation = submission.evaluation;
     if (!evaluation) {
-      evaluation = this.evaluationRepo.create({ submission });
+      evaluation = this.evaluationRepo.create({
+        submission,
+        evaluationType:EvaluationType.MANUAL
+      });
     }
 
+    // 3. Update evaluation details
     evaluation.score = dto.score;
     evaluation.feedback = dto.feedback;
     await this.evaluationRepo.save(evaluation);
 
+    // 4. Update submission status
     submission.status = SubmissionStatus.GRADED;
     await this.submissionRepo.save(submission);
 
@@ -318,56 +348,56 @@ export class AssessmentService {
       // Only needed user fields
       user: submission.user
         ? {
-            id: submission.user.id,
-            firstName: submission.user.firstName,
-            lastName: submission.user.lastName,
-          }
+          id: submission.user.id,
+          firstName: submission.user.firstName,
+          lastName: submission.user.lastName,
+        }
         : null,
 
       // Team and members
       team: submission.team
         ? {
-            id: submission.team.id,
-            name: submission.team.name,
-            maxMember: submission.team.maxMember,
-            members: submission.team.members.map((member) => ({
-              id: member.id,
-              enrollDate: member.enrollDate,
-              isApproved: member.isApproved,
-              user: member.user
-                ? {
-                    id: member.user.id,
-                    firstName: member.user.firstName,
-                    lastName: member.user.lastName,
-                  }
-                : null,
-            })),
-          }
+          id: submission.team.id,
+          name: submission.team.name,
+          maxMember: submission.team.maxMember,
+          members: submission.team.members.map((member) => ({
+            id: member.id,
+            enrollDate: member.enrollDate,
+            isApproved: member.isApproved,
+            user: member.user
+              ? {
+                id: member.user.id,
+                firstName: member.user.firstName,
+                lastName: member.user.lastName,
+              }
+              : null,
+          })),
+        }
         : null,
 
       // Assessment
       assessment: submission.assessment
         ? {
-            id: submission.assessment.id,
-            title: submission.assessment.title,
-            instruction: submission.assessment.instruction,
-            dueDate: submission.assessment.dueDate,
-            startDate: submission.assessment.startDate,
-            maxScore: submission.assessment.maxScore,
-            submissionType: submission.assessment.submissionType,
-            allowLate: submission.assessment.allowLate,
-            penaltyCriteria: submission.assessment.penaltyCriteria,
-            aiEvaluationEnable: submission.assessment.aiEvaluationEnable,
-            allowTeamSubmition: submission.assessment.allowTeamSubmition,
-            class: submission.assessment.class
-              ? {
-                  id: submission.assessment.class.id,
-                  name: submission.assessment.class.name,
-                  description: submission.assessment.class.description,
-                  status: submission.assessment.class.status,
-                }
-              : null,
-          }
+          id: submission.assessment.id,
+          title: submission.assessment.title,
+          instruction: submission.assessment.instruction,
+          dueDate: submission.assessment.dueDate,
+          startDate: submission.assessment.startDate,
+          maxScore: submission.assessment.maxScore,
+          submissionType: submission.assessment.submissionType,
+          allowLate: submission.assessment.allowLate,
+          penaltyCriteria: submission.assessment.penaltyCriteria,
+          aiEvaluationEnable: submission.assessment.aiEvaluationEnable,
+          allowTeamSubmition: submission.assessment.allowTeamSubmition,
+          class: submission.assessment.class
+            ? {
+              id: submission.assessment.class.id,
+              name: submission.assessment.class.name,
+              description: submission.assessment.class.description,
+              status: submission.assessment.class.status,
+            }
+            : null,
+        }
         : null,
 
       // Evaluation
@@ -379,15 +409,15 @@ export class AssessmentService {
         created_at: r.created_at,
         resource: r.resource
           ? {
-              id: r.resource.id,
-              title: r.resource.title,
-              type: r.resource.type,
-              url: r.resource.url,
-              owner: r.resource.owner,
-              description: r.resource.description,
-              created_at: r.resource.created_at,
-              updated_at: r.resource.updated_at ?? null,
-            }
+            id: r.resource.id,
+            title: r.resource.title,
+            type: r.resource.type,
+            url: r.resource.url,
+            owner: r.resource.owner,
+            description: r.resource.description,
+            created_at: r.resource.created_at,
+            updated_at: r.resource.updated_at ?? null,
+          }
           : null,
       })),
     };
@@ -479,13 +509,14 @@ export class AssessmentService {
 
   /**
    * 7. UPDATE Assessment
-   * Teacher edits instructions or extends deadline
+   * Updates instructor details, resources, and evaluation settings
    */
   async updateAssessment(
     userId: number,
     assessmentId: number,
     dto: UpdateAssessmentDTO,
   ) {
+    // 1. Fetch assessment with class and existing resources to check ownership
     const assessment = await this.assessmentRepo.findOne({
       where: { id: assessmentId },
       relations: ['class', 'class.owner'],
@@ -495,10 +526,56 @@ export class AssessmentService {
     if (assessment.class.owner.id !== userId)
       throw new BadRequestException('Unauthorized');
 
-    // Update fields
-    Object.assign(assessment, dto);
+    // 2. Destructure DTO for special handling
+    const { resources, rubrics, ...metadata } = dto;
 
-    return await this.assessmentRepo.save(assessment);
+    // 3. Update basic metadata fields
+    Object.assign(assessment, metadata);
+    await this.assessmentRepo.save(assessment);
+
+    // 4. Update Resources (Strategic: Replace existing links with new data)
+    if (resources) {
+      // First, remove old links for this assessment
+      await this.assessResRepo.delete({ assessment: { id: assessmentId } });
+
+      // Create and link new resources
+      for (const resDto of resources) {
+        // Here we create new resource entities. If your URL points to existing 
+        // resources, you might need to find them first.
+        const resource = await this.resourceRepo.save({
+          title: resDto.title,
+          type: ResourceType.FILE, // Assumed FILE based on requirement
+          url: resDto.url,
+          owner: `Instructor:${userId}`,
+        });
+
+        await this.assessResRepo.save({
+          assessment: assessment,
+          resource: resource,
+        });
+      }
+    }
+
+    // 5. Update Rubrics (Strategic: Replace existing rubrics)
+    if (rubrics) {
+      // Remove old rubrics
+      await this.rubricsRepo.delete({ assessment: { id: assessmentId } });
+
+      // Create new rubrics
+      for (const rubricDto of rubrics) {
+        await this.rubricsRepo.save({
+          definition: rubricDto.criterion,
+          totalScore: rubricDto.maxScore,
+          assessment: assessment,
+        });
+      }
+    }
+
+    // Return the updated assessment
+    return await this.assessmentRepo.findOne({
+      where: { id: assessmentId },
+      relations: ['resources', 'resources.resource', 'rubrics'],
+    });
   }
 
   /**
@@ -668,8 +745,8 @@ export class AssessmentService {
       gradedCount: graded,
     };
   }
-    
-    
+
+
   async evaluateSubmission(
     submissionId: number,
     totalScore: number,
@@ -688,7 +765,7 @@ export class AssessmentService {
     let evaluation = await this.evaluationRepo.findOne({
       where: { submission: { id: submissionId } },
     });
-      
+
 
     if (!evaluation) {
       // Create new evaluation
@@ -707,5 +784,90 @@ export class AssessmentService {
     await this.evaluationRepo.save(evaluation);
 
     return evaluation;
+  }
+
+
+  async addFeedbackLineByLine(userId: number, submissionId: number, dto: FeedbackItemDto) {
+    // 1. 👈 Verify ownership
+    const submission = await this.checkOwnership(userId, submissionId);
+
+    let evaluation = await this.evaluationRepo.findOne({
+      where: { submission: { id: submissionId } },
+    });
+
+    if (!evaluation) {
+      evaluation = this.evaluationRepo.create({
+        submission,
+        score: 0,
+        feedback: '',
+        evaluationType: EvaluationType.AI,
+      });
+      await this.evaluationRepo.save(evaluation);
+    }
+
+    if (dto && dto.path) {
+      const feedbackEntity = this.evaluationFeedbackRepo.create({
+        evaluation: evaluation,
+        filePath: dto.path,
+        startLine: dto.startLine,
+        endLine: dto.endLine,
+        message: dto.message,
+        feedbackType: dto.type,
+      });
+
+      await this.evaluationFeedbackRepo.save(feedbackEntity);
+    }
+
+    return {
+      message: 'Feedback item added successfully',
+      evaluationId: evaluation.id,
+      addedItemsCount: dto ? 1 : 0,
+    };
+  }
+
+  async updateSingleFeedback(userId: number, feedbackId: string, dto: FeedbackItemDto) {
+    const feedback = await this.evaluationFeedbackRepo.findOne({
+      where: { id: feedbackId },
+      relations: ['evaluation', 'evaluation.submission', 'evaluation.submission.assessment', 'evaluation.submission.assessment.class', 'evaluation.submission.assessment.class.owner'],
+    });
+
+    if (!feedback) {
+      throw new NotFoundException('Feedback item not found');
+    }
+
+    if (feedback.evaluation.submission.assessment.class.owner.id !== userId) {
+      throw new ForbiddenException('You do not have permission to update this feedback');
+    }
+
+    // 2. Update fields
+    feedback.filePath = dto.path;
+    feedback.startLine = dto.startLine;
+    feedback.endLine = dto.endLine;
+    feedback.message = dto.message;
+    feedback.feedbackType = dto.type;
+
+    await this.evaluationFeedbackRepo.save(feedback);
+
+    return {
+      message: 'Feedback item updated successfully',
+      feedbackId: feedback.id,
+    };
+  }
+
+  private async checkOwnership(userId: number, submissionId: number) {
+    const submission = await this.submissionRepo.findOne({
+      where: { id: submissionId },
+      relations: ['assessment', 'assessment.class', 'assessment.class.owner'],
+    });
+
+    if (!submission) {
+      throw new NotFoundException('Submission not found');
+    }
+
+    if (submission.assessment.class.owner.id !== userId) {
+      throw new ForbiddenException('You do not have permission to evaluate this submission');
+    }
+
+    return submission;
   }
 }

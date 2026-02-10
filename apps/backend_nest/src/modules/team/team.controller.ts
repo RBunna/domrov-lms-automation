@@ -9,7 +9,6 @@ import {
   Param,
   ParseIntPipe,
   Get,
-  Query,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -18,9 +17,7 @@ import {
   ApiOperation,
   ApiResponse,
   ApiBearerAuth,
-  ApiQuery,
   ApiParam,
-  ApiBody,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TeamService } from './team.service';
@@ -36,12 +33,11 @@ import { CreateManyTeamsDto } from '../../../libs/dtos/team/create-many-teams.dt
 export class TeamController {
   constructor(private readonly teamService: TeamService) { }
 
+  // --- Collection Actions ---
+
   @Post()
   @ApiOperation({ summary: 'Create a new team within a class' })
-  @ApiResponse({
-    status: 201,
-    description: 'The team has been successfully created.',
-  })
+  @ApiResponse({ status: 201, description: 'Created successfully.' })
   @ApiResponse({ status: 403, description: 'Not enrolled in this class' })
   async createTeam(
     @Body() createTeamDto: CreateTeamDto,
@@ -49,6 +45,19 @@ export class TeamController {
   ) {
     return this.teamService.createTeam(createTeamDto, userId);
   }
+
+  @Post('many')
+  @ApiOperation({ summary: 'Create multiple teams in a class (Teacher only)' })
+  @ApiResponse({ status: 201, description: 'Teams created successfully.' })
+  @ApiResponse({ status: 403, description: 'Not a teacher of this class' })
+  async createManyTeams(
+    @Body() createManyTeamsDto: CreateManyTeamsDto,
+    @UserId() teacherId: number,
+  ) {
+    return this.teamService.createManyTeams(createManyTeamsDto, teacherId);
+  }
+
+  // --- Joining / Authentication Actions ---
 
   @Post('join/code')
   @HttpCode(HttpStatus.OK)
@@ -63,8 +72,58 @@ export class TeamController {
     return this.teamService.joinTeamWithCode(joinTeamDto.joinCode, userId);
   }
 
+  @Post('join/token')
+  @ApiOperation({ summary: 'Join a team using an invite token' })
+  async joinTeamByToken(
+    @Body() dto: JoinTeamByTokenDto,
+    @UserId() userId: number,
+  ) {
+    return this.teamService.joinTeamWithLink(dto.token, userId);
+  }
 
-  @Delete(':teamId/member/:memberId')
+  // --- Specific Team Actions ---
+
+  @Get('class/:classId')
+  @ApiOperation({ summary: 'Get all teams in a class with their members' })
+  @ApiResponse({ status: 200, description: 'Teams fetched successfully' })
+  async getTeamsWithMembers(@Param('classId', ParseIntPipe) classId: number, @UserId() userId: number) {
+    return this.teamService.getTeamsWithMembersInClass(classId, userId);
+  }
+
+  @Get(':teamId')
+  @ApiOperation({ summary: 'Get team details (leader and members)' })
+  @ApiParam({ name: 'teamId', description: 'The team ID' })
+  @ApiResponse({ status: 200, description: 'Team details' })
+  @ApiResponse({ status: 403, description: 'Not enrolled in the class' })
+  @ApiResponse({ status: 404, description: 'Team not found' })
+  async getTeamDetails(
+    @Param('teamId', ParseIntPipe) teamId: number,
+    @UserId() userId: number,
+  ) {
+    return this.teamService.getTeamDetails(teamId, userId);
+  }
+
+  @Post(':teamId/invite')
+  @ApiOperation({ summary: 'Invite a user to a team by email' })
+  @ApiParam({ name: 'teamId', type: Number })
+  async inviteTeamByEmail(
+    @Param('teamId', ParseIntPipe) teamId: number,
+    @Body() dto: InviteTeamByEmailDto,
+    @UserId() inviterId: number,
+  ) {
+    return this.teamService.inviteByEmail(teamId, dto.email, inviterId);
+  }
+
+  @Delete(':teamId/leave')
+  @ApiOperation({ summary: 'Leave a team (non-leader only)' })
+  @ApiResponse({ status: 200, description: 'Left the team successfully' })
+  async leaveTeam(@Param('teamId', ParseIntPipe) teamId: number, @UserId() userId: number) {
+    return this.teamService.leaveTeam(teamId, userId);
+  }
+
+  // --- Member Management Actions ---
+
+  @Delete(':teamId/members/:memberId')
   @ApiOperation({ summary: 'Remove a member from a team (Leader only)' })
   @ApiParam({ name: 'teamId', description: 'The team ID' })
   @ApiParam({ name: 'memberId', description: 'The member ID to remove' })
@@ -78,67 +137,4 @@ export class TeamController {
   ) {
     return this.teamService.removeMember(teamId, memberId, leaderId);
   }
-
-  @Post('many')
-  @ApiOperation({ summary: 'Create multiple teams in a class (Teacher only)' })
-  @ApiResponse({
-    status: 201,
-    description: 'The teams have been successfully created.',
-  })
-  @ApiResponse({ status: 403, description: 'Not a teacher of this class' })
-    async createManyTeams(
-    @Body() createManyTeamsDto: CreateManyTeamsDto,
-    @UserId() teacherId: number,
-  ) {
-    return this.teamService.createManyTeams(createManyTeamsDto, teacherId);
-  }
-
-
-  @Get(':teamId/details')
-  @ApiOperation({ summary: 'Get team details (leader and members)' })
-  @ApiParam({ name: 'teamId', description: 'The team ID' })
-  @ApiResponse({ status: 200, description: 'Team details' })
-  @ApiResponse({ status: 403, description: 'Not enrolled in the class' })
-  @ApiResponse({ status: 404, description: 'Team not found' })
-  async getTeamDetails(
-    @Param('teamId', ParseIntPipe) teamId: number,
-    @UserId() userId: number,
-  ) {
-    return this.teamService.getTeamDetails(teamId, userId);
-  }
-
-  @Get('class/:classId')
-  @ApiOperation({ summary: 'Get all teams in a class with their members' })
-  @ApiResponse({ status: 200, description: 'Teams fetched successfully' })
-  async getTeamsWithMembers(@Param('classId') classId: number, @UserId() userId: number) {
-    return this.teamService.getTeamsWithMembersInClass(classId, userId);
-  }
-
-  @Delete(':teamId/leave')
-  @ApiOperation({ summary: 'Leave a team (non-leader only)' })
-  @ApiResponse({ status: 200, description: 'Left the team successfully' })
-  async leaveTeam(@Param('teamId') teamId: number, @UserId() userId: number) {
-    return this.teamService.leaveTeam(teamId, userId);
-  }
-
-  @Post(':teamId/invite')
-  @ApiOperation({ summary: 'Invite a user to a team by email' })
-  @ApiParam({ name: 'teamId', type: Number })
-  async inviteTeamByEmail(
-    @Param('teamId') teamId: number,
-    @Body() dto: InviteTeamByEmailDto,
-    @UserId() inviterId: number,
-  ) {
-    return this.teamService.inviteByEmail(teamId, dto.email, inviterId);
-  }
-
-  @Post('join/token')
-  @ApiOperation({ summary: 'Join a team using an invite token' })
-  async joinTeamByToken(
-    @Body() dto: JoinTeamByTokenDto,
-    @UserId() userId: number,
-  ) {
-    return this.teamService.joinTeamWithLink(dto.token, userId);
-  }
-
 }

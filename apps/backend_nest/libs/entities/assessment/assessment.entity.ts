@@ -7,13 +7,13 @@ import {
   OneToMany,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
-import { SubmissionType } from '../../enums/Assessment';
+import { SubmissionMethod, SubmissionType } from '../../enums/Assessment';
 import { Class } from '../classroom/class.entity';
 import { PlatformAIModel } from '../ai/platform-ai-model.entity';
 import { Submission } from './submission.entity';
 import { AssessmentResource } from '../resource/assessment-resource.entity';
 import { Rubrics } from './rubic.entity';
-import { EvaluationRubricScore } from './evaluation-rubric-score.entity';
+// import { EvaluationRubricScore } from './evaluation-rubric-score.entity';
 
 
 @Entity({ name: 'assessments' })
@@ -51,6 +51,9 @@ export class Assessment extends BaseEntity {
   @Column({ default: false })
   aiEvaluationEnable: boolean;
 
+  @Column({ type: 'enum', enum: SubmissionMethod, default: SubmissionMethod.ANY })
+  allowedSubmissionMethod: SubmissionMethod; 
+
   @Column({ default: false })
   allowTeamSubmition: boolean;
 
@@ -67,8 +70,5 @@ export class Assessment extends BaseEntity {
 
   @OneToMany(() => AssessmentResource, (ar) => ar.assessment)
   resources: AssessmentResource[];
-   @OneToMany(() => EvaluationRubricScore, (rs) => rs.evaluation, {
-    cascade: true,
-  })
-  rubricScores: EvaluationRubricScore[];
+
 }

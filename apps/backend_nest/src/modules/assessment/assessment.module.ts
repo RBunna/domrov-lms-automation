@@ -16,12 +16,13 @@ import { Enrollment } from '../../../libs/entities/classroom/enrollment.entity';
 import { SubmissionResource } from '../../../libs/entities/resource/submission-resource.entity';
 import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
 import { Rubrics } from '../../../libs/entities/assessment/rubic.entity';
+import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       Assessment, Submission, SubmissionResource, AssessmentResource,
-      Resource, Evaluation, Class, User, Team, Enrollment,Rubrics
+      Resource, Evaluation, Class, User, Team, Enrollment,Rubrics,SubmissionResource,EvaluationFeedback,
     ]),
   ],
   controllers: [AssessmentController],
