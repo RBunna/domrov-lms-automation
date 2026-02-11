@@ -6,7 +6,7 @@ from utils.git_handle import clone_repo
 
 
 def downloadFiles(url: str, folder_name: str) -> str:
-    destination_folder = os.path("./files_cache")
+    destination_folder = "./files_cache"
 
     if url.__contains__("github.com"):
         return clone_repo(url, destination_folder,folder_name)

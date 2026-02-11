@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AssessmentController } from './assessment.controller';
 import { AssessmentService } from './assessment.service';
 import { FileService } from '../file/file.service';
+import { EvaluationModule } from '../evaluation/evaluation.module';
 
 // Entities
 import { Assessment } from '../../../libs/entities/assessment/assessment.entity';
@@ -21,12 +22,23 @@ import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      Assessment, Submission, SubmissionResource, AssessmentResource,
-      Resource, Evaluation, Class, User, Team, Enrollment,Rubrics,SubmissionResource,EvaluationFeedback,
+      Assessment,
+      Submission,
+      SubmissionResource,
+      AssessmentResource,
+      Resource,
+      Evaluation,
+      Class,
+      User,
+      Team,
+      Enrollment,
+      Rubrics,
+      EvaluationFeedback,
     ]),
+    forwardRef(() => EvaluationModule), // <-- import with forwardRef to resolve circular dependency
   ],
   controllers: [AssessmentController],
   providers: [AssessmentService, FileService],
   exports: [AssessmentService],
 })
-export class AssessmentModule {}
+export class AssessmentModule { }

@@ -12,21 +12,21 @@ import { User } from '../../../libs/entities/user/user.entity';
 import { Team } from '../../../libs/entities/classroom/team.entity';
 import { Enrollment } from '../../../libs/entities/classroom/enrollment.entity';
 import { Rubrics } from '../../../libs/entities/assessment/rubic.entity';
+import { ConfigService } from '@nestjs/config';
 
 // Enums & DTOs
 import { SubmissionStatus } from '../../../libs/enums/Status';
 import { ResourceType } from '../../../libs/enums/Resource';
 import { CreateAssessmentDTO } from '../../../libs/dtos/assessment/create-assessment.dto';
 import { GradeSubmissionDTO } from '../../../libs/dtos/submission/grade-submission.dto';
-import { FileService } from '../file/file.service';
 import { UpdateAssessmentDTO } from '../../../libs/dtos/assessment/update-assessment.dto';
 import { SubmissionResource } from '../../../libs/entities/resource/submission-resource.entity';
 import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
-import { EvaluationType, SubmissionMethod } from '../../../libs/enums/Assessment';
-import { Readable } from 'stream';
+import { EvaluationType, SubmissionMethod, SubmissionType } from '../../../libs/enums/Assessment';
 import { SubmitAssignmentDto } from '../../../libs/dtos/submission/submit-assignment.dto';
 import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
 import { FeedbackItemDto } from '../../../libs/dtos/submission/feedback-item.dto';
+import { EvaluationService } from '../evaluation/evaluation.service';
 
 @Injectable()
 export class AssessmentService {
@@ -50,6 +50,8 @@ export class AssessmentService {
     @InjectRepository(Rubrics) private rubricsRepo: Repository<Rubrics>,
     @InjectRepository(EvaluationFeedback)
     private readonly evaluationFeedbackRepo: Repository<EvaluationFeedback>,
+    private readonly configService: ConfigService,
+    private readonly aiEvaluationService: EvaluationService
   ) { }
 
   // assessment.service.ts
@@ -61,21 +63,21 @@ export class AssessmentService {
     // 1. Verify class existence and ownership
     const classEntity = await this.classRepo.findOne({
       where: { id: classId },
-      relations: ['owner'],
+      relations: ['owner', 'enrollments', 'enrollments.user'], // nested relation
     });
 
     if (!classEntity) throw new NotFoundException('Class not found');
     if (classEntity.owner.id !== userId)
       throw new BadRequestException('Unauthorized');
 
-    // 2. Save Assessment Metadata mapping to DB columns
+    // 2. Save Assessment Metadata
     const assessment = await this.assessmentRepo.save({
       title: dto.title,
       instruction: dto.instruction,
       maxScore: dto.maxScore,
       submissionType: dto.submissionType,
       allowLate: dto.allowLate,
-      allowTeamSubmition: dto.allowTeamSubmition,
+      allowTeamSubmition: (dto.submissionType == SubmissionType.TEAM),
       startDate: dto.startDate,
       dueDate: dto.dueDate,
       class: classEntity,
@@ -83,24 +85,62 @@ export class AssessmentService {
       allowedSubmissionMethod: dto.allowedSubmissionMethod,
     });
 
-    // 3. Save Rubrics (Cascade will handle linking to assessment)
-    if (dto.rubrics && dto.rubrics.length > 0) {
+    // 3. Save Rubrics (Cascade handles linking)
+    let isRubricIsCorrect: boolean = false;
+    let checkScore = 0;
+    for (const rubricDto of dto.rubrics) {
+      checkScore+=rubricDto.weight
+    }
+    if (checkScore == assessment.maxScore) {
+      isRubricIsCorrect=true
+    }
+
+    if (isRubricIsCorrect) {
       for (const rubricDto of dto.rubrics) {
         await this.rubricsRepo.save({
           definition: rubricDto.criterion,
-          totalScore: rubricDto.maxScore,
+          totalScore: rubricDto.weight,
           assessment: assessment,
         });
       }
     }
+
+    // 4. Save Resources for assessment
     if (dto.resources && dto.resources.length > 0) {
       for (const resDto of dto.resources) {
         await this.resourceRepo.save({
           title: resDto.title,
           url: resDto.url,
-          type: ResourceType.FILE, // Assuming file type, adjust as needed
+          type: ResourceType.FILE,
           owner: `Instructor:${userId}`,
-          assessment: assessment // Link to assessment
+          assessment: assessment,
+        });
+      }
+    }
+    // 5. Pre-create submissions for enrolled students or teams
+    if (!assessment.allowTeamSubmition) {
+      for (const student of classEntity.enrollments) {
+        console.log(student.user)
+        await this.submissionRepo.save({
+          assessment: assessment,
+          user: student.user,
+          status: SubmissionStatus.PENDING,
+          attemptNumber: 0,
+        });
+      }
+    } else {
+      // Handle teams
+      const teams = await this.teamRepo.find({
+        where: { class: { id: classId } },
+        relations: ['members'],
+      });
+
+      for (const team of teams) {
+        await this.submissionRepo.save({
+          assessment: assessment,
+          team: team,
+          status: SubmissionStatus.PENDING,
+          attemptNumber: 0,
         });
       }
     }
@@ -111,106 +151,64 @@ export class AssessmentService {
     };
   }
 
-  // --- 2. Submit Assignment (Handles Teams & Multiple Files) ---
   async submitAssignment(
     userId: number,
     assessmentId: number,
     dto: SubmitAssignmentDto,
   ) {
-    // 1. Fetch assessment with submission settings and class info
+    // 1. Fetch assessment
     const assessment = await this.assessmentRepo.findOne({
       where: { id: assessmentId },
       relations: ['class'],
     });
     if (!assessment) throw new NotFoundException('Assessment not found');
 
+    // 2. Check enrollment
     const isEnrolled = await this.enrollmentRepo.findOne({
-      where: {
-        user: { id: userId },
-        class: { id: assessment.class.id }
-      }
+      where: { user: { id: userId }, class: { id: assessment.class.id } },
     });
+    if (!isEnrolled) throw new ForbiddenException('Not enrolled in class');
 
-    if (!isEnrolled) {
-      throw new ForbiddenException('You are not enrolled in the class required for this assessment.');
-    }
-
-    // 3. Validate Submission Method based on Assessment Settings
-    const hasResources = dto.resources && dto.resources.length > 0;
-    const hasGit = !!dto.githubUrl;
-
-    if (assessment.allowedSubmissionMethod === SubmissionMethod.ZIP && !hasResources) {
-      throw new BadRequestException('This assessment requires file submissions.');
-    }
-
-    if (assessment.allowedSubmissionMethod === SubmissionMethod.GITHUB && !hasGit) {
-      throw new BadRequestException('This assessment requires a GitHub repository URL.');
-    }
-
-    if (assessment.allowedSubmissionMethod === SubmissionMethod.ANY && !hasResources && !hasGit) {
-      throw new BadRequestException('Please submit either files or a GitHub repository URL.');
-    }
-
-    // 4. Team Logic
-    const user = await this.userRepo.findOne({ where: { id: userId } });
-    if (!user) throw new NotFoundException('User not found');
-
+    // 3. Team logic
     let team: Team;
     if (assessment.allowTeamSubmition) {
       team = await this.teamRepo.findOne({
-        where: {
-          class: { id: assessment.class.id },
-          members: { user: { id: userId } },
-        },
+        where: { class: { id: assessment.class.id }, members: { user: { id: userId } } },
       });
-
       if (!team)
-        throw new BadRequestException(
-          'This is a team assignment, but you are not in a team.',
-        );
+        throw new BadRequestException('Team assignment but you are not in a team');
     }
 
-    // 5. Status Logic (Deadline Check)
-    const now = new Date();
-    let status = SubmissionStatus.SUBMITTED;
-    if (now > assessment.dueDate) {
-      if (!assessment.allowLate)
-        throw new BadRequestException('Late submissions are not allowed.');
-      status = SubmissionStatus.LATE;
-    }
-
-    // 6. Find or Create Submission Entity
-    let submission = await this.submissionRepo.findOne({
+    // 4. Fetch existing submission
+    const submission = await this.submissionRepo.findOne({
       where: assessment.allowTeamSubmition
         ? { assessment: { id: assessmentId }, team: { id: team.id } }
         : { assessment: { id: assessmentId }, user: { id: userId } },
     });
 
-    if (submission) {
-      // Resubmission Logic
-      submission.submissionTime = now;
-      submission.status = status === SubmissionStatus.LATE ? SubmissionStatus.LATE : SubmissionStatus.RESUBMITTED;
-      submission.attemptNumber += 1;
-      submission.user = user;
-      // Clear old resources to replace them with new ones
-      await this.subResourceRepo.delete({ submission: { id: submission.id } });
-    } else {
-      // New Submission Logic
-      submission = this.submissionRepo.create({
-        assessment,
-        submissionTime: now,
-        status,
-        user: user,
-        team: team,
-      });
+    if (!submission) throw new NotFoundException('Submission record not found');
+
+    // 5. Update submission status and attempt number
+    const now = new Date();
+    let status = SubmissionStatus.SUBMITTED;
+    if (now > assessment.dueDate) {
+      status = assessment.allowLate ? SubmissionStatus.LATE : SubmissionStatus.SUBMITTED;
     }
 
-    const savedSubmission = await this.submissionRepo.save(submission);
 
-    // 7. Link Resources (URLs) to the Submission
 
-    // Link File URLs
-    if (hasResources) {
+    submission.submissionTime = now;
+    submission.status = submission.status === SubmissionStatus.PENDING ? status : SubmissionStatus.RESUBMITTED;
+    submission.attemptNumber += 1;
+
+    if (dto.comments) {
+      submission.comments = dto.comments
+    }
+
+    await this.submissionRepo.save(submission);
+
+    // 6. Attach new resources (without clearing old ones)
+    if (dto.resources && dto.resources.length > 0) {
       for (const resDto of dto.resources) {
         const resource = await this.resourceRepo.save({
           title: resDto.title,
@@ -220,14 +218,15 @@ export class AssessmentService {
         });
 
         await this.subResourceRepo.save({
-          submission: savedSubmission,
-          resource: resource,
+          submission: submission,
+          resource,
         });
       }
     }
 
-    // Link Git URL
-    if (hasGit) {
+
+
+    if (dto.githubUrl) {
       const resource = await this.resourceRepo.save({
         title: `GitHub: ${assessment.title}`,
         type: ResourceType.URL,
@@ -236,21 +235,22 @@ export class AssessmentService {
       });
 
       await this.subResourceRepo.save({
-        submission: savedSubmission,
-        resource: resource,
+        submission: submission,
+        resource,
       });
     }
 
-    // 8. Trigger AI Evaluation if Enabled
+    // 7. Trigger AI Evaluation if enabled
     if (assessment.aiEvaluationEnable) {
-      // this.aiEvaluationService.queueEvaluation(savedSubmission.id);
+      this.aiEvaluationService.addTaskToQueue(submission.id.toString())
     }
 
     return {
       message: 'Submitted successfully',
-      submissionId: savedSubmission.id,
+      submissionId: submission.id,
     };
   }
+
 
   // --- 3. Grade Submission ---
   async gradeSubmission(
@@ -281,7 +281,7 @@ export class AssessmentService {
     if (!evaluation) {
       evaluation = this.evaluationRepo.create({
         submission,
-        evaluationType:EvaluationType.MANUAL
+        evaluationType: EvaluationType.MANUAL
       });
     }
 
@@ -565,7 +565,7 @@ export class AssessmentService {
       for (const rubricDto of rubrics) {
         await this.rubricsRepo.save({
           definition: rubricDto.criterion,
-          totalScore: rubricDto.maxScore,
+          totalScore: rubricDto.weight,
           assessment: assessment,
         });
       }
@@ -870,4 +870,59 @@ export class AssessmentService {
 
     return submission;
   }
+
+  async getSubmissionDetails(submissionId: number) {
+    // 1. Fetch submission with related assessment, resources, and rubrics
+    const submission = await this.submissionRepo.findOne({
+      where: { id: submissionId },
+      relations: ['assessment', 'assessment.rubrics', 'resources','resources.resource',],
+    });
+
+    if (!submission) throw new NotFoundException('Submission not found');
+    const R2_ENDPOINT = `https://${this.configService.get('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com/${this.configService.get('R2_BUCKET_NAME')}/submission/${submission.id}/`;
+
+    // 2. Determine main resource URL
+    // Priority: GitHub first, then file root
+    let resourceUrl: string | null = null;
+
+    if (submission.assessment.allowedSubmissionMethod == SubmissionMethod.ANY) {
+      if (submission.resources && submission.resources.length > 0) {
+        for (const sr of submission.resources) {
+          const res = sr.resource;
+          if (res.type === ResourceType.URL && res.url.includes('github.com')) {
+            resourceUrl = res.url;
+            break; // GitHub takes priority
+          }
+        }
+        if (!resourceUrl) {
+          resourceUrl = R2_ENDPOINT; // Only fallback to R2 folder
+        }
+      }
+    }
+    else if (submission.assessment.allowedSubmissionMethod == SubmissionMethod.GITHUB) {
+      if (submission.resources && submission.resources.length > 0) {
+        for (const res of submission.resources) {
+          if (res.resource.url.includes('github.com')) {
+            resourceUrl = res.resource.url;
+            break;
+          }
+        }
+      }
+    }
+
+    // 3. Map rubrics
+    const rubric = submission.assessment.rubrics.map(r => ({
+      criterion: r.definition,
+      weight: r.totalScore,
+    }));
+
+    // 4. Return formatted object
+    return {
+      submission_id: submission.id.toString(),
+      instrctions: submission.assessment.instruction,
+      resource_url: resourceUrl,   // Either GitHub URL or R2 root folder
+      rubric,
+    };
+  }
+
 }

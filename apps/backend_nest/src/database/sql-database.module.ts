@@ -57,6 +57,7 @@ import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-fe
         username: configService.get('POSTGRES_USER'),
         password: configService.get('POSTGRES_PASSWORD'),
         database: configService.get('POSTGRES_DB'),
+        synchronize: true,
         entities: [
           User,
           OAuthAccount,
@@ -89,9 +90,6 @@ import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-fe
           EvaluationFeedback,
           // EvaluationRubricScore,
         ],
-
-        synchronize:true,
-
       }),
       inject: [ConfigService],
     }),

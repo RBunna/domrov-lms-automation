@@ -24,6 +24,10 @@ export class AssessmentController {
   // ==========================================
   // 1. Instructor Actions (Manage Assessments)
   // ==========================================
+  @Get(':id')
+  async getSubmissionAi(@Param('id', ParseIntPipe) submissionId: number) {
+    return this.assessmentService.getSubmissionDetails(submissionId);
+  }
 
   // Specific static routes first
   @Get('class/:classId')
@@ -76,7 +80,7 @@ export class AssessmentController {
   // 2. Student Actions (Submissions)
   // ==========================================
 
-  @Post(':id/submit')
+  @Patch(':id/submit')
   @ApiOperation({ summary: 'Submit Assignment (Student/Team)' })
   async submit(
     @UserId() userId: number,
@@ -85,6 +89,7 @@ export class AssessmentController {
   ) {
     return this.assessmentService.submitAssignment(userId, assessmentId, submitAssignmentDto);
   }
+
 
   @Get(':id/my-status')
   @ApiOperation({

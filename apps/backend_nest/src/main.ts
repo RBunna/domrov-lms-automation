@@ -47,7 +47,7 @@ async function bootstrap() {
     options: {
       package: ['evaluation','submission'],
       protoPath: ['/app/shared/protos/evaluate.proto', '/app/shared/protos/submission.proto'],
-      url: 'backend:50052',
+      url: '0.0.0.0:50052',
       loader: { keepCase: true },
     }
   });

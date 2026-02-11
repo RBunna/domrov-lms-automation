@@ -54,7 +54,7 @@ class TasksQueueServicer(tasks_pb2_grpc.TasksQueueServicer):
             context.abort(grpc.StatusCode.INVALID_ARGUMENT, "submission_id is required")
 
         try:
-            job = self.q.enqueue(
+            self.q.enqueue(
                 process_submission,
                 submission_id,
                 retry=Retry(max=3),
@@ -63,7 +63,6 @@ class TasksQueueServicer(tasks_pb2_grpc.TasksQueueServicer):
             return tasks_pb2.TasksResponse(
                 success=True,
                 message="Task queued successfully",
-                job_id=job.id,
             )
 
         except RedisError as e:

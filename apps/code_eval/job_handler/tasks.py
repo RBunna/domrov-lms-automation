@@ -24,7 +24,7 @@ def process_submission(submission_id: str):
         registry = ScheduledJobRegistry(queue=q)
         # ---- gRPC fetch (can fail) ----
         submission = client.get_submission_content(submission_id)
-
+        print(submission)
         if not submission:
             registry.remove(job)
             print(f"Submission {submission_id} not found, skipping")
@@ -32,14 +32,15 @@ def process_submission(submission_id: str):
 
         submission_url = submission["resource_url"] 
         submission_rubric = submission["rubric"]
-
+        print(submission_rubric)
         # ---- Evaluation ----
         raw_response = evaluate(
             submission_id=str(submission_id),
             resource_url=submission_url,
             rubrics=submission_rubric,
-            ai_model=AIModel.GEMINI_2_5,
+            ai_model=AIModel.OLLAMA_GPT_OSS,
         )
+        print(raw_response)
         # Extract the nested data safely
         evaluation_data = raw_response.get("result", {})
         ai_scores = evaluation_data.get("scores", [])
@@ -50,7 +51,7 @@ def process_submission(submission_id: str):
             return
 
         actual_scores = normalize_ai_scores_auto(submission_rubric, ai_scores)
-
+        print(actual_scores)
         response = client.evaluate_submission(
             submission_id=submission_id,
             scores=actual_scores,
