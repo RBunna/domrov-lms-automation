@@ -15,12 +15,13 @@ import { WalletModule } from './modules/wallet/wallet.module';
 import { EvaluationModule } from './modules/evaluation/evaluation.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { RedisService } from './modules/tasks/redis.service';
+import { R2Service } from './services/r2.service';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal:true,
-      expandVariables:true,
+      isGlobal: true,
+      expandVariables: true,
     }),
     SQLDatabaseModule,
     AuthModule,
@@ -35,7 +36,7 @@ import { RedisService } from './modules/tasks/redis.service';
     TasksModule,
   ],
   controllers: [AppController],
-  providers: [AppService,PaymentService, RedisService],
-  exports:[AppService]
+  providers: [AppService, PaymentService, RedisService, R2Service],
+  exports: [AppService]
 })
-export class AppModule {}
+export class AppModule { }
