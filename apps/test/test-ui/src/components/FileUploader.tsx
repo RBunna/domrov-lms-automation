@@ -1,11 +1,12 @@
 import React, { useState } from "react";
 
 export interface FileUploaderProps {
-  /** URL of your backend endpoint that returns presigned URL */
   presignedUrlEndpoint: string;
-  /** Optional callback after successful upload */
+  notifyEndpoint?: string;
+  token: string;
+  resourceType?: string; // e.g., 'assignment' or 'submission'
+  resourceId?: number; // parent ID
   onUploadSuccess?: (key: string) => void;
-  /** Optional callback on error */
   onUploadError?: (error: string) => void;
 }
 
@@ -16,6 +17,10 @@ interface PresignedResponse {
 
 export const FileUploader: React.FC<FileUploaderProps> = ({
   presignedUrlEndpoint,
+  notifyEndpoint,
+  token,
+  resourceType,
+  resourceId,
   onUploadSuccess,
   onUploadError,
 }) => {
@@ -25,42 +30,36 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
   const [uploadedKey, setUploadedKey] = useState("");
   const [error, setError] = useState("");
 
-  // Fetch presigned URL from backend
   const getPresignedUrl = async (file: File): Promise<PresignedResponse> => {
     const params = new URLSearchParams({
       filename: file.name,
       contentType: file.type || "application/octet-stream",
     });
 
-    const res = await fetch(`${presignedUrlEndpoint}?${params.toString()}`);
-    if (!res.ok) {
-      throw new Error("Failed to get presigned URL");
-    }
+    if (resourceType) params.append("resourceType", resourceType);
+    if (resourceId) params.append("resourceId", resourceId.toString());
+
+    const res = await fetch(`${presignedUrlEndpoint}?${params.toString()}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    if (!res.ok) throw new Error("Failed to get presigned URL");
     return res.json();
   };
 
-  // Upload to R2 using raw PUT
   const uploadFileToR2 = (file: File, uploadUrl: string) =>
     new Promise<void>((resolve, reject) => {
       const xhr = new XMLHttpRequest();
       xhr.open("PUT", uploadUrl);
-
-      xhr.upload.onprogress = (event) => {
-        if (event.lengthComputable) {
-          setProgress(Math.round((event.loaded / event.total) * 100));
-        }
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable)
+          setProgress(Math.round((e.loaded / e.total) * 100));
       };
-
-      xhr.onload = () => {
-        if (xhr.status >= 200 && xhr.status < 300) {
-          resolve();
-        } else {
-          reject(new Error(`Upload failed: ${xhr.status} ${xhr.statusText}`));
-        }
-      };
-
+      xhr.onload = () =>
+        xhr.status >= 200 && xhr.status < 300
+          ? resolve()
+          : reject(new Error(`Upload failed: ${xhr.status}`));
       xhr.onerror = () => reject(new Error("Network error"));
-
       xhr.setRequestHeader(
         "Content-Type",
         file.type || "application/octet-stream",
@@ -68,18 +67,36 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
       xhr.send(file);
     });
 
-  // Handle file upload
+  const notifyBackend = async (key: string) => {
+    if (!notifyEndpoint) return;
+
+    const res = await fetch("http://localhost:3000/file/notify-upload", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({
+        key: key,
+        filename: file?.name,
+      }),
+    });
+
+    if (!res.ok) throw new Error("Failed to notify backend");
+    return res.json();
+  };
+
   const handleUpload = async () => {
     try {
-      setError("");
+      if (!file) throw new Error("Please select a file");
       setUploading(true);
+      setError("");
       setProgress(0);
       setUploadedKey("");
 
-      if (!file) throw new Error("Please select a file");
-
       const { uploadUrl, key } = await getPresignedUrl(file);
       await uploadFileToR2(file, uploadUrl);
+      if (notifyEndpoint) await notifyBackend(key);
 
       setUploadedKey(key);
       onUploadSuccess?.(key);
@@ -106,7 +123,6 @@ export const FileUploader: React.FC<FileUploaderProps> = ({
       <button onClick={handleUpload} disabled={!file || uploading}>
         {uploading ? "Uploading..." : "Upload"}
       </button>
-
       {uploading && <p>Progress: {progress}%</p>}
       {uploadedKey && <p>Uploaded successfully: {uploadedKey}</p>}
       {error && <p style={{ color: "red" }}>Error: {error}</p>}

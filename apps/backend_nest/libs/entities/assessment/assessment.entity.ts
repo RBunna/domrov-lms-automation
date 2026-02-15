@@ -34,6 +34,9 @@ export class Assessment extends BaseEntity {
   @Column({ type: 'int' })
   maxScore: number;
 
+  @Column({ default: false })
+  isPublic: boolean;
+
   @Column({ type: 'enum', enum: SubmissionType })
   submissionType: SubmissionType;
   @Column({ default: false })

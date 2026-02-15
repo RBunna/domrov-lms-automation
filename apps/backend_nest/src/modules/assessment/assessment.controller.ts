@@ -38,14 +38,21 @@ export class AssessmentController {
     return this.assessmentService.findAllByClass(classId);
   }
 
-  @Post('class/:classId')
-  @ApiOperation({ summary: 'Create Assessment (Instructor)' })
-  async createAssessment(
+  @Post('class/:classId/draft')
+  @ApiOperation({ summary: 'Create Assessment Draft (Instructor)' })
+  async createDraft(
     @Param('classId', ParseIntPipe) classId: number,
-    @Body() createAssessmentDto: CreateAssessmentDTO,
     @UserId() instructorId: number,
   ) {
-    return this.assessmentService.createAssessment(instructorId, classId, createAssessmentDto);
+    return this.assessmentService.createDraft(instructorId, classId);
+  }
+  @Patch(':id/publish')
+  @ApiOperation({ summary: 'Publish Assessment' })
+  async publishAssessment(
+    @Param('id', ParseIntPipe) id: number,
+    @UserId() instructorId: number,
+  ) {
+    return this.assessmentService.publishAssessment(id, instructorId);
   }
 
   // Parameterized routes later

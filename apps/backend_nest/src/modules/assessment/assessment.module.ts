@@ -18,6 +18,7 @@ import { SubmissionResource } from '../../../libs/entities/resource/submission-r
 import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
 import { Rubrics } from '../../../libs/entities/assessment/rubic.entity';
 import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
+import { FileModule } from '../file/file.module';
 
 @Module({
   imports: [
@@ -34,11 +35,12 @@ import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation
       Enrollment,
       Rubrics,
       EvaluationFeedback,
+      FileModule
     ]),
     forwardRef(() => EvaluationModule), // <-- import with forwardRef to resolve circular dependency
   ],
   controllers: [AssessmentController],
-  providers: [AssessmentService, FileService],
+  providers: [AssessmentService],
   exports: [AssessmentService],
 })
 export class AssessmentModule { }

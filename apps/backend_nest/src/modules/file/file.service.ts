@@ -1,76 +1,91 @@
-import { Injectable } from '@nestjs/common';
-import archiver from 'archiver';
+import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { R2Service } from '../../services/r2.service';
+import { ResourceType } from '../../../libs/enums/Resource';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Resource } from '../../../libs/entities/resource/resource.entity';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { Readable } from 'stream';
 
 @Injectable()
 export class FileService {
-  async mockUploadFile(file: Express.Multer.File): Promise<string> {
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    const uniqueId = Date.now();
-    const sanitizedName = file.originalname.replace(/\s+/g, '-');
-    return `https://domrov.com/${uniqueId}/${sanitizedName}`;
+  constructor(
+    private readonly r2Service: R2Service,
+    @InjectRepository(Resource)
+    private readonly resourceRepo: Repository<Resource>,
+
+  ) { }
+
+  async generatePresignedUrl(
+    userId: number,
+    parentType: 'module' | 'topic' | 'assessment' | 'class' | 'submission',
+    parentId: number,
+    filename: string,
+    contentType: string,
+  ) {
+
+    const key = `${userId}/${parentType}/${parentId}/${filename}`;
+    const { uploadUrl } = await this.r2Service.getUploadUrl(key, contentType);
+
+    return { uploadUrl, key };
   }
 
-  // 2. Main entry point: Handles 1 file or Multiple files
-  async uploadFiles(
-    files: Array<Express.Multer.File>,
-  ): Promise<{ url: string; filename: string } | null> {
-    if (!files || files.length === 0) return null;
+  async notifyUploadSuccess(
+    userId: number,
+    key: string,
+    filename: string,
+  ) {
+    // Check if file exists in R2
+    const exists = await this.r2Service.objectExists(key);
+    if (!exists) throw new NotFoundException('File not found in storage');
 
-    let fileToUpload: Express.Multer.File;
+    // Map extension to ResourceType
+    const type = getResourceTypeFromFilename(filename);
 
-    if (files.length === 1) {
-      // If single file, use it directly
-      fileToUpload = files[0];
-    } else {
-      // If multiple, compress them into one zip file
-      fileToUpload = await this.compressFiles(files);
+    // Save to DB
+    const resource = this.resourceRepo.create({
+      title: filename,
+      type, // mapped file type
+      url: key,
+      owner: `${userId}`,
+    });
+    return this.resourceRepo.save(resource);
+  }
+
+  async getResourceStream(userId: number, resourceId: number): Promise<{
+    stream: Readable;
+    filename: string;
+    contentType: string;
+  }> {
+    const resource = await this.resourceRepo.findOne({ where: { id: resourceId } });
+    if (!resource) throw new NotFoundException('Resource not found');
+
+    if (resource.owner !== `${userId}` && !this.canAccess(userId, resource)) {
+      throw new ForbiddenException('Unauthorized');
     }
 
-    // Upload the resulting file (either original or zip)
-    const url = await this.mockUploadFile(fileToUpload);
+    // Get the object from R2
+    const { stream, contentType } = await this.r2Service.streamFile(resource.url);
 
     return {
-      url: url,
-      filename: fileToUpload.originalname,
+      stream,
+      filename: resource.title.trim(),
+      contentType,
     };
   }
-  private async compressFiles(
-    files: Array<Express.Multer.File>,
-  ): Promise<Express.Multer.File> {
-    return new Promise((resolve, reject) => {
-      const archive = archiver('zip', { zlib: { level: 9 } });
-      const buffers: Buffer[] = [];
 
-      // Listen for data chunks to build the final buffer
-      archive.on('data', (data) => buffers.push(data));
-
-      archive.on('error', (err) => reject(err));
-
-      // When zipping is done
-      archive.on('end', () => {
-        const finalBuffer = Buffer.concat(buffers);
-        const zipName = `resources_${Date.now()}.zip`;
-
-        // Create a fake Multer File object
-        const zipFile: any = {
-          fieldname: 'file',
-          originalname: zipName,
-          encoding: '7bit',
-          mimetype: 'application/zip',
-          buffer: finalBuffer,
-          size: finalBuffer.length,
-        };
-
-        resolve(zipFile);
-      });
-
-      // Add every file buffer to the archive
-      for (const file of files) {
-        archive.append(file.buffer, { name: file.originalname });
-      }
-
-      // Finalize the archive (triggers 'end' event)
-      archive.finalize();
-    });
+  // Dummy permission check — implement your logic
+  canAccess(userId: number, resource: Resource): boolean {
+    // e.g., check if resource is shared with user
+    return true;
   }
+
+}
+
+function getResourceTypeFromFilename(filename: string): ResourceType {
+  const ext = filename.split('.').pop()?.toLowerCase() || '';
+  if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return ResourceType.IMAGE;
+  if (['mp4', 'mov', 'avi'].includes(ext)) return ResourceType.VIDEO;
+  if (['pdf', 'doc', 'docx', 'txt', 'java', 'js', 'py'].includes(ext)) return ResourceType.DOCUMENT;
+  return ResourceType.FILE;
 }

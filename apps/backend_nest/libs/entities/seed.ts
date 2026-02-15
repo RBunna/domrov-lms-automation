@@ -85,7 +85,6 @@ const AppDataSource = new DataSource({
         UserTokenBalance,
         WalletTransaction,
         EvaluationFeedback,
-        // EvaluationRubricScore,
     ],
     synchronize: true, // Set to false in production
     logging: false,
@@ -108,7 +107,7 @@ async function seed() {
         TRUNCATE TABLE 
             "submission_resources", "topic_resources", "module_resources", 
             "class_resources", "assessment_resources", "resources",
-            "evaluation_feedback", "evaluation_rubric_scores", "evaluations",
+            "evaluation_feedback", "evaluations",
             "submissions", "rubrics", "assessments",
             "team_members", "teams", "enrollments", "classes",
             "wallet_transactions", "user_token_balances", "payments",

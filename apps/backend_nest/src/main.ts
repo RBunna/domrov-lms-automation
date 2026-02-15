@@ -14,8 +14,9 @@ async function bootstrap() {
   app.enableCors({
     origin: '*',
     credentials: true,
-  });
+    exposedHeaders: ['Content-Disposition'],
 
+  });
   app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,

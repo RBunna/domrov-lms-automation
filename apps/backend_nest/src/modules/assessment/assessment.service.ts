@@ -54,101 +54,226 @@ export class AssessmentService {
     private readonly aiEvaluationService: EvaluationService
   ) { }
 
-  // assessment.service.ts
-  async createAssessment(
-    userId: number,
-    classId: number,
-    dto: CreateAssessmentDTO,
-  ) {
-    // 1. Verify class existence and ownership
+  async createDraft(userId: number, classId: number) {
     const classEntity = await this.classRepo.findOne({
       where: { id: classId },
-      relations: ['owner', 'enrollments', 'enrollments.user'], // nested relation
+      relations: ['owner'],
     });
 
     if (!classEntity) throw new NotFoundException('Class not found');
     if (classEntity.owner.id !== userId)
       throw new BadRequestException('Unauthorized');
 
-    // 2. Save Assessment Metadata
     const assessment = await this.assessmentRepo.save({
-      title: dto.title,
-      instruction: dto.instruction,
-      maxScore: dto.maxScore,
-      submissionType: dto.submissionType,
-      allowLate: dto.allowLate,
-      allowTeamSubmition: (dto.submissionType == SubmissionType.TEAM),
-      startDate: dto.startDate,
-      dueDate: dto.dueDate,
+      title: 'Untitled Assignment',
+      instruction: '',
+      maxScore: 0,
+      submissionType: SubmissionType.INDIVIDUAL,
+      allowLate: false,
+      allowTeamSubmition: false,
+      startDate: new Date(),
+      dueDate: new Date(),
+      isPublic: false,
       class: classEntity,
-      aiEvaluationEnable: dto.aiEvaluationEnable,
-      allowedSubmissionMethod: dto.allowedSubmissionMethod,
+      aiEvaluationEnable: false,
+      allowedSubmissionMethod: SubmissionMethod.ANY,
     });
 
-    // 3. Save Rubrics (Cascade handles linking)
-    let isRubricIsCorrect: boolean = false;
-    let checkScore = 0;
-    for (const rubricDto of dto.rubrics) {
-      checkScore+=rubricDto.weight
-    }
-    if (checkScore == assessment.maxScore) {
-      isRubricIsCorrect=true
+    return {
+      message: 'Draft created',
+      assessmentId: assessment.id,
+    };
+  }
+
+  async publishAssessment(assessmentId: number, userId: number) {
+    const assessment = await this.assessmentRepo.findOne({
+      where: { id: assessmentId },
+      relations: ['class', 'class.owner', 'rubrics'],
+    });
+
+    if (!assessment) throw new NotFoundException('Assessment not found');
+    if (assessment.class.owner.id !== userId)
+      throw new BadRequestException('Unauthorized');
+
+    // 🚨 prevent double publish
+    if (assessment.isPublic) {
+      throw new BadRequestException('Assessment already published');
     }
 
-    if (isRubricIsCorrect) {
-      for (const rubricDto of dto.rubrics) {
+    // ===============================
+    // 🔥 STRICT VALIDATION
+    // ===============================
+
+    if (!assessment.title?.trim())
+      throw new BadRequestException('Title is required');
+
+    if (!assessment.instruction?.trim())
+      throw new BadRequestException('Instruction is required');
+
+    if (!assessment.maxScore || assessment.maxScore <= 0)
+      throw new BadRequestException('Max score must be greater than 0');
+
+    if (!assessment.startDate || !assessment.dueDate)
+      throw new BadRequestException('Dates are required');
+
+    if (assessment.startDate >= assessment.dueDate)
+      throw new BadRequestException('Invalid date range');
+
+    // ✅ rubric validation
+    const totalRubricScore = assessment.rubrics.reduce(
+      (sum, r) => sum + r.totalScore,
+      0,
+    );
+
+    if (totalRubricScore !== assessment.maxScore)
+      throw new BadRequestException(
+        'Rubric total score must equal maxScore',
+      );
+
+    // ===============================
+    // 🔥 MARK PUBLIC
+    // ===============================
+
+    assessment.isPublic = true;
+    await this.assessmentRepo.save(assessment);
+
+    // ===============================
+    // 🔥 CREATE SUBMISSIONS (ONLY NOW)
+    // ===============================
+
+    await this.createSubmissionsForAssessment(assessment);
+
+    return {
+      message: 'Assessment published successfully',
+    };
+  }
+
+  async updateAssessment(
+    userId: number,
+    assessmentId: number,
+    dto: UpdateAssessmentDTO,
+  ) {
+    const assessment = await this.assessmentRepo.findOne({
+      where: { id: assessmentId },
+      relations: [
+        'class',
+        'class.owner',
+        'resources',             // correct name from your entity
+        'resources.resource',    // join the actual Resource entity
+      ],
+    });
+
+    if (!assessment) throw new NotFoundException('Assessment not found');
+    if (assessment.class.owner.id !== userId)
+      throw new BadRequestException('Unauthorized');
+
+    // // 🚨 CRITICAL VALIDATION: prevent editing published assessment
+    // if (assessment.isPublic) {
+    //   throw new BadRequestException(
+    //     'Cannot edit assessment after it has been published.',
+    //   );
+    // }
+
+    const { resources, rubrics, ...metadata } = dto;
+
+    // ✅ update metadata freely (draft mode)
+    Object.assign(assessment, metadata);
+
+    // auto team flag
+    if (dto.submissionType) {
+      assessment.allowTeamSubmition =
+        dto.submissionType === SubmissionType.TEAM;
+    }
+
+    await this.assessmentRepo.save(assessment);
+
+    // -----------------------------
+    // 🔥 RESOURCES (replace mode)
+    // -----------------------------
+    if (resources?.length) {
+      for (const r of resources) {
+        const resource = await this.resourceRepo.findOne({
+          where: { id: r.resourceId },
+        });
+        if (!resource) {
+          throw new BadRequestException(`Resource ${r.resourceId} not found`);
+        }
+
+        // Check if already linked
+        const exists = assessment.resources?.some(
+          (ar) => ar.resource.id === r.resourceId,
+        );
+
+        if (!exists) {
+          const ar = this.assessResRepo.create({
+            assessment,
+            resource,
+          });
+          await this.assessResRepo.save(ar);
+          assessment.resources.push(ar); // update local array
+        }
+      }
+    }
+
+    // -----------------------------
+    // 🔥 RUBRICS (replace mode)
+    // -----------------------------
+    if (rubrics) {
+      await this.rubricsRepo.delete({
+        assessment: { id: assessmentId },
+      });
+
+      for (const rubricDto of rubrics) {
         await this.rubricsRepo.save({
           definition: rubricDto.criterion,
           totalScore: rubricDto.weight,
-          assessment: assessment,
+          assessment,
         });
       }
     }
 
-    // 4. Save Resources for assessment
-    if (dto.resources && dto.resources.length > 0) {
-      for (const resDto of dto.resources) {
-        await this.resourceRepo.save({
-          title: resDto.title,
-          url: resDto.url,
-          type: ResourceType.FILE,
-          owner: `Instructor:${userId}`,
-          assessment: assessment,
-        });
-      }
-    }
-    // 5. Pre-create submissions for enrolled students or teams
+    return {
+      message: 'Draft updated successfully',
+      assessment: {
+        ...assessment,
+        resources: assessment.resources?.map(ar => ar.resource) || [],
+      },
+    };
+  }
+
+  private async createSubmissionsForAssessment(
+    assessment: Assessment,
+  ) {
+    const classEntity = await this.classRepo.findOne({
+      where: { id: assessment.class.id },
+      relations: ['enrollments', 'enrollments.user'],
+    });
+
+    if (!classEntity) return;
+
     if (!assessment.allowTeamSubmition) {
       for (const student of classEntity.enrollments) {
-        console.log(student.user)
         await this.submissionRepo.save({
-          assessment: assessment,
+          assessment,
           user: student.user,
           status: SubmissionStatus.PENDING,
           attemptNumber: 0,
         });
       }
     } else {
-      // Handle teams
       const teams = await this.teamRepo.find({
-        where: { class: { id: classId } },
-        relations: ['members'],
+        where: { class: { id: assessment.class.id } },
       });
 
       for (const team of teams) {
         await this.submissionRepo.save({
-          assessment: assessment,
-          team: team,
+          assessment,
+          team,
           status: SubmissionStatus.PENDING,
           attemptNumber: 0,
         });
       }
     }
-
-    return {
-      message: 'Assessment created successfully',
-      assessmentId: assessment.id,
-    };
   }
 
   async submitAssignment(
@@ -508,77 +633,6 @@ export class AssessmentService {
   }
 
   /**
-   * 7. UPDATE Assessment
-   * Updates instructor details, resources, and evaluation settings
-   */
-  async updateAssessment(
-    userId: number,
-    assessmentId: number,
-    dto: UpdateAssessmentDTO,
-  ) {
-    // 1. Fetch assessment with class and existing resources to check ownership
-    const assessment = await this.assessmentRepo.findOne({
-      where: { id: assessmentId },
-      relations: ['class', 'class.owner'],
-    });
-
-    if (!assessment) throw new NotFoundException('Assessment not found');
-    if (assessment.class.owner.id !== userId)
-      throw new BadRequestException('Unauthorized');
-
-    // 2. Destructure DTO for special handling
-    const { resources, rubrics, ...metadata } = dto;
-
-    // 3. Update basic metadata fields
-    Object.assign(assessment, metadata);
-    await this.assessmentRepo.save(assessment);
-
-    // 4. Update Resources (Strategic: Replace existing links with new data)
-    if (resources) {
-      // First, remove old links for this assessment
-      await this.assessResRepo.delete({ assessment: { id: assessmentId } });
-
-      // Create and link new resources
-      for (const resDto of resources) {
-        // Here we create new resource entities. If your URL points to existing 
-        // resources, you might need to find them first.
-        const resource = await this.resourceRepo.save({
-          title: resDto.title,
-          type: ResourceType.FILE, // Assumed FILE based on requirement
-          url: resDto.url,
-          owner: `Instructor:${userId}`,
-        });
-
-        await this.assessResRepo.save({
-          assessment: assessment,
-          resource: resource,
-        });
-      }
-    }
-
-    // 5. Update Rubrics (Strategic: Replace existing rubrics)
-    if (rubrics) {
-      // Remove old rubrics
-      await this.rubricsRepo.delete({ assessment: { id: assessmentId } });
-
-      // Create new rubrics
-      for (const rubricDto of rubrics) {
-        await this.rubricsRepo.save({
-          definition: rubricDto.criterion,
-          totalScore: rubricDto.weight,
-          assessment: assessment,
-        });
-      }
-    }
-
-    // Return the updated assessment
-    return await this.assessmentRepo.findOne({
-      where: { id: assessmentId },
-      relations: ['resources', 'resources.resource', 'rubrics'],
-    });
-  }
-
-  /**
    * 8. DELETE Assessment
    * Teacher removes assignment.
    * (Ideally soft-delete, but hard-delete here for simplicity)
@@ -875,7 +929,7 @@ export class AssessmentService {
     // 1. Fetch submission with related assessment, resources, and rubrics
     const submission = await this.submissionRepo.findOne({
       where: { id: submissionId },
-      relations: ['assessment', 'assessment.rubrics', 'resources','resources.resource',],
+      relations: ['assessment', 'assessment.rubrics', 'resources', 'resources.resource',],
     });
 
     if (!submission) throw new NotFoundException('Submission not found');
