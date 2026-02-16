@@ -18,40 +18,48 @@ def process_submission(submission_id: str):
     client = EvaluateClient()
     print(f"Processing submission {submission_id} in PID {os.getpid()}")
 
-    q = Queue("submission_queue", connection=RedisSingleton.get_instance())
-    job = get_current_job(connection=RedisSingleton.get_instance())
+    redis_conn = RedisSingleton.get_instance()
+    q = Queue("submission_queue", connection=redis_conn)
+    job = get_current_job(connection=redis_conn)
     registry = ScheduledJobRegistry(queue=q)
 
     try:
         # ---- gRPC fetch ----
         submission = client.get_submission_content(submission_id)
         print(f"Fetched submission: {submission}")
+
         if submission is None:
-            print(
-                f"Submission {submission_id} not found or AI not enabled, removing job"
-            )
-            job = get_current_job(connection=RedisSingleton.get_instance())
+            print(f"Submission {submission_id} not found, removing job")
             job.delete()
-            return  # <-- stop execution early
+            return
 
         submission_url = submission["resource_url"]
         submission_rubric = submission["rubric"]
-        ai_info = submission["ai"]  # Always present in new NestJS mock
+        ai_info = submission.get("ai") or {}
 
-        # ---- Handle SYSTEM mode (provider=domrov) ----
-        if ai_info.get("provider") == "domrov":
-            print("⚙️ SYSTEM mode detected, using default AI model")
-            ai_info=None
+        # ===============================
+        # SYSTEM MODE
+        # ===============================
+        provider_raw = (ai_info.get("provider") or "").lower()
+
+        if provider_raw == "domrov":
+            print("⚙️ SYSTEM mode detected")
+
             api_key = None
             api_endpoint = None
             provider = None
-            ai_model = AIModel.OLLAMA_GPT_OSS  # fallback system AI
+            ai_model = AIModel.OLLAMA_GPT_OSS
+
+        # ===============================
+        # USER MODE
+        # ===============================
         else:
-            # USER mode
-            api_key = ai_info.get("api_key")
-            api_endpoint = ai_info.get("api_endpoint")
-            provider = ai_info.get("provider")
+            api_key = ai_info.get("api_key") or ai_info.get("apiKey")
+            api_endpoint = ai_info.get("api_endpoint") or ai_info.get("apiEndpoint")
+            provider = provider_raw or None
             ai_model = ai_info.get("model")
+
+            print(f"🔑 USER AI detected: {provider}, model={ai_model}")
 
         # ---- Evaluation ----
         raw_response = evaluate(
@@ -81,7 +89,7 @@ def process_submission(submission_id: str):
         )
 
         print(f"Evaluation response: {response}")
-        sleep(30)
+        sleep(5)
 
     except grpc.RpcError as e:
         registry.remove(job)
@@ -92,10 +100,10 @@ def process_submission(submission_id: str):
         print(f"Submission {submission_id} failed: {itl}")
 
     except Exception as e:
-        # Only retry transient errors
         code = getattr(e, "code", None) or getattr(
             getattr(e, "error", {}), "code", None
         )
+
         if code is not None and int(code) >= 400:
             registry.remove(job)
             print(f"Job {submission_id} failed with code {code}, no retry: {e}")

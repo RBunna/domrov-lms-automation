@@ -943,13 +943,17 @@ export class AssessmentService {
         'resources',
         'resources.resource',
         'assessment.class',
-        'assessment.class.owner'
+        'assessment.class.owner',
+        'evaluation'
       ],
     });
 
     if (!submission) {
       console.log(`❌ Submission ${submissionId} not found in database`);
       throw new NotFoundException('Submission not found');
+    }
+    if (submission.evaluation) {
+      throw new BadRequestException('Submission already evaluated');
     }
     console.log(`✅ Submission fetched: ID ${submission.id}, User ${submission.userId}`);
 

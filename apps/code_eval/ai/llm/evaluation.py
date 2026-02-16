@@ -6,6 +6,7 @@ from utils.custom_exception import InputTokenLimited
 from utils.download_file_r2 import downloadFiles
 from utils.read_file import process_path
 from utils.token_handler import estimate_tokens
+from ai.llm.ai_client import AIClient, AIProvider
 import requests
 
 
@@ -15,70 +16,105 @@ def evaluate(
     rubrics: list[dict],
     user_exclude_files: list[str] = None,
     user_include_files: list[str] = None,
-    ai_model: AIModel = AIModel.GEMINI_2_5,
+    ai_model: AIModel | str = AIModel.GEMINI_2_5,
     api_key: str = None,
     api_endpoint: str = None,
     provider: str = None,
 ):
-    """
-    Evaluate submission using either system AI or user-provided AI key.
-
-    - SYSTEM AI → get_evaluator
-    - USER AI → curl / requests to user's endpoint
-    """
-
-    # 1. Download submission files
+    # -----------------------------
+    # Download
+    # -----------------------------
     filePath = downloadFiles(resource_url, submission_id)
     tree_str, content_str = process_path(
         filePath, user_exclude_files, user_include_files
     )
 
-    # 2. Generate prompt
     final_prompt = generate_prompt(
-        rubric=rubrics, tree_view=tree_str, file_contents=content_str
+        rubric=rubrics,
+        tree_view=tree_str,
+        file_contents=content_str,
     )
 
-    # 3. Token check
+    # normalize model name
+    model_name = ai_model.value if isinstance(ai_model, AIModel) else str(ai_model)
+
     input_tokens = estimate_tokens(final_prompt, ai_model)
     output_tokens = 0
 
     if input_tokens >= MAX_TOKENS:
         raise InputTokenLimited("Input tokens exceed maximum allowed limit")
 
-    # 4. SYSTEM AI
+    # =========================================================
+    # SYSTEM AI
+    # =========================================================
     if api_key is None:
+        print("⚙️ Using SYSTEM AI")
+
         evaluator = get_evaluator(ai_model)
         result = evaluator.evaluate(final_prompt)
         output_tokens = estimate_tokens(result, ai_model)
 
-    # 5. USER AI
+    # =========================================================
+    # USER AI
+    # =========================================================
     else:
-        if not api_endpoint or not provider:
-            raise ValueError("User AI requires api_endpoint and provider")
+        if not provider:
+            raise ValueError("User AI requires provider")
 
-        # Example using requests to call user's AI endpoint
-        headers = {
-            "Authorization": f"Bearer {api_key}",
-            "Content-Type": "application/json",
-        }
-        payload = {
-            "prompt": final_prompt,
-            "model": ai_model.value if hasattr(ai_model, "value") else str(ai_model),
-        }
+        provider_lower = provider.lower().strip()
+        print(f"🔌 Using USER AI provider={provider_lower}")
 
-        response = requests.post(
-            api_endpoint, headers=headers, json=payload, timeout=60
-        )
+        try:
+            provider_enum = AIProvider(provider_lower)
 
-        if response.status_code != 200:
-            raise RuntimeError(
-                f"User AI request failed [{response.status_code}]: {response.text}"
+            client = AIClient(
+                provider=provider_enum,
+                api_key=api_key,
             )
 
-        result = response.json().get("result", "")
+            # ✅ ALWAYS RETURNS TEXT
+            result = client.generate(
+                prompt=final_prompt,
+                model=model_name,
+                temperature=0.7,
+            )
+
+        except Exception as e:
+            print(f"❌ AIClient failed: {e}")
+
+            # 🚨 NEVER fallback Gemini
+            if provider_lower == "gemini":
+                raise RuntimeError(f"Gemini SDK failed (no HTTP fallback allowed): {e}")
+
+            if not api_endpoint:
+                raise ValueError("Fallback requires api_endpoint")
+
+            headers = {
+                "Authorization": f"Bearer {api_key}",
+                "Content-Type": "application/json",
+            }
+
+            payload = {
+                "prompt": final_prompt,
+                "model": model_name,
+            }
+
+            response = requests.post(
+                api_endpoint,
+                headers=headers,
+                json=payload,
+                timeout=60,
+            )
+
+            if response.status_code != 200:
+                raise RuntimeError(
+                    f"User AI request failed [{response.status_code}]: {response.text}"
+                )
+
+            result = response.json().get("result", "")
+
         output_tokens = estimate_tokens(result, ai_model)
 
-    # 6. Extract scores & feedback
     return {
         "result": extract_scores_and_feedback_robust(result),
         "input_tokens": input_tokens,
