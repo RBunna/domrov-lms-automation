@@ -4,7 +4,6 @@ import { ResourceType } from '../../../libs/enums/Resource';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Resource } from '../../../libs/entities/resource/resource.entity';
-import { GetObjectCommand } from '@aws-sdk/client-s3';
 import { Readable } from 'stream';
 
 @Injectable()

@@ -326,54 +326,68 @@ export class AssessmentService {
       status = assessment.allowLate ? SubmissionStatus.LATE : SubmissionStatus.SUBMITTED;
     }
 
-
-
     submission.submissionTime = now;
     submission.status = submission.status === SubmissionStatus.PENDING ? status : SubmissionStatus.RESUBMITTED;
     submission.attemptNumber += 1;
 
     if (dto.comments) {
-      submission.comments = dto.comments
+      submission.comments = dto.comments;
     }
 
     await this.submissionRepo.save(submission);
 
-    // 6. Attach new resources (without clearing old ones)
+    // -----------------------------
+    // 🔥 ATTACH RESOURCES USING resourceId ONLY
+    // -----------------------------
     if (dto.resources && dto.resources.length > 0) {
       for (const resDto of dto.resources) {
-        const resource = await this.resourceRepo.save({
-          title: resDto.title,
-          type: ResourceType.FILE,
-          url: resDto.url,
-          owner: `Student:${userId}`,
+        // Fetch existing resource
+        const resource = await this.resourceRepo.findOne({ where: { id: resDto.resourceId } });
+        if (!resource) {
+          throw new BadRequestException(`Resource ${resDto.resourceId} not found`);
+        }
+        if (assessment.allowedSubmissionMethod == SubmissionMethod.GITHUB && resource.type != ResourceType.URL) {
+          throw new BadRequestException(`Resource ${resDto.resourceId} Must be a github`);
+
+        }
+
+        // Check if already linked
+        const exists = await this.subResourceRepo.findOne({
+          where: { submission: { id: submission.id }, resource: { id: resource.id } },
         });
 
-        await this.subResourceRepo.save({
-          submission: submission,
-          resource,
-        });
+        if (!exists) {
+          const subRes = this.subResourceRepo.create({
+            submission,
+            resource,
+          });
+          await this.subResourceRepo.save(subRes);
+        }
       }
     }
 
-
-
+    // -----------------------------
+    // 🔥 GITHUB URL (optional)
+    // -----------------------------
     if (dto.githubUrl) {
       const resource = await this.resourceRepo.save({
         title: `GitHub: ${assessment.title}`,
         type: ResourceType.URL,
         url: dto.githubUrl,
-        owner: `Student:${userId}`,
+        owner: `${userId}`,
       });
 
       await this.subResourceRepo.save({
-        submission: submission,
+        submission,
         resource,
       });
     }
 
-    // 7. Trigger AI Evaluation if enabled
+    // -----------------------------
+    // 🔥 AI Evaluation (if enabled)
+    // -----------------------------
     if (assessment.aiEvaluationEnable) {
-      this.aiEvaluationService.addTaskToQueue(submission.id.toString())
+      this.aiEvaluationService.addTaskToQueue(submission.id.toString());
     }
 
     return {
@@ -970,7 +984,7 @@ export class AssessmentService {
 
     // 3️⃣ Determine main resource URL (GitHub > fallback R2 folder)
     let resourceUrl: string | null = null;
-    if (assessment.allowedSubmissionMethod === SubmissionMethod.ANY) {
+    if (assessment.allowedSubmissionMethod === SubmissionMethod.ANY || assessment.allowedSubmissionMethod == SubmissionMethod.ZIP) {
       if (submission.resources && submission.resources.length > 0) {
         const githubRes = submission.resources.find(
           (sr) => sr.resource.type === ResourceType.URL && sr.resource.url.includes('github.com')
