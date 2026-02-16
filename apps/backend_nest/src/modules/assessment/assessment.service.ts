@@ -22,11 +22,13 @@ import { GradeSubmissionDTO } from '../../../libs/dtos/submission/grade-submissi
 import { UpdateAssessmentDTO } from '../../../libs/dtos/assessment/update-assessment.dto';
 import { SubmissionResource } from '../../../libs/entities/resource/submission-resource.entity';
 import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
-import { EvaluationType, SubmissionMethod, SubmissionType } from '../../../libs/enums/Assessment';
+import { AIModelSelectionMode, EvaluationType, SubmissionMethod, SubmissionType } from '../../../libs/enums/Assessment';
 import { SubmitAssignmentDto } from '../../../libs/dtos/submission/submit-assignment.dto';
 import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
 import { FeedbackItemDto } from '../../../libs/dtos/submission/feedback-item.dto';
 import { EvaluationService } from '../evaluation/evaluation.service';
+import { Encryption } from '../../../libs/utils/Encryption';
+import { UserAIKey } from '../../../libs/entities/ai/user-ai-key.entity';
 
 @Injectable()
 export class AssessmentService {
@@ -50,7 +52,11 @@ export class AssessmentService {
     @InjectRepository(Rubrics) private rubricsRepo: Repository<Rubrics>,
     @InjectRepository(EvaluationFeedback)
     private readonly evaluationFeedbackRepo: Repository<EvaluationFeedback>,
-    private readonly configService: ConfigService,
+
+    @InjectRepository(UserAIKey)
+    private readonly userAIKeyRepo: Repository<UserAIKey>,
+
+
     private readonly aiEvaluationService: EvaluationService
   ) { }
 
@@ -926,57 +932,121 @@ export class AssessmentService {
   }
 
   async getSubmissionDetails(submissionId: number) {
-    // 1. Fetch submission with related assessment, resources, and rubrics
+    console.log(`🟢 [Step 1] Fetching submission ID: ${submissionId}`);
+
+    // 1️⃣ Fetch submission with related assessment, rubrics, and resources
     const submission = await this.submissionRepo.findOne({
       where: { id: submissionId },
-      relations: ['assessment', 'assessment.rubrics', 'resources', 'resources.resource',],
+      relations: [
+        'assessment',
+        'assessment.rubrics',
+        'resources',
+        'resources.resource',
+        'assessment.class',
+        'assessment.class.owner'
+      ],
     });
 
-    if (!submission) throw new NotFoundException('Submission not found');
-    const R2_ENDPOINT = `https://${this.configService.get('R2_ACCOUNT_ID')}.r2.cloudflarestorage.com/${this.configService.get('R2_BUCKET_NAME')}/submission/${submission.id}/`;
+    if (!submission) {
+      console.log(`❌ Submission ${submissionId} not found in database`);
+      throw new NotFoundException('Submission not found');
+    }
+    console.log(`✅ Submission fetched: ID ${submission.id}, User ${submission.userId}`);
 
-    // 2. Determine main resource URL
-    // Priority: GitHub first, then file root
+    const assessment = submission.assessment;
+
+    // 2️⃣ If AI evaluation is NOT enabled → prevent sending to Python
+    if (!assessment.aiEvaluationEnable) {
+      console.log(`⚠️ AI evaluation not enabled for submission ${submissionId}, skipping Python`);
+      throw new NotFoundException('Submission not found');
+    }
+    console.log(`✅ AI evaluation is enabled for submission ${submissionId}`);
+
+    const R2_KEY = `${submission.userId}/submission/${submission.id}`;
+
+    // 3️⃣ Determine main resource URL (GitHub > fallback R2 folder)
     let resourceUrl: string | null = null;
-
-    if (submission.assessment.allowedSubmissionMethod == SubmissionMethod.ANY) {
+    if (assessment.allowedSubmissionMethod === SubmissionMethod.ANY) {
       if (submission.resources && submission.resources.length > 0) {
-        for (const sr of submission.resources) {
-          const res = sr.resource;
-          if (res.type === ResourceType.URL && res.url.includes('github.com')) {
-            resourceUrl = res.url;
-            break; // GitHub takes priority
-          }
-        }
-        if (!resourceUrl) {
-          resourceUrl = R2_ENDPOINT; // Only fallback to R2 folder
-        }
+        const githubRes = submission.resources.find(
+          (sr) => sr.resource.type === ResourceType.URL && sr.resource.url.includes('github.com')
+        );
+        resourceUrl = githubRes ? githubRes.resource.url : R2_KEY;
+        console.log(`🔗 Resource URL determined (ANY): ${resourceUrl}`);
+      } else {
+        resourceUrl = R2_KEY;
+        console.log(`🔗 No resources found; using R2 folder: ${R2_KEY}`);
       }
-    }
-    else if (submission.assessment.allowedSubmissionMethod == SubmissionMethod.GITHUB) {
-      if (submission.resources && submission.resources.length > 0) {
-        for (const res of submission.resources) {
-          if (res.resource.url.includes('github.com')) {
-            resourceUrl = res.resource.url;
-            break;
-          }
-        }
-      }
+    } else if (assessment.allowedSubmissionMethod === SubmissionMethod.GITHUB) {
+      const githubRes = submission.resources?.find((sr) =>
+        sr.resource.url.includes('github.com')
+      );
+      resourceUrl = githubRes ? githubRes.resource.url : null;
+      console.log(`🔗 Resource URL determined (GITHUB only): ${resourceUrl}`);
     }
 
-    // 3. Map rubrics
-    const rubric = submission.assessment.rubrics.map(r => ({
+    // 4️⃣ Map rubrics
+    const rubric = assessment.rubrics.map((r) => ({
       criterion: r.definition,
       weight: r.totalScore,
     }));
+    console.log(`📋 Rubrics mapped: ${JSON.stringify(rubric, null, 2)}`);
 
-    // 4. Return formatted object
-    return {
-      submission_id: submission.id.toString(),
-      instrctions: submission.assessment.instruction,
-      resource_url: resourceUrl,   // Either GitHub URL or R2 root folder
-      rubric,
-    };
+    // 5️⃣ Determine AI key info
+    console.log(`🤖 AI model selection mode: ${assessment.aiModelSelectionMode}`);
+
+    if (assessment.aiModelSelectionMode === AIModelSelectionMode.SYSTEM) {
+      console.log(`🔹 SYSTEM mode: sending submission without AI key`);
+      return {
+        submission_id: submission.id.toString(),
+        instructions: assessment.instruction,
+        resource_url: resourceUrl,
+        rubric,
+        ai: {
+          provider: 'domrov',
+          api_key: 'nothing',
+          api_endpoint: 'domrov.edu',
+          model: 'domrov',
+          label: 'domrov',
+        },
+      };
+    } else if (assessment.aiModelSelectionMode === AIModelSelectionMode.USER) {
+      console.log(`🔹 USER mode: fetching latest valid AI key for user ${submission.userId}`);
+      const userKey = await this.userAIKeyRepo.findOne({
+        where: {
+          userId: submission.assessment.class.owner.id,
+          isActive: true,
+          isValid: true,
+        },
+        order: { created_at: 'DESC' }, // latest key first
+      });
+
+      if (!userKey) {
+        console.log(`❌ No valid AI key found for user ${submission.userId}`);
+        throw new NotFoundException('Submission not found');
+      }
+
+      const decryptedKey = Encryption.decryptKey(userKey.encryptedKey);
+      console.log(`🔑 AI key fetched and decrypted for user ${submission.userId}`);
+
+      return {
+        submission_id: submission.id.toString(),
+        instructions: assessment.instruction,
+        resource_url: resourceUrl,
+        rubric,
+        ai: {
+          provider: userKey.provider,
+          api_key: decryptedKey,
+          api_endpoint: userKey.apiEndpoint,
+          model: userKey.model,
+          label: userKey.label,
+        },
+      };
+    }
+
+    // Fallback: prevent sending anything if mode is unknown
+    console.log(`❌ Unknown AI model selection mode for submission ${submissionId}`);
+    throw new NotFoundException('Submission not found');
   }
 
 }

@@ -6,14 +6,12 @@ import {
     IsOptional,
     ValidateNested,
     IsEnum,
-    IsUrl,
-    IsNotEmpty,
     IsArray,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { ApiPropertyOptional } from '@nestjs/swagger';
 import { UpdateRubricDTO } from './update-rubric.dto';
-import { SubmissionMethod, SubmissionType } from '../../enums/Assessment';
+import { AIModelSelectionMode, SubmissionMethod, SubmissionType } from '../../enums/Assessment';
 
 // Reusable DTO for resources
 class UpdateResourceDTO {
@@ -51,7 +49,11 @@ export class UpdateAssessmentDTO {
     @ApiPropertyOptional()
     dueDate?: Date;
 
-    @ApiPropertyOptional()
+    @ApiPropertyOptional({
+        description: 'The maximum score allowed',
+        default: 100,
+        type: Number
+    })
     @IsOptional()
     @Transform(({ value }) =>
         value !== undefined ? Number(value) : undefined,
@@ -67,12 +69,17 @@ export class UpdateAssessmentDTO {
     @ApiPropertyOptional({ enum: SubmissionType })
     @IsEnum(SubmissionType)
     @IsOptional()
-    submissionType?: SubmissionType;    
+    submissionType?: SubmissionType;
 
     @ApiPropertyOptional({ default: false })
     @IsBoolean()
     @IsOptional()
     aiEvaluationEnable?: boolean;
+
+    @ApiPropertyOptional({ default: AIModelSelectionMode.SYSTEM})
+    @IsOptional()
+    @IsEnum(AIModelSelectionMode)
+    aiModelSelectionMode?: AIModelSelectionMode;
 
     @ApiPropertyOptional({ enum: SubmissionMethod })
     @IsEnum(SubmissionMethod)
@@ -93,4 +100,5 @@ export class UpdateAssessmentDTO {
     @ValidateNested({ each: true })
     @Type(() => UpdateResourceDTO)
     resources?: UpdateResourceDTO[];
+
 }

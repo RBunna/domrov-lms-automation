@@ -19,6 +19,7 @@ import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity'
 import { Rubrics } from '../../../libs/entities/assessment/rubic.entity';
 import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
 import { FileModule } from '../file/file.module';
+import { UserAIKey } from '../../../libs/entities/ai/user-ai-key.entity';
 
 @Module({
   imports: [
@@ -35,7 +36,8 @@ import { FileModule } from '../file/file.module';
       Enrollment,
       Rubrics,
       EvaluationFeedback,
-      FileModule
+      FileModule,
+      UserAIKey
     ]),
     forwardRef(() => EvaluationModule), // <-- import with forwardRef to resolve circular dependency
   ],

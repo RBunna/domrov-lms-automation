@@ -8,6 +8,7 @@ import {
 import { BaseEntity } from '../base.entity';
 import { User } from '../user/user.entity';
 import { PlatformAIModel } from './platform-ai-model.entity';
+import { UserAIKey } from './user-ai-key.entity';
 
 @Entity({ name: 'ai_usage_logs' })
 export class AIUsageLog extends BaseEntity {
@@ -32,4 +33,10 @@ export class AIUsageLog extends BaseEntity {
     @ManyToOne(() => PlatformAIModel, (model) => model.usageLogs)
     @JoinColumn()
     model: PlatformAIModel;
+
+    // Which AI key was used
+    @ManyToOne(() => UserAIKey, (key) => key.usageLogs, { onDelete: 'SET NULL' })
+    @JoinColumn({ name: 'user_ai_key_id' })
+    userKey: UserAIKey;
+
 }

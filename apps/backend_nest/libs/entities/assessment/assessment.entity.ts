@@ -7,7 +7,7 @@ import {
   OneToMany,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
-import { SubmissionMethod, SubmissionType } from '../../enums/Assessment';
+import { AIModelSelectionMode, SubmissionMethod, SubmissionType } from '../../enums/Assessment';
 import { Class } from '../classroom/class.entity';
 import { PlatformAIModel } from '../ai/platform-ai-model.entity';
 import { Submission } from './submission.entity';
@@ -54,8 +54,11 @@ export class Assessment extends BaseEntity {
   @Column({ default: false })
   aiEvaluationEnable: boolean;
 
+  @Column({ type: 'enum', enum: AIModelSelectionMode, default: AIModelSelectionMode.SYSTEM })
+  aiModelSelectionMode: AIModelSelectionMode;
+
   @Column({ type: 'enum', enum: SubmissionMethod, default: SubmissionMethod.ANY })
-  allowedSubmissionMethod: SubmissionMethod; 
+  allowedSubmissionMethod: SubmissionMethod;
 
   @Column({ default: false })
   allowTeamSubmition: boolean;

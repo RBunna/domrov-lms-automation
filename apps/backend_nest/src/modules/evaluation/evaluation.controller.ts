@@ -6,9 +6,8 @@ import * as evaluation from '../../../libs/interfaces/evaluation';
 import * as submission from '../../../libs/interfaces/submission';
 
 import { GetFilesSubmissionDto } from '../../../libs/dtos/submission/process-submission.dto';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { AddQueueDto } from '../../../libs/dtos/submission/add-queue.dto';
-import { ApiBearerAuth, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { ApiResponse, ApiTags } from '@nestjs/swagger';
 import { AssessmentService } from '../assessment/assessment.service';
 
 @ApiTags('evaluations')
@@ -133,53 +132,17 @@ export class EvaluationController {
     serverMetadata.add('served-by', 'nestjs-grpc');
     call.sendMetadata(serverMetadata);
 
+    try {
+      const result = await this.assessmentService.getSubmissionDetails(Number(submission_id));
+      console.log('Submission found:', result);
 
-    const result = await this.assessmentService.getSubmissionDetails(Number(submission_id))
-    if (!result) {
+      return result;
+    } catch (err) {
+      console.log('Error fetching submission:', (err as Error).message || err);
       throw new RpcException({
         code: grpcJs.status.NOT_FOUND,
         message: `Submission with id ${submission_id} not found`,
       });
     }
-    return result;
   }
 }
-
-// {
-//   submission_id,
-//     instrctions: 'Evaluate C++ project using static analysis only. No STL sort allowed.',
-//       resource_url: 'https://github.com/Next-Gen-G9/week-2-algorithms-anisda.git',
-//         rubric: [
-//           {
-//             criterion:
-//               'Define Book struct in models/Book.h: Must include int id, string title, string author, and bool isAvailable.',
-//             weight: 15,
-//           },
-//           {
-//             criterion:
-//               'Implement addBook and displayAllBooks in LibraryUtils.cpp: Must handle user input, storage in a collection, and iterative printing.',
-//             weight: 15,
-//           },
-//           {
-//             criterion:
-//               'Implement findBookById returning a pointer (Book*): Must return the memory address of the found object or nullptr if not found.',
-//             weight: 25,
-//           },
-//           {
-//             criterion:
-//               'Implement checkOutBook and returnBook: Must use findBookById to retrieve a pointer and toggle the isAvailable boolean state.',
-//             weight: 10,
-//           },
-//           {
-//             criterion:
-//               'Implement showPromotionalBooks in main.cpp: Must use a standard int array of IDs and a loop to display them.',
-//             weight: 10,
-//           },
-//           {
-//             criterion:
-//               'Implement Sorting and Searching: Must use manual Bubble Sort by title and Binary Search logic (only functional on sorted data).',
-//             weight: 25,
-//           },
-//         ],
-//     };
-//   }

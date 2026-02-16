@@ -10,9 +10,10 @@ export interface SubmissionContentRequest {
 // ----------------------------
 export interface SubmissionContentResponse {
     submission_id: string;           // Submission ID
-    instrctions: string;            // Processing instrctions
+    instructions: string;            // Processing instructions
     resource_url: string;            // URL of the repo / resource
     rubric: RubricCriterion[];       // List of rubric criteria
+    ai?: AIKeyInfo;                  // Optional AI key info (only for USER mode with valid key)
 }
 
 // ----------------------------
@@ -21,4 +22,15 @@ export interface SubmissionContentResponse {
 export interface RubricCriterion {
     criterion: string;   // Description of the requirement
     weight: number;      // Weight for grading
+}
+
+// ----------------------------
+// AI Key Info
+// ----------------------------
+export interface AIKeyInfo {
+    provider: string;     // openai, anthropic, etc.
+    api_key: string;       // decrypted key
+    api_endpoint: string;  // API endpoint
+    model: string;        // Model name
+    label?: string;       // Optional label for teacher
 }

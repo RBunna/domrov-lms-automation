@@ -24,3 +24,8 @@ export enum SubmissionMethod {
   GITHUB = 'GITHUB',
   ANY = 'ANY',
 }
+export enum AIModelSelectionMode {
+  USER = 'USER',
+  SYSTEM = 'SYSTEM',
+  NONE = 'NONE'
+}

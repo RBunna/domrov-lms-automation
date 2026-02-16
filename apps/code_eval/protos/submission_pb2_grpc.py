@@ -59,7 +59,7 @@ class SubmissionServiceServicer(object):
         raise NotImplementedError('Method not implemented!')
 
     def GetSubmission(self, request, context):
-        """Get submission resource and rubric
+        """Get submission resource, rubric, and optional AI info
         """
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
         context.set_details('Method not implemented!')
@@ -85,7 +85,7 @@ def add_SubmissionServiceServicer_to_server(servicer, server):
     server.add_registered_method_handlers('submission.SubmissionService', rpc_method_handlers)
 
 
- # This class is part of an EXPERIMENTAL API.
+# This class is part of an EXPERIMENTAL API.
 class SubmissionService(object):
     """Service for handling code submission processing and file content retrieval.
     """

@@ -19,6 +19,7 @@ import { Payment } from '../ai/payment.entity';
 import { Submission } from '../assessment/submission.entity';
 import { UserRefreshToken } from './user-refresh-token.entity';
 import { UserEmailOtp } from './user-email-otp.entity';
+import { UserAIKey } from '../ai/user-ai-key.entity';
 
 @Entity({ name: 'users' })
 export class User extends BaseEntity {
@@ -28,7 +29,7 @@ export class User extends BaseEntity {
   @Column({ length: 100 })
   firstName: string;
 
-  @Column({ length: 100 ,nullable:true})
+  @Column({ length: 100, nullable: true })
   lastName?: string;
 
   @Column({ length: 10, nullable: true })
@@ -61,6 +62,10 @@ export class User extends BaseEntity {
     default: UserStatus.INACTIVE,
   })
   status: UserStatus;
+
+  @OneToMany(() => UserAIKey, (key) => key.user)
+  aiKeys: UserAIKey[];
+
 
   @OneToMany(() => Class, (cls) => cls.owner)
   classes: Class[];
