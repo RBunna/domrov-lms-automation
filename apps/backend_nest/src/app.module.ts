@@ -17,6 +17,7 @@ import { TasksModule } from './modules/tasks/tasks.module';
 import { RedisService } from './modules/tasks/redis.service';
 import { R2Service } from './services/r2.service';
 import { UserAiModule } from './modules/user-ai/user-ai.module';
+import { NotificationService } from './services/notification.service';
 
 @Module({
   imports: [
@@ -38,7 +39,7 @@ import { UserAiModule } from './modules/user-ai/user-ai.module';
     UserAiModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PaymentService, RedisService, R2Service],
+  providers: [AppService, PaymentService, RedisService, R2Service, NotificationService],
   exports: [AppService]
 })
 export class AppModule { }

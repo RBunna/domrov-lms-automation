@@ -33,7 +33,7 @@ export class NotificationService {
         // Channel A: Email
         promises.push(this.sendEmail(student, payload));
 
-        // Channel B: Telegram
+        // Channel B: Telegram (mocked)
         if (student.telegramChats?.length > 0) {
             promises.push(this.sendTelegram(student, payload));
         }
@@ -89,31 +89,50 @@ export class NotificationService {
                 await this.notifyStudents(students, {
                     title: 'Deadline Reminder',
                     message: `The assignment "${assessment.title}" is due in 24 hours.`,
-                    actionUrl: `http://localhost:3000/assessments/${assessment.id}`,
+                    actionUrl: `http://localhost:3000/assessments/${assessment.id}`, // replace with env URL in prod
                 });
                 this.logger.log(`Sent reminders for assessment ${assessment.id}`);
             }
         }
     }
 
+    /**
+     * Send Email
+     */
     private async sendEmail(user: User, payload: NotificationPayload) {
         if (!user.email) return;
-        this.logger.log(`[EMAIL] To: ${user.email} | ${payload.title}`);
-        await this.mailerService.sendMail({
-            to: user.email,
-            subject: payload.title,
-            text: payload.message,
-            html: `<p>${payload.message}</p><p><a href="${payload.actionUrl}">View Assignment</a></p>`,
-        });
+
+        try {
+            this.logger.log(`[EMAIL] To: ${user.email} | ${payload.title}`);
+            await this.mailerService.sendMail({
+                to: user.email,
+                subject: payload.title,
+                text: payload.message,
+                html: `<p>${payload.message}</p><p><a href="${payload.actionUrl}">View Assignment</a></p>`,
+            });
+        } catch (err) {
+            this.logger.error(`Failed to send email to ${user.id}: ${err}`);
+            throw err;
+        }
     }
 
-
+    /**
+     * Mocked Telegram Sending
+     */
     private async sendTelegram(user: User, payload: NotificationPayload) {
-        if (!user.telegramChats) return;
+        if (!user.telegramChats || user.telegramChats.length === 0) return;
 
         for (const chat of user.telegramChats) {
-            const msg = `*${payload.title}*\n${payload.message}\n${payload.actionUrl || ''}`;
-            this.logger.log(`[TELEGRAM] ChatID: ${chat.chatId} | ${payload.title}`);
+            try {
+                // Mock sending Telegram message
+                const msg = `*${payload.title}*\n${payload.message}\n${payload.actionUrl || ''}`;
+                this.logger.log(`[TELEGRAM MOCK] ChatID: ${chat.chatId} | Message: ${msg}`);
+
+                // Future: Integrate actual Telegram API here
+                // await this.telegramBot.sendMessage(chat.chatId, msg, { parse_mode: 'Markdown' });
+            } catch (err) {
+                this.logger.error(`Failed to send Telegram to ${user.id} (ChatID: ${chat.chatId}): ${err}`);
+            }
         }
     }
 }
