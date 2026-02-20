@@ -6,9 +6,9 @@ import { UserId } from '../../common/decorators/user.decorator';
 import { TokenPackageService } from './token-package.service';
 
 @ApiTags('Wallet (User)')
-@Controller('wallet')
+@ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
-@ApiBearerAuth()
+@Controller('wallet')
 export class WalletController {
   constructor(
     private walletService: WalletService,

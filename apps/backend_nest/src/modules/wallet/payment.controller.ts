@@ -3,6 +3,7 @@ import {
   Post,
   Body,
   UseGuards,
+  Param,
 } from '@nestjs/common';
 
 import {
@@ -16,6 +17,8 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PaymentFlowService } from './payment-flow.service';
 import { StartPaymentDto } from '../../../libs/dtos/wallet/start-payment.dto';
 import { UserId } from '../../common/decorators/user.decorator';
+import { ConnectedSocket } from '@nestjs/websockets';
+import { Socket } from 'dgram';
 
 
 @ApiTags('Payment')
@@ -24,31 +27,15 @@ import { UserId } from '../../common/decorators/user.decorator';
 @Controller('payment')
 export class PaymentController {
   constructor(
-    private readonly flowService: PaymentFlowService,
-  ) {}
+    private readonly paymentService: PaymentFlowService,
+  ) { }
 
-  // ============================
-  // Start Payment Flow
-  // ============================
-
-  @Post('start')
-  @ApiOperation({
-    summary: 'Start payment flow for a package',
-  })
-  @ApiResponse({
-    status: 201,
-    description: 'Payment started successfully',
-  })
-  async startPayment(
-    @UserId() userId: number,
-    @Body() dto: StartPaymentDto,
+  @Post('start-payment/:packageId')
+  async startPaymentEndpoint(
+    @Param('packageId') packageId: number,
+    @UserId() userId: number, // Using your custom decorator
   ) {
-      if (!userId) {
-    throw new UnauthorizedException('Invalid token');
-  }
-    return this.flowService.startPayment(
-      userId,
-      dto.packageId,
-    );
+    const payment = await this.paymentService.startPayment(userId, Number(packageId));
+    return payment;
   }
 }

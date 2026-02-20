@@ -7,29 +7,30 @@ import {
 import { Server, Socket } from 'socket.io';
 
 // 1️⃣ ENABLE CORS: This is usually the main issue on localhost
-@WebSocketGateway({ cors: { origin: '*' } }) 
-export class PaymentGateway implements OnGatewayConnection, OnGatewayDisconnect {
-  
+@WebSocketGateway({ cors: { origin: 'http://localhost:5173/' }, transports: ['websocket'] })
+export class PaymentGateway {
   @WebSocketServer()
   server: Server;
 
+  private clients: Map<number, Socket> = new Map();
+
   handleConnection(client: Socket) {
-    console.log(`Client connected: ${client.id}`);
+    const userId = Number(client.handshake.query.userId);
+    if (userId) this.clients.set(userId, client);
   }
 
   handleDisconnect(client: Socket) {
-    console.log(`Client disconnected: ${client.id}`);
+    const userId = Number(client.handshake.query.userId);
+    this.clients.delete(userId);
   }
 
-  // 2️⃣ EMIT METHOD
-  sendStatus(status: string) {
-    console.log(`Broadcasting status: ${status}`); // Add log for debugging
-    
-    // 3️⃣ IMPORTANT: Wrap in an object to match your frontend 'data.status'
-    this.server.emit('PAYMENT_STATUS', { status: status }); 
+  sendQr(userId: number, qrCode: string) {
+    const client = this.clients.get(userId);
+    if (client) client.emit('QR_READY', { qr: qrCode });
   }
 
-  sendQr(qrCode: string) {
-    this.server.emit('QR_READY', { qr: qrCode });
+  sendStatus(userId: number, status: string) {
+    const client = this.clients.get(userId);
+    if (client) client.emit('PAYMENT_STATUS', { status });
   }
 }
