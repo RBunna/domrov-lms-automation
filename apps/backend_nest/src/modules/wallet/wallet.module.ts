@@ -8,9 +8,15 @@ import { AdminWalletController } from './admin-wallet.controller';
 import { TokenPackageService } from './token-package.service';
 import { UserTokenBalance } from '../../../libs/entities/ai/user-token-balance.entity';
 import { TokenPackage } from '../../../libs/entities/ai/token-package.entity';
-import { User } from '../../common/decorators/user.decorator';
 import { WalletTransaction } from '../../../libs/entities/ai/wallet-transaction.entity';
 import { Payment } from '../../../libs/entities/ai/payment.entity';
+import { PaymentController } from './payment.controller';
+import { PaymentFlowService } from './payment-flow.service';
+import { PaymentGateway } from './payment.gateway';
+import { User } from '../../../libs/entities/user/user.entity';
+import { PaymentService } from '../../services/payment.service';
+import { HttpModule } from '@nestjs/axios';
+
 
 @Module({
   imports: [
@@ -19,11 +25,14 @@ import { Payment } from '../../../libs/entities/ai/payment.entity';
       WalletTransaction,
       TokenPackage,
       Payment,
-      User
-    ]),
+      User,
+    ]),HttpModule
   ],
-  controllers: [WalletController, AdminWalletController],
-  providers: [WalletService, TokenPackageService],
+  controllers: [WalletController, AdminWalletController, PaymentController],
+  providers: [
+    WalletService,
+    TokenPackageService,PaymentGateway,PaymentFlowService,PaymentService
+  ],
   exports: [WalletService],
 })
 export class WalletModule {}

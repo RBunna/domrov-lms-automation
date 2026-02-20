@@ -23,4 +23,11 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     async onModuleDestroy() {
         await this.client.quit();
     }
+    async popFromQueue(queueName: string, timeout = 0): Promise<any | null> {
+    const res = await this.client.brpop(queueName, timeout); // blocking pop
+    if (!res) return null;
+    const [, job] = res;
+    return JSON.parse(job);
+}
+
 }

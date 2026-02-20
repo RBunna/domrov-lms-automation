@@ -9,15 +9,20 @@ import { ClassModule } from './modules/class/class.module';
 import { TeamModule } from './modules/team/team.module';
 import { FileModule } from './modules/file/file.module';
 import { AssessmentModule } from './modules/assessment/assessment.module';
-import { HttpModule } from '@nestjs/axios';
+import { HttpModule, HttpService } from '@nestjs/axios';
 import { PaymentService } from './services/payment.service';
 import { WalletModule } from './modules/wallet/wallet.module';
 import { EvaluationModule } from './modules/evaluation/evaluation.module';
 import { TasksModule } from './modules/tasks/tasks.module';
 import { RedisService } from './modules/tasks/redis.service';
-import { R2Service } from './services/r2.service';
-import { UserAiModule } from './modules/user-ai/user-ai.module';
-import { NotificationService } from './services/notification.service';
+import { PaymentGateway } from './modules/wallet/payment.gateway';
+import { PaymentFlowService } from './modules/wallet/payment-flow.service';
+// import { PaymentController } from './services/payment.controller';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { Payment } from '../libs/entities/ai/payment.entity';
+import { TokenPackage } from '../libs/entities/ai/token-package.entity';
+import { UserTokenBalance } from '../libs/entities/ai/user-token-balance.entity';
+import { WalletTransaction } from '../libs/entities/ai/wallet-transaction.entity';
 
 @Module({
   imports: [
@@ -36,10 +41,11 @@ import { NotificationService } from './services/notification.service';
     WalletModule,
     EvaluationModule,
     TasksModule,
-    UserAiModule,
+    TypeOrmModule.forFeature([Payment, TokenPackage, UserTokenBalance, WalletTransaction]),
   ],
+  
   controllers: [AppController],
-  providers: [AppService, PaymentService, RedisService, R2Service],
-  exports: [AppService]
+  providers: [AppService,PaymentService, RedisService,PaymentFlowService,PaymentGateway],
+  exports:[AppService]
 })
 export class AppModule { }
