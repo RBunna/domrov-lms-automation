@@ -3,14 +3,12 @@ import {
   Delete,
   Patch
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
 import { AssessmentService } from './assessment.service';
-import { CreateAssessmentDTO } from '../../../libs/dtos/assessment/create-assessment.dto';
 import { GradeSubmissionDTO } from '../../../libs/dtos/submission/grade-submission.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UserId } from '../../common/decorators/user.decorator';
 import { UpdateAssessmentDTO } from '../../../libs/dtos/assessment/update-assessment.dto';
-import { EvaluationDto } from '../../../libs/dtos/assessment/ai-evaluation.dto';
 import { SubmitAssignmentDto } from '../../../libs/dtos/submission/submit-assignment.dto';
 import { FeedbackItemDto } from '../../../libs/dtos/submission/feedback-item.dto';
 
@@ -22,12 +20,8 @@ export class AssessmentController {
   constructor(private readonly assessmentService: AssessmentService) { }
 
   // ==========================================
-  // 1. Instructor Actions (Manage Assessments)
+  // 1. Routes accessible by BOTH Teacher & Student (General)
   // ==========================================
-  @Get(':id')
-  async getSubmissionAi(@Param('id', ParseIntPipe) submissionId: number) {
-    return this.assessmentService.getSubmissionDetails(submissionId);
-  }
 
   // Specific static routes first
   @Get('class/:classId')
@@ -38,41 +32,12 @@ export class AssessmentController {
     return this.assessmentService.findAllByClass(classId);
   }
 
-  @Post('class/:classId/draft')
-  @ApiOperation({ summary: 'Create Assessment Draft (Instructor)' })
-  async createDraft(
-    @Param('classId', ParseIntPipe) classId: number,
-    @UserId() instructorId: number,
-  ) {
-    return this.assessmentService.createDraft(instructorId, classId);
-  }
-  @Patch(':id/publish')
-  @ApiOperation({ summary: 'Publish Assessment' })
-  async publishAssessment(
-    @Param('id', ParseIntPipe) id: number,
-    @UserId() instructorId: number,
-  ) {
-    return this.assessmentService.publishAssessment(id, instructorId);
-  }
-
-  // Parameterized routes later
-  @Patch(':id')
-  @ApiOperation({ summary: 'Teacher: Update assignment details' })
-  async update(
-    @UserId() userId: number,
-    @Param('id', ParseIntPipe) id: number,
-    @Body() dto: UpdateAssessmentDTO,
-  ) {
-    return this.assessmentService.updateAssessment(userId, id, dto);
-  }
-
-  @Delete(':id')
-  @ApiOperation({ summary: 'Teacher: Delete assignment' })
-  async remove(
-    @UserId() userId: number,
-    @Param('id', ParseIntPipe) id: number,
-  ) {
-    return this.assessmentService.deleteAssessment(userId, id);
+  @Get('class/:classId/:sessionId')
+  @ApiOperation({
+    summary: 'List all assignments for a class session',
+  })
+  async getAllByClassSession(@Param('classId', ParseIntPipe) classId: number, @Param('sessionId', ParseIntPipe) sessionId: number) {
+    return this.assessmentService.findAllByClassSession(classId, sessionId);
   }
 
   @Get(':id')
@@ -97,6 +62,17 @@ export class AssessmentController {
     return this.assessmentService.submitAssignment(userId, assessmentId, submitAssignmentDto);
   }
 
+  @Get('my-status/class/:id')
+  @ApiOperation({
+    summary: 'Student: Check status of all assignments in a class',
+  })
+  async getMySubmissionStatus( 
+    @UserId() userId: number,
+    @Param('id', ParseIntPipe) classId: number,
+  ) {
+    return this.assessmentService.getMySubmissionsStatus(userId, classId);
+  }
+
 
   @Get(':id/my-status')
   @ApiOperation({
@@ -110,22 +86,48 @@ export class AssessmentController {
   }
 
   // ==========================================
-  // 3. Evaluation & Tracking
+  // 3. Teacher Actions (Instructor / Grading / Stats)
   // ==========================================
 
-  // --- Instructor Views ---
-
-  @Get(':id/submissions')
-  @ApiOperation({ summary: 'Teacher: List all submissions for an assessment' })
-  async listSubmissions(
-    @UserId() userId: number,
-    @Param('id', ParseIntPipe) assessmentId: number,
+  @Post('class/:classId/draft')
+  @ApiOperation({ summary: 'Create Assessment Draft (Instructor)' })
+  async createDraft(
+    @Param('classId', ParseIntPipe) classId: number,
+    @Param('session', ParseIntPipe) session: number,
+    @UserId() instructorId: number,
   ) {
-    return this.assessmentService.listSubmissionsForInstructor(
-      userId,
-      assessmentId,
-    );
+    return this.assessmentService.createDraft(instructorId, classId, session);
   }
+
+  @Patch(':id/publish')
+  @ApiOperation({ summary: 'Publish Assessment' })
+  async publishAssessment(
+    @Param('id', ParseIntPipe) id: number,
+    @UserId() instructorId: number,
+  ) {
+    return this.assessmentService.publishAssessment(id, instructorId);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Teacher: Update assignment details' })
+  async update(
+    @UserId() userId: number,
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: UpdateAssessmentDTO,
+  ) {
+    return this.assessmentService.updateAssessment(userId, id, dto);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Teacher: Delete assignment' })
+  async remove(
+    @UserId() userId: number,
+    @Param('id', ParseIntPipe) id: number,
+  ) {
+    return this.assessmentService.deleteAssessment(userId, id);
+  }
+
+  // --- Evaluation & Tracking ---
 
   @Get(':id/students-status')
   @ApiOperation({
@@ -147,8 +149,7 @@ export class AssessmentController {
     return this.assessmentService.getAssessmentStats(assessmentId);
   }
 
-  // --- Grading/Evaluation ---
-  // Sub-resource routes are grouped together
+  // --- Grading & Feedback ---
 
   @Post('submission/:id/feedback')
   @ApiOperation({ summary: 'Add Feedback Line by Line (Instructor)' })

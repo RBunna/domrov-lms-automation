@@ -39,7 +39,7 @@ import { NotificationService } from './services/notification.service';
     UserAiModule,
   ],
   controllers: [AppController],
-  providers: [AppService, PaymentService, RedisService, R2Service, NotificationService],
+  providers: [AppService, PaymentService, RedisService, R2Service],
   exports: [AppService]
 })
 export class AppModule { }

@@ -145,4 +145,30 @@ export class EvaluationController {
       });
     }
   }
+
+  @GrpcMethod('SubmissionService', 'GetSubmissionResource')
+  async getSubmissionResource(
+    data: submission.SubmissionContentRequest, // reduce for resource
+    metadata: grpcJs.Metadata,
+    call: grpcJs.ServerUnaryCall<any, any>,
+  ): Promise<submission.SubmissionContentResource> {
+    const { submission_id } = data;
+    console.log('getSubmission called with:', data);
+
+    const serverMetadata = new grpcJs.Metadata();
+    serverMetadata.add('served-by', 'nestjs-grpc');
+    call.sendMetadata(serverMetadata);
+
+    try {
+      const result = await this.assessmentService.getSubmissionResoucrs(Number(submission_id));
+      console.log('Submission found:', result);
+      return result;
+    } catch (err) {
+      console.log('Error fetching submission:', (err as Error).message || err);
+      throw new RpcException({
+        code: grpcJs.status.NOT_FOUND,
+        message: `Submission with id ${submission_id} not found`,
+      });
+    }
+  }
 }

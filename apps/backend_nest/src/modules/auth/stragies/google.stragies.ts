@@ -19,11 +19,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     private readonly authService: AuthService,
   ) {
 
-    console.log('GOOGLE CONFIG:', {
-      clientID: googleConfiguration.clientID,
-      callbackURL: googleConfiguration.callbackURL,
-    });
-
     super({
       clientID: googleConfiguration.clientID,
       clientSecret: googleConfiguration.clientSecret,
@@ -34,7 +29,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     this.googleConfiguration = googleConfiguration;
   }
 
-     async validate(
+  async validate(
     accessToken: string,
     refreshToken: string,
     profile: any,

@@ -60,7 +60,7 @@ export class AssessmentService {
     private readonly aiEvaluationService: EvaluationService
   ) { }
 
-  async createDraft(userId: number, classId: number) {
+  async createDraft(userId: number, classId: number, session: number) {
     const classEntity = await this.classRepo.findOne({
       where: { id: classId },
       relations: ['owner'],
@@ -76,6 +76,7 @@ export class AssessmentService {
       maxScore: 0,
       submissionType: SubmissionType.INDIVIDUAL,
       allowLate: false,
+      session: session,
       allowTeamSubmition: false,
       startDate: new Date(),
       dueDate: new Date(),
@@ -442,18 +443,6 @@ export class AssessmentService {
     return evaluation;
   }
 
-  // Teacher: list all submissions for an assessment, with files and evaluation
-  async listSubmissionsForInstructor(teacherId: number, assessmentId: number) {
-    const assessment = await this.assessmentRepo.findOne({
-      where: { id: assessmentId },
-      relations: ['class', 'class.owner'],
-    });
-    if (!assessment) throw new NotFoundException('Assessment not found');
-    if (assessment.class.owner.id !== teacherId) {
-      throw new BadRequestException('Unauthorized');
-    }
-  }
-
   // Teacher or submitter/team member can view a submission
   async getSubmissionForViewer(userId: number, submissionId: number) {
     const submission = await this.submissionRepo.findOne({
@@ -640,6 +629,18 @@ export class AssessmentService {
   }
 
   /**
+   * 5. Get All Assignments for a Class (Dashboard View)
+   * Sorted by Due Date (soonest first)
+   */
+  async findAllByClassSession(classId: number,sessionId:number) {
+    return await this.assessmentRepo.find({
+      where: { class: { id: classId },session:sessionId },
+      order: { dueDate: 'ASC' },
+      relations: ['resources', 'resources.resource'], // Show attached PDFs/Files
+    });
+  }
+
+  /**
    * 6. Get Single Assessment Details
    * (Student clicks on assignment to see instructions)
    */
@@ -729,6 +730,45 @@ export class AssessmentService {
     // If Team A submits, User B (who is in Team A) calls this,
     // logic finds Team A's submission, and returns it. Sync complete.
   }
+
+  async getMySubmissionsStatus(userId: number, classId: number) {
+    // 1. Fetch all assessments for the class
+    const assessments = await this.assessmentRepo.find({
+      where: { class: { id: classId } },
+    });
+
+    // 2. Fetch submissions of this user in this class
+    const submissions = await this.submissionRepo.find({
+      where: {
+        user: { id: userId },
+        assessment: { class: { id: classId } },
+      },
+      relations: ['evaluation'],
+    });
+
+    if (submissions.length == 0) {
+return []
+    }
+
+    // 3. Map assessments to include the submission status
+    const results = assessments.map((assessment) => {
+      const submission = submissions.find(
+        (s) => s.assessment.id === assessment.id
+      );
+
+      return {
+        assessmentId: assessment.id,
+        title: assessment.title,
+        dueDate: assessment.dueDate,
+        status: submission ? submission.status : 'PENDING',
+        submissionId: submission?.id || null,
+        grade: submission?.evaluation?.score || null,
+      };
+    });
+
+    return results;
+  }
+
   async getAssignmentRoster(assessmentId: number) {
     const assessment = await this.assessmentRepo.findOne({
       where: { id: assessmentId },
@@ -1065,6 +1105,53 @@ export class AssessmentService {
     // Fallback: prevent sending anything if mode is unknown
     console.log(`❌ Unknown AI model selection mode for submission ${submissionId}`);
     throw new NotFoundException('Submission not found');
+  }
+
+
+  async getSubmissionResoucrs(submissionId: number) {
+
+    const submission = await this.submissionRepo.findOne({
+      where: { id: submissionId },
+      relations: [
+        'resources',
+        'resources.resource',
+        'assessment.class',
+        'assessment.class.owner',
+      ],
+    });
+
+    if (!submission) {
+      console.log(`❌ Submission ${submissionId} not found in database`);
+      throw new NotFoundException('Submission not found');
+    }
+
+    const assessment = submission.assessment;
+
+    const R2_KEY = `${submission.userId}/submission/${submission.id}`;
+
+    let resourceUrl: string | null = null;
+    if (assessment.allowedSubmissionMethod === SubmissionMethod.ANY || assessment.allowedSubmissionMethod == SubmissionMethod.ZIP) {
+      if (submission.resources && submission.resources.length > 0) {
+        const githubRes = submission.resources.find(
+          (sr) => sr.resource.type === ResourceType.URL && sr.resource.url.includes('github.com')
+        );
+        resourceUrl = githubRes ? githubRes.resource.url : R2_KEY;
+        console.log(`🔗 Resource URL determined (ANY): ${resourceUrl}`);
+      } else {
+        resourceUrl = R2_KEY;
+        console.log(`🔗 No resources found; using R2 folder: ${R2_KEY}`);
+      }
+    } else if (assessment.allowedSubmissionMethod === SubmissionMethod.GITHUB) {
+      const githubRes = submission.resources?.find((sr) =>
+        sr.resource.url.includes('github.com')
+      );
+      resourceUrl = githubRes ? githubRes.resource.url : null;
+      console.log(`🔗 Resource URL determined (GITHUB only): ${resourceUrl}`);
+    }
+
+    return {
+      resource_url: resourceUrl,
+    };
   }
 
 }

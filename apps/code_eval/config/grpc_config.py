@@ -18,7 +18,6 @@ class EvaluateClient:
         self.evaluate_stub = evaluate_pb2_grpc.EvaluateWithAIStub(self.channel)
         self.submission_stub = submission_pb2_grpc.SubmissionServiceStub(self.channel)
 
-
     def get_submission_content(self, submission_id):
         request = submission_pb2.SubmissionContentRequest(
             submission_id=str(submission_id)
@@ -32,8 +31,8 @@ class EvaluateClient:
             if response.HasField("ai"):
                 ai_info = {
                     "provider": response.ai.provider,
-                    "apiKey": response.ai.api_key,       # camelCase for TS client
-                    "apiEndpoint": response.ai.api_endpoint, 
+                    "apiKey": response.ai.api_key,  # camelCase for TS client
+                    "apiEndpoint": response.ai.api_endpoint,
                     "model": response.ai.model,
                     "label": response.ai.label or None,  # optional
                 }
@@ -47,6 +46,24 @@ class EvaluateClient:
                     for r in response.rubric
                 ],
                 "ai": ai_info,  # undefined / null in TS if None
+            }
+
+        except grpc.RpcError as e:
+            if e.code() == grpc.StatusCode.NOT_FOUND:
+                print(f"Submission {submission_id} not found")
+                return None
+            else:
+                raise
+
+    def get_submission_resource(self, submission_id):
+        request = submission_pb2.SubmissionContentRequest(
+            submission_id=str(submission_id)
+        )
+
+        try:
+            response = self.submission_stub.GetSubmissionResource(request)
+            return {
+                "resource_url": response.resource_url,
             }
 
         except grpc.RpcError as e:

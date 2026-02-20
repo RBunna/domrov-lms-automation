@@ -1,7 +1,7 @@
 from multiprocessing import Process
 
-from services.grpc_server import start_grpc_server
-from services.worker_service import start_worker
+from server.grpc_server import start_grpc_server
+from server.worker_service import start_worker
 
 
 if __name__ == "__main__":

@@ -22,17 +22,10 @@ import { Submission } from '../../libs/entities/assessment/submission.entity';
 import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
 import { Rubrics } from '../../libs/entities/assessment/rubic.entity';
 
-// Lesson Entities
-import { Module as LessonModule } from '../../libs/entities/lesson/module.entity';
-import { Topic } from '../../libs/entities/lesson/topic.entity';
-
 // Resource Entities
 import { Resource } from '../../libs/entities/resource/resource.entity';
 import { AssessmentResource } from '../../libs/entities/resource/assessment-resource.entity';
-import { ClassResource } from '../../libs/entities/resource/class-resource.entity';
-import { ModuleResource } from '../../libs/entities/resource/module-resource.entity';
 import { SubmissionResource } from '../../libs/entities/resource/submission-resource.entity';
-import { TopicResource } from '../../libs/entities/resource/topic-resource.entity';
 
 // AI/Wallet Entities
 import { AIUsageLog } from '../../libs/entities/ai/ai-usage-log.entity';
@@ -42,7 +35,6 @@ import { TokenPackage } from '../../libs/entities/ai/token-package.entity';
 import { UserTokenBalance } from '../../libs/entities/ai/user-token-balance.entity';
 import { WalletTransaction } from '../../libs/entities/ai/wallet-transaction.entity';
 import { OAuthAccount } from '../../libs/entities/user/oauth-account.entity';
-// import { EvaluationRubricScore } from '../../libs/entities/assessment/evaluation-rubric-score.entity';
 import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-feedback.entity';
 import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
 
@@ -74,14 +66,9 @@ import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
           Submission,
           Evaluation,
           Rubrics,
-          LessonModule,
-          Topic,
           Resource,
           AssessmentResource,
-          ClassResource,
-          ModuleResource,
           SubmissionResource,
-          TopicResource,
           AIUsageLog,
           Payment,
           PlatformAIModel,
@@ -90,11 +77,10 @@ import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
           WalletTransaction,
           EvaluationFeedback,
           UserAIKey
-          // EvaluationRubricScore,
         ],
       }),
       inject: [ConfigService],
     }),
   ],
 })
-export class SQLDatabaseModule{}
+export class SQLDatabaseModule { }

@@ -16,6 +16,10 @@ export interface SubmissionContentResponse {
     ai?: AIKeyInfo;                  // Optional AI key info (only for USER mode with valid key)
 }
 
+export interface SubmissionContentResource {
+    resource_url: string;            // URL of the repo / resource
+}
+
 // ----------------------------
 // Rubric Criterion
 // ----------------------------

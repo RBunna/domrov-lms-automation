@@ -8,11 +8,23 @@ service SubmissionService {
   
   // Get submission resource, rubric, and optional AI info
   rpc GetSubmission(SubmissionContentRequest) returns (SubmissionContentResponse);
+
+  // Get submission resource via submission id,
+  rpc GetSubmissionResource(SubmissionResourceRequest) returns (SubmissionResourceResponse);
+
 }
 
 // Request to fetch submission content
 message SubmissionContentRequest {
   string submission_id = 1; // ID of the submission
+}
+
+message SubmissionResourceRequest {
+  string submission_id = 1; // ID of the submission
+}
+
+message SubmissionResourceResponse {
+  string resource_url = 1; // ID of the submission
 }
 
 // Response including submission metadata, rubric, and optional AI key info

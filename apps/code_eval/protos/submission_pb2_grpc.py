@@ -5,29 +5,31 @@ import warnings
 
 from . import submission_pb2 as submission__pb2
 
-GRPC_GENERATED_VERSION = '1.76.0'
+GRPC_GENERATED_VERSION = "1.76.0"
 GRPC_VERSION = grpc.__version__
 _version_not_supported = False
 
 try:
     from grpc._utilities import first_version_is_lower
-    _version_not_supported = first_version_is_lower(GRPC_VERSION, GRPC_GENERATED_VERSION)
+
+    _version_not_supported = first_version_is_lower(
+        GRPC_VERSION, GRPC_GENERATED_VERSION
+    )
 except ImportError:
     _version_not_supported = True
 
 if _version_not_supported:
     raise RuntimeError(
-        f'The grpc package installed is at version {GRPC_VERSION},'
-        + ' but the generated code in submission_pb2_grpc.py depends on'
-        + f' grpcio>={GRPC_GENERATED_VERSION}.'
-        + f' Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}'
-        + f' or downgrade your generated code using grpcio-tools<={GRPC_VERSION}.'
+        f"The grpc package installed is at version {GRPC_VERSION},"
+        + " but the generated code in submission_pb2_grpc.py depends on"
+        + f" grpcio>={GRPC_GENERATED_VERSION}."
+        + f" Please upgrade your grpc module to grpcio>={GRPC_GENERATED_VERSION}"
+        + f" or downgrade your generated code using grpcio-tools<={GRPC_VERSION}."
     )
 
 
 class SubmissionServiceStub(object):
-    """Service for handling code submission processing and file content retrieval.
-    """
+    """Service for handling code submission processing and file content retrieval."""
 
     def __init__(self, channel):
         """Constructor.
@@ -36,75 +38,95 @@ class SubmissionServiceStub(object):
             channel: A grpc.Channel.
         """
         self.ProcessSubmission = channel.unary_unary(
-                '/submission.SubmissionService/ProcessSubmission',
-                request_serializer=submission__pb2.SubmissionRequest.SerializeToString,
-                response_deserializer=submission__pb2.SubmissionResponse.FromString,
-                _registered_method=True)
+            "/submission.SubmissionService/ProcessSubmission",
+            request_serializer=submission__pb2.SubmissionRequest.SerializeToString,
+            response_deserializer=submission__pb2.SubmissionResponse.FromString,
+            _registered_method=True,
+        )
         self.GetSubmission = channel.unary_unary(
-                '/submission.SubmissionService/GetSubmission',
-                request_serializer=submission__pb2.SubmissionContentRequest.SerializeToString,
-                response_deserializer=submission__pb2.SubmissionContentResponse.FromString,
-                _registered_method=True)
+            "/submission.SubmissionService/GetSubmission",
+            request_serializer=submission__pb2.SubmissionContentRequest.SerializeToString,
+            response_deserializer=submission__pb2.SubmissionContentResponse.FromString,
+            _registered_method=True,
+        )
+        self.GetSubmissionResource = channel.unary_unary(
+            "/submission.SubmissionService/GetSubmissionResource",
+            request_serializer=submission__pb2.SubmissionResourceRequest.SerializeToString,
+            response_deserializer=submission__pb2.SubmissionResourceResponse.FromString,
+            _registered_method=True,
+        )
 
 
 class SubmissionServiceServicer(object):
-    """Service for handling code submission processing and file content retrieval.
-    """
+    """Service for handling code submission processing and file content retrieval."""
 
     def ProcessSubmission(self, request, context):
-        """Processes a submission request and returns the submission response with file content.
-        """
+        """Processes a submission request and returns the submission response with file content."""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
     def GetSubmission(self, request, context):
-        """Get submission resource, rubric, and optional AI info
-        """
+        """Get submission resource, rubric, and optional AI info"""
         context.set_code(grpc.StatusCode.UNIMPLEMENTED)
-        context.set_details('Method not implemented!')
-        raise NotImplementedError('Method not implemented!')
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
+
+    def GetSubmissionResource(self, request, context):
+        """Get submission resource via submission id,"""
+        context.set_code(grpc.StatusCode.UNIMPLEMENTED)
+        context.set_details("Method not implemented!")
+        raise NotImplementedError("Method not implemented!")
 
 
 def add_SubmissionServiceServicer_to_server(servicer, server):
     rpc_method_handlers = {
-            'ProcessSubmission': grpc.unary_unary_rpc_method_handler(
-                    servicer.ProcessSubmission,
-                    request_deserializer=submission__pb2.SubmissionRequest.FromString,
-                    response_serializer=submission__pb2.SubmissionResponse.SerializeToString,
-            ),
-            'GetSubmission': grpc.unary_unary_rpc_method_handler(
-                    servicer.GetSubmission,
-                    request_deserializer=submission__pb2.SubmissionContentRequest.FromString,
-                    response_serializer=submission__pb2.SubmissionContentResponse.SerializeToString,
-            ),
+        "ProcessSubmission": grpc.unary_unary_rpc_method_handler(
+            servicer.ProcessSubmission,
+            request_deserializer=submission__pb2.SubmissionRequest.FromString,
+            response_serializer=submission__pb2.SubmissionResponse.SerializeToString,
+        ),
+        "GetSubmission": grpc.unary_unary_rpc_method_handler(
+            servicer.GetSubmission,
+            request_deserializer=submission__pb2.SubmissionContentRequest.FromString,
+            response_serializer=submission__pb2.SubmissionContentResponse.SerializeToString,
+        ),
+        "GetSubmissionResource": grpc.unary_unary_rpc_method_handler(
+            servicer.GetSubmissionResource,
+            request_deserializer=submission__pb2.SubmissionResourceRequest.FromString,
+            response_serializer=submission__pb2.SubmissionResourceResponse.SerializeToString,
+        ),
     }
     generic_handler = grpc.method_handlers_generic_handler(
-            'submission.SubmissionService', rpc_method_handlers)
+        "submission.SubmissionService", rpc_method_handlers
+    )
     server.add_generic_rpc_handlers((generic_handler,))
-    server.add_registered_method_handlers('submission.SubmissionService', rpc_method_handlers)
+    server.add_registered_method_handlers(
+        "submission.SubmissionService", rpc_method_handlers
+    )
 
 
 # This class is part of an EXPERIMENTAL API.
 class SubmissionService(object):
-    """Service for handling code submission processing and file content retrieval.
-    """
+    """Service for handling code submission processing and file content retrieval."""
 
     @staticmethod
-    def ProcessSubmission(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def ProcessSubmission(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/submission.SubmissionService/ProcessSubmission',
+            "/submission.SubmissionService/ProcessSubmission",
             submission__pb2.SubmissionRequest.SerializeToString,
             submission__pb2.SubmissionResponse.FromString,
             options,
@@ -115,23 +137,26 @@ class SubmissionService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )
 
     @staticmethod
-    def GetSubmission(request,
-            target,
-            options=(),
-            channel_credentials=None,
-            call_credentials=None,
-            insecure=False,
-            compression=None,
-            wait_for_ready=None,
-            timeout=None,
-            metadata=None):
+    def GetSubmission(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
         return grpc.experimental.unary_unary(
             request,
             target,
-            '/submission.SubmissionService/GetSubmission',
+            "/submission.SubmissionService/GetSubmission",
             submission__pb2.SubmissionContentRequest.SerializeToString,
             submission__pb2.SubmissionContentResponse.FromString,
             options,
@@ -142,4 +167,35 @@ class SubmissionService(object):
             wait_for_ready,
             timeout,
             metadata,
-            _registered_method=True)
+            _registered_method=True,
+        )
+
+    @staticmethod
+    def GetSubmissionResource(
+        request,
+        target,
+        options=(),
+        channel_credentials=None,
+        call_credentials=None,
+        insecure=False,
+        compression=None,
+        wait_for_ready=None,
+        timeout=None,
+        metadata=None,
+    ):
+        return grpc.experimental.unary_unary(
+            request,
+            target,
+            "/submission.SubmissionService/GetSubmissionResource",
+            submission__pb2.SubmissionResourceRequest.SerializeToString,
+            submission__pb2.SubmissionResourceResponse.FromString,
+            options,
+            channel_credentials,
+            insecure,
+            call_credentials,
+            compression,
+            wait_for_ready,
+            timeout,
+            metadata,
+            _registered_method=True,
+        )

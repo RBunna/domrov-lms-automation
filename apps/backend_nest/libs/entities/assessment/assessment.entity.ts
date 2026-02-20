@@ -13,7 +13,6 @@ import { PlatformAIModel } from '../ai/platform-ai-model.entity';
 import { Submission } from './submission.entity';
 import { AssessmentResource } from '../resource/assessment-resource.entity';
 import { Rubrics } from './rubic.entity';
-// import { EvaluationRubricScore } from './evaluation-rubric-score.entity';
 
 
 @Entity({ name: 'assessments' })
@@ -31,8 +30,11 @@ export class Assessment extends BaseEntity {
   @Column({ type: 'timestamp' })
   startDate: Date;
 
-  @Column({ type: 'int' })
+  @Column({ type: 'int', default: 100 })
   maxScore: number;
+
+  @Column({ type: 'int', default: 1 })
+  session: number;
 
   @Column({ default: false })
   isPublic: boolean;
@@ -46,7 +48,6 @@ export class Assessment extends BaseEntity {
     cascade: true,
   })
   rubrics: Rubrics[];
-
 
   @Column({ type: 'text', nullable: true })
   penaltyCriteria: string;

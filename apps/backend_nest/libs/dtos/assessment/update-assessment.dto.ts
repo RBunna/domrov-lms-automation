@@ -58,8 +58,12 @@ export class UpdateAssessmentDTO {
     @Transform(({ value }) =>
         value !== undefined ? Number(value) : undefined,
     )
+        
     @IsNumber()
     maxScore?: number;
+
+    @IsNumber()
+    session: number;
 
     @ApiPropertyOptional()
     @IsOptional()
