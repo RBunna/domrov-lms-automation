@@ -1,15 +1,20 @@
 import os
 import patoolib
+
+
 def extract_file(filePath: str, destinationFolder: str) -> str:
+    """
+    Extracts archive files into the destination folder.
+    Returns the folder where files were extracted (destinationFolder).
+    Deletes the original archive after extraction.
+    """
     os.makedirs(destinationFolder, exist_ok=True)
-    
-    if(filePath.endswith('.zip') or filePath.endswith('.tar') or 
-        filePath.endswith('.tar.gz') or filePath.endswith('.tgz') or 
-        filePath.endswith('.rar') or filePath.endswith('.7z')):
-        
+
+    if filePath.lower().endswith((".zip", ".tar", ".tar.gz", ".tgz", ".rar", ".7z")):
         patoolib.extract_archive(filePath, outdir=destinationFolder)
-        print(f"Extracted {filePath} to {destinationFolder}")
+        print(f"✅ Extracted {filePath} to {destinationFolder}")
         os.remove(filePath)
-        return os.path.join(destinationFolder, os.path.splitext(os.path.basename(filePath))[0])  
+        return destinationFolder  # Return the folder directly
+
+    # Not an archive, just return the file path
     return filePath
-    

@@ -7,7 +7,7 @@ export class LoginUserDTO {
     @IsEmail()
     email: string;
 
-    @ApiProperty({ example: 'P@ssw0rd123', description: 'Password (6-20 characters)' })
+    @ApiProperty({ example: 'password123', description: 'Password (6-20 characters)' })
     @IsString()
     password: string;
 }

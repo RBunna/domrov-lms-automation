@@ -1,4 +1,5 @@
 import os
+import shutil
 from git import GitCommandError, Repo
 from github import Github
 from urllib.parse import urlparse
@@ -17,23 +18,63 @@ def is_repo_accessible(repo_url: str, token: str = None) -> bool:
         return False
 
 
-def clone_repo(repo_url: str, destination: str = None, name=os.urandom(8).hex()) -> str:
-    os.makedirs(destination if destination else './files_cache', exist_ok=True)
-    clone_dir = os.path.join(destination if destination else './files_cache', name)
+def clone_repo(repo_url: str, destination: str = None, name=None) -> str:
+    destination = destination or "./files_cache"
+
+    # ------------------- Pre-clone: normalize URL -------------------
+    folder_in_repo = ""
+    if "/tree/" in repo_url:
+        parts = repo_url.split("/tree/")
+        repo_url = parts[0] + ".git"  # cloneable repo URL
+        folder_in_repo = parts[1].split("/", 1)[-1]  # folder inside repo
+        # Use folder name as clone_dir name
+        name = folder_in_repo.split("/")[-1]
+
+    # Fallback to random if name not given
+    if not name:
+        name = os.urandom(8).hex()
+
+    clone_dir = os.path.join(destination, name)
+    os.makedirs(destination, exist_ok=True)
+
     try:
         if not os.path.exists(clone_dir):
             os.makedirs(clone_dir)
             Repo.clone_from(repo_url, clone_dir)
+
+        # ------------------- Post-clone cleanup for single folder -------------------
+        if folder_in_repo:
+            folder_path = os.path.join(clone_dir, folder_in_repo)
+            if os.path.exists(folder_path):
+                # Move folder out temporarily
+                temp_path = clone_dir + "_temp"
+                shutil.move(folder_path, temp_path)
+
+                # Delete everything else
+                shutil.rmtree(clone_dir)
+
+                # Move folder back to clone_dir
+                shutil.move(temp_path, clone_dir)
+            else:
+                print(
+                    f"⚠️ Folder '{folder_in_repo}' not found in repo, skipping cleanup"
+                )
+
+        # Remove .git folder
+        git_folder = os.path.join(clone_dir, ".git")
+        if os.path.exists(git_folder):
+            shutil.rmtree(git_folder)
+
         return clone_dir
+
     except GitCommandError as e:
         print(f"Error cloning repository: {e}")
         return None
 
 
 if __name__ == "__main__":
-    repo = "https://github.com/lida-sokha/KonnYoeung.git"
-    access = is_repo_accessible(repo)
-    print(f"Repository access: {'public' if access else 'private'}")
-    if access:
-        path = clone_repo(repo)
-        print(f"Cloned repository to: {path}")
+    repo = (
+        "https://github.com/Next-Gen-G9/week-2-algorithms-gossip-team/tree/main/utils"
+    )
+    path = clone_repo(repo, "./files_cache", "13")
+    print(f"Cloned repository to: {path}")

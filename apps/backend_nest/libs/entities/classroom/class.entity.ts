@@ -11,26 +11,23 @@ import { User } from '../user/user.entity';
 import { Enrollment } from './enrollment.entity';
 import { Team } from './team.entity';
 import { Assessment } from '../assessment/assessment.entity';
-import { ClassResource } from '../resource/class-resource.entity';
-import { ClassStatus } from '../../enums/Status'; 
-import { Module } from '../lesson/module.entity';
-
+import { ClassStatus } from '../../enums/Status';
 @Entity({ name: 'classes' })
 export class Class extends BaseEntity {
   @PrimaryGeneratedColumn()
-  id: number; 
+  id: number;
 
   @Column({ length: 300 })
-  name: string; 
+  name: string;
 
   @Column({ nullable: true })
-  description: string; 
+  description: string;
 
   @Column({ unique: true, length: 6 })
-  joinCode: string; 
+  joinCode: string;
 
   @Column({ nullable: true })
-  coverImageUrl: string; 
+  coverImageUrl: string;
 
   @Column({
     type: 'enum',
@@ -39,24 +36,17 @@ export class Class extends BaseEntity {
   })
   status: ClassStatus;
 
-
   @ManyToOne(() => User, (user) => user.classes)
-  @JoinColumn() 
-  owner: User; 
+  @JoinColumn()
+  owner: User;
 
   @OneToMany(() => Enrollment, (enrollment) => enrollment.class)
-  enrollments: Enrollment[]; 
+  enrollments: Enrollment[];
 
   @OneToMany(() => Team, (team) => team.class)
-  teams: Team[]; 
-
-  @OneToMany(() => Module, (module) => module.class)
-  modules: Module[]; 
-
+  teams: Team[];
 
   @OneToMany(() => Assessment, (assessment) => assessment.class)
-  assessments: Assessment[]; 
+  assessments: Assessment[];
 
-  @OneToMany(() => ClassResource, (cr) => cr.class)
-  resources: ClassResource[]; 
 }

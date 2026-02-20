@@ -10,9 +10,9 @@ export class AssessmentResource extends BaseEntity {
 
   @ManyToOne(() => Assessment, (assessment) => assessment.resources)
   @JoinColumn()
-  assessment: Assessment; 
+  assessment: Assessment;
 
   @ManyToOne(() => Resource)
   @JoinColumn()
-  resource: Resource; 
+  resource: Resource;
 }

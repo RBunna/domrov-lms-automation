@@ -1,22 +1,19 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { EvaluationService } from './evaluation.service';
 import { EvaluationController } from './evaluation.controller';
 import { ClientsModule, Transport } from '@nestjs/microservices';
-import { Submission } from '../../../libs/entities/assessment/submission.entity';
-import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
-import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
-// import { EvaluationRubricScore } from '../../../libs/entities/assessment/evaluation-rubric-score.entity';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { ConfigService } from '@nestjs/config';
+import { AssessmentModule } from '../assessment/assessment.module';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
+import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
+import { Submission } from '../../../libs/entities/assessment/submission.entity';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([
-      Submission,
-      Evaluation,
-      EvaluationFeedback,
-      // EvaluationRubricScore,
-    ]),
+    TypeOrmModule.forFeature([Submission, Evaluation, EvaluationFeedback]),
+    forwardRef(() => AssessmentModule),
+
     ClientsModule.registerAsync([
       {
         name: 'CODE_EVAL_GRPC',
@@ -25,14 +22,12 @@ import { ConfigService } from '@nestjs/config';
           transport: Transport.GRPC,
           options: {
             url: `${config.get('CODE_EVAL_GRPC_CLIENT_HOST')}:${config.get('CODE_EVAL_GRPC_CLIENT_PORT')}`,
-            package: 'submission', 
+            package: 'submission',
             protoPath: [
               '/app/shared/protos/submission.proto',
               '/app/shared/protos/tasks.proto',
             ],
-            loader: {
-              keepCase: true,
-            },
+            loader: { keepCase: true },
           },
         }),
       },
@@ -40,5 +35,6 @@ import { ConfigService } from '@nestjs/config';
   ],
   controllers: [EvaluationController],
   providers: [EvaluationService],
+  exports: [EvaluationService],
 })
 export class EvaluationModule { }

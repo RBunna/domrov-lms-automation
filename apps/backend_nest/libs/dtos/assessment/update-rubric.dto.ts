@@ -12,18 +12,9 @@ export class UpdateRubricDTO {
     @IsString()
     criterion?: string;
 
-    @ApiPropertyOptional()
-    @IsOptional()
-    @IsString()
-    description?: string;
-
     @ApiPropertyOptional({ example: 40 })
     @IsOptional()
     @IsNumber()
     weight?: number;
 
-    @ApiPropertyOptional({ example: 40 })
-    @IsOptional()
-    @IsNumber()
-    maxScore?: number;
 }

@@ -15,39 +15,68 @@ from config.redis_connection import RedisSingleton
 
 
 def process_submission(submission_id: str):
+    client = EvaluateClient()
+    print(f"Processing submission {submission_id} in PID {os.getpid()}")
+
+    redis_conn = RedisSingleton.get_instance()
+    q = Queue("submission_queue", connection=redis_conn)
+    job = get_current_job(connection=redis_conn)
+    registry = ScheduledJobRegistry(queue=q)
+
     try:
-        client = EvaluateClient()
-        print(f"Processing submission {submission_id} in PID {os.getpid()}")
-
-        q = Queue("submission_queue", connection=RedisSingleton.get_instance())
-        job = get_current_job(connection=RedisSingleton.get_instance())
-        registry = ScheduledJobRegistry(queue=q)
-        # ---- gRPC fetch (can fail) ----
+        # ---- gRPC fetch ----
         submission = client.get_submission_content(submission_id)
+        print(f"Fetched submission: {submission}")
 
-        if not submission:
-            registry.remove(job)
-            print(f"Submission {submission_id} not found, skipping")
+        if submission is None:
+            print(f"Submission {submission_id} not found, removing job")
+            job.delete()
             return
 
-        submission_url = submission["resource_url"] 
+        submission_url = submission["resource_url"]
         submission_rubric = submission["rubric"]
+        ai_info = submission.get("ai") or {}
+
+        # ===============================
+        # SYSTEM MODE
+        # ===============================
+        provider_raw = (ai_info.get("provider") or "").lower()
+
+        if provider_raw == "domrov":
+            print("⚙️ SYSTEM mode detected")
+
+            api_key = None
+            api_endpoint = None
+            provider = None
+            ai_model = AIModel.OLLAMA_GPT_OSS
+
+        # ===============================
+        # USER MODE
+        # ===============================
+        else:
+            api_key = ai_info.get("api_key") or ai_info.get("apiKey")
+            api_endpoint = ai_info.get("api_endpoint") or ai_info.get("apiEndpoint")
+            provider = provider_raw or None
+            ai_model = ai_info.get("model")
+
+            print(f"🔑 USER AI detected: {provider}, model={ai_model}")
 
         # ---- Evaluation ----
         raw_response = evaluate(
-            submission_id=str(submission_id),
+            submission_id=submission_id,
             resource_url=submission_url,
             rubrics=submission_rubric,
-            ai_model=AIModel.GEMINI_2_5,
+            ai_model=ai_model,
+            api_key=api_key,
+            api_endpoint=api_endpoint,
+            provider=provider,
         )
-        # Extract the nested data safely
+
+        print(f"Raw evaluation response: {raw_response}")
+
         evaluation_data = raw_response.get("result", {})
         ai_scores = evaluation_data.get("scores", [])
         ai_feedback = evaluation_data.get("feedback", "")
-
-        if not ai_scores:
-            print(f"Critical Error: 'scores' not found in nested result for {submission_id}")
-            return
 
         actual_scores = normalize_ai_scores_auto(submission_rubric, ai_scores)
 
@@ -60,19 +89,17 @@ def process_submission(submission_id: str):
         )
 
         print(f"Evaluation response: {response}")
-        sleep(30)
+        sleep(5)
 
     except grpc.RpcError as e:
-        # ---- gRPC error: never retry ----
         registry.remove(job)
-        print(f"Submission {submission_id} gRPC failed " f"[{e.code()}]: {e.details()}")
+        print(f"Submission {submission_id} gRPC failed [{e.code()}]: {e.details()}")
 
     except InputTokenLimited as itl:
         registry.remove(job)
         print(f"Submission {submission_id} failed: {itl}")
 
     except Exception as e:
-        # ---- Retry ONLY if not an application error ----
         code = getattr(e, "code", None) or getattr(
             getattr(e, "error", {}), "code", None
         )
@@ -81,5 +108,4 @@ def process_submission(submission_id: str):
             registry.remove(job)
             print(f"Job {submission_id} failed with code {code}, no retry: {e}")
         else:
-            # real transient error → allow retry
             raise

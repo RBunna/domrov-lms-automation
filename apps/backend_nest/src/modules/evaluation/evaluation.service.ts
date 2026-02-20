@@ -94,12 +94,15 @@ export class EvaluationService implements OnModuleInit {
     }
 
     async aiEvaluate(
-        submissionId: number,
-        dto: EvaluationDto,
+        submission_id: number,
+        feedback: string,
+        scores: number[],
+        input_token: number,
+        output_token:number,
     ) {
         // 1. Fetch submission to ensure it exists
         const submission = await this.submissionRepo.findOne({
-            where: { id: submissionId },
+            where: { id: Number(submission_id) },
         });
 
         if (!submission) {
@@ -109,17 +112,19 @@ export class EvaluationService implements OnModuleInit {
         // 2. Create evaluation entity
         let totalScore = 0;
 
-        if (dto.rubricScores && dto.rubricScores.length > 0) {
-            totalScore = dto.rubricScores.reduce((sum, current) => sum + current.score, 0);
+        if (scores.length > 0) {
+            totalScore = scores.reduce((sum, current) => sum + current, 0);
         }
 
         // 2. Create evaluation entity with the calculated total
         const evaluation = this.evaluationRepo.create({
             score: totalScore,
-            feedback: dto.feedback,
+            aiOutput: feedback,
             evaluationType: EvaluationType.AI,
-            submission,
+            submission,            
         });
+
+        //need to store token count
 
         await this.evaluationRepo.save(evaluation);
 

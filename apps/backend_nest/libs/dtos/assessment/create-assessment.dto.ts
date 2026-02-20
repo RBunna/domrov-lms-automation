@@ -39,7 +39,7 @@ export class CreateAssessmentDTO {
   @ApiPropertyOptional({ format: 'date-time' })
   dueDate?: Date;
 
-  @ApiProperty()
+  @ApiProperty({ default: 100 })
   @IsNumber()
   maxScore: number;
 
@@ -51,18 +51,14 @@ export class CreateAssessmentDTO {
   @IsBoolean()
   allowLate: boolean;
 
-  @ApiProperty()
-  @IsBoolean()
-  allowTeamSubmition: boolean;
-
   @ApiProperty({ description: 'Enable AI evaluation', default: false })
   @IsBoolean()
   @IsOptional()
   aiEvaluationEnable?: boolean;
 
-  @ApiProperty({ enum: SubmissionMethod })
+  @ApiProperty({ enum: SubmissionMethod, default: SubmissionMethod.GITHUB })
   @IsEnum(SubmissionMethod)
-  allowedSubmissionMethod: SubmissionMethod; 
+  allowedSubmissionMethod: SubmissionMethod;
 
   @ApiProperty({ type: [CreateRubricDTO] })
   @ArrayNotEmpty()

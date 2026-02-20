@@ -32,15 +32,10 @@ import { TelegramChat } from './user/telegram-chat.entity';
 import { UserEmailOtp } from './user/user-email-otp.entity';
 import { UserRefreshToken } from './user/user-refresh-token.entity';
 import { AssessmentResource } from './resource/assessment-resource.entity';
-import { ClassResource } from './resource/class-resource.entity';
-import { ModuleResource } from './resource/module-resource.entity';
 import { SubmissionResource } from './resource/submission-resource.entity';
-import { TopicResource } from './resource/topic-resource.entity';
 import { Encryption } from '../utils/Encryption';
-import { Module as LessonModule } from '../../libs/entities/lesson/module.entity';
 import { EvaluationFeedback } from './assessment/evaluation-feedback.entity';
 // import { EvaluationRubricScore } from './assessment/evaluation-rubric-score.entity';
-import { Topic } from './lesson/topic.entity';
 import { ResourceType } from '../enums/Resource';
 
 dotenv.config({ path: path.join(__dirname, '../../.env') });
@@ -70,14 +65,9 @@ const AppDataSource = new DataSource({
         Submission,
         Evaluation,
         Rubrics,
-        LessonModule,
-        Topic,
         Resource,
         AssessmentResource,
-        ClassResource,
-        ModuleResource,
         SubmissionResource,
-        TopicResource,
         AIUsageLog,
         Payment,
         PlatformAIModel,
@@ -85,7 +75,6 @@ const AppDataSource = new DataSource({
         UserTokenBalance,
         WalletTransaction,
         EvaluationFeedback,
-        // EvaluationRubricScore,
     ],
     synchronize: true, // Set to false in production
     logging: false,
@@ -108,7 +97,7 @@ async function seed() {
         TRUNCATE TABLE 
             "submission_resources", "topic_resources", "module_resources", 
             "class_resources", "assessment_resources", "resources",
-            "evaluation_feedback", "evaluation_rubric_scores", "evaluations",
+            "evaluation_feedback", "evaluations",
             "submissions", "rubrics", "assessments",
             "team_members", "teams", "enrollments", "classes",
             "wallet_transactions", "user_token_balances", "payments",

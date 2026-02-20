@@ -23,13 +23,12 @@ import { Payment } from '../libs/entities/ai/payment.entity';
 import { TokenPackage } from '../libs/entities/ai/token-package.entity';
 import { UserTokenBalance } from '../libs/entities/ai/user-token-balance.entity';
 import { WalletTransaction } from '../libs/entities/ai/wallet-transaction.entity';
-import { NotificationService } from './services/notification.service';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
-      isGlobal:true,
-      expandVariables:true,
+      isGlobal: true,
+      expandVariables: true,
     }),
     SQLDatabaseModule,
     AuthModule,
@@ -42,11 +41,11 @@ import { NotificationService } from './services/notification.service';
     WalletModule,
     EvaluationModule,
     TasksModule,
-   TypeOrmModule.forFeature([Payment, TokenPackage, UserTokenBalance, WalletTransaction]),
+    TypeOrmModule.forFeature([Payment, TokenPackage, UserTokenBalance, WalletTransaction]),
   ],
   
   controllers: [AppController],
   providers: [AppService,PaymentService, RedisService,PaymentFlowService,PaymentGateway],
   exports:[AppService]
 })
-export class AppModule {}
+export class AppModule { }

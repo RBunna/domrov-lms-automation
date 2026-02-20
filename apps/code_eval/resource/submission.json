@@ -2,7 +2,8 @@
     {
         "submission_id": 1,
         "resouce_url": "https://github.com/Next-Gen-G9/week-2-algorithms-anisda.git",
-        "rubric": [
+        "rubric":
+        [
             {
                 "criterion": "Define Book struct in models/Book.h: Must include int id, string title, string author, and bool isAvailable.",
                 "weight": 15

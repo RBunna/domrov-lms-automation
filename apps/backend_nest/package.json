@@ -22,8 +22,9 @@
     "test:e2e": "jest --config ./test/jest-e2e.json"
   },
   "dependencies": {
-    "@aws-sdk/client-s3": "^3.985.0",
+    "@aws-sdk/client-s3": "^3.990.0",
     "@aws-sdk/lib-storage": "^3.985.0",
+    "@aws-sdk/s3-request-presigner": "^3.990.0",
     "@grpc/grpc-js": "^1.14.3",
     "@grpc/proto-loader": "^0.8.0",
     "@nestjs-modules/mailer": "^2.0.2",
@@ -51,6 +52,7 @@
     "cookie-parser": "^1.4.7",
     "google-auth-library": "^10.5.0",
     "ioredis": "^5.9.2",
+    "mime-types": "^3.0.2",
     "nanoid": "^5.1.6",
     "nodemailer": "^7.0.10",
     "passport": "^0.7.0",

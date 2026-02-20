@@ -1,55 +1,102 @@
-import requests
-import boto3
 import os
+import boto3
 from utils.extract_file import extract_file
 from utils.git_handle import clone_repo
 
 
-def downloadFiles(url: str, folder_name: str) -> str:
-    destination_folder = os.path("./files_cache")
+# ---------------- R2 Client ----------------
+def get_r2_client():
+    """
+    Get R2 client from environment variables:
+    R2_ACCOUNT_ID, R2_ACCESS_KEY, R2_SECRET_KEY, R2_BUCKET
+    """
+    account_id = os.getenv("R2_ACCOUNT_ID")
+    access_key = os.getenv("R2_ACCESS_KEY")
+    secret_key = os.getenv("R2_SECRET_KEY")
+    bucket = os.getenv("R2_BUCKET")
 
-    if url.__contains__("github.com"):
-        return clone_repo(url, destination_folder,folder_name)
-    else:
-        return download_file_r2(destination_folder=destination_folder, url=url,local_filename=folder_name)
+    if not all([account_id, access_key, secret_key, bucket]):
+        raise EnvironmentError(
+            "Please set R2_ACCOUNT_ID, R2_ACCESS_KEY, R2_SECRET_KEY, R2_BUCKET env vars"
+        )
+
+    s3 = boto3.client(
+        service_name="s3",
+        endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
+        aws_access_key_id=access_key,
+        aws_secret_access_key=secret_key,
+        region_name="auto",
+    )
+    return s3, bucket
 
 
-def download_file_r2(
-    destination_folder: str = "./files_cache/",
-    local_filename: str = os.urandom(8).hex(),
-    bucket: str = None,
-    key: str = None,
-    url: str = None,
-    account_id: str = None,
-    access_key: str = None,
-    secret_key: str = None,
-) -> str:
+# ---------------- Download prefix from R2 ----------------
+def download_prefix_from_r2(prefix: str, destination_folder: str) -> list[str]:
+    """
+    Download all files under a given R2 prefix into destination_folder.
+    Extract zip/tar archives into folders, delete archive if needed.
+    Returns a list of paths to files/folders ready to use.
+    """
+    os.makedirs(destination_folder, exist_ok=True)
+    s3, bucket = get_r2_client()
+    final_paths = []
 
+    paginator = s3.get_paginator("list_objects_v2")
+    for page in paginator.paginate(Bucket=bucket, Prefix=prefix):
+        for obj in page.get("Contents", []):
+            key = obj["Key"]
+            if key.endswith("/"):  # skip folder keys
+                continue
+
+            filename = os.path.basename(key)
+            local_path = os.path.join(destination_folder, filename)
+
+            # Download file from R2
+            response = s3.get_object(Bucket=bucket, Key=key)
+            with open(local_path, "wb") as f:
+                f.write(response["Body"].read())
+
+            # Check for archives
+            if filename.lower().endswith((".zip", ".tar", ".tar.gz", ".tgz")):
+                # Extract into a folder named after archive
+                archive_folder = os.path.join(
+                    destination_folder, os.path.splitext(filename)[0]
+                )
+                os.makedirs(archive_folder, exist_ok=True)
+
+                extracted_paths = extract_file(local_path, archive_folder)
+                if isinstance(extracted_paths, list):
+                    final_paths.append(archive_folder)  # keep folder for multiple files
+                else:
+                    final_paths.append(extracted_paths)  # single file
+
+                print(f"✅ Extracted archive: {key} -> {archive_folder}")
+            else:
+                # Regular file
+                final_paths.append(local_path)
+                print(f"✅ Downloaded file: {key} -> {local_path}")
+
+    if not final_paths:
+        print(f"⚠️ No files found under prefix: {prefix}")
+
+    return final_paths
+
+
+# ---------------- Unified downloadFiles ----------------
+def downloadFiles(url: str, folder_name: str) -> list[str]:
+    """
+    Unified downloader:
+    - GitHub repo -> clone
+    - R2 prefix -> download all files
+    Returns a list of local file paths (raw files or folders for multiple extracted files).
+    """
+    destination_folder = os.path.join("./files_cache", folder_name)
     os.makedirs(destination_folder, exist_ok=True)
 
-    # Download from URL
-    if url:
-        response = requests.get(url)
-        response.raise_for_status()  # Raise error if download failed
-        with open(local_filename, "wb") as f:
-            f.write(response.content)
-        print(f"File downloaded from URL to {local_filename}")
-        return extract_file(local_filename, destination_folder)
-
-    # Download from S3/R2
-    if bucket and key and account_id and access_key and secret_key:
-        s3 = boto3.client(
-            service_name="s3",
-            endpoint_url=f"https://{account_id}.r2.cloudflarestorage.com",
-            aws_access_key_id=access_key,
-            aws_secret_access_key=secret_key,
-            region_name="auto",
-        )
-        response = s3.get_object(Bucket=bucket, Key=key)
-        file_data = response["Body"].read()
-        with open(local_filename, "wb") as f:
-            f.write(file_data)
-        print(f"File downloaded from S3/R2 to {local_filename}")
-        return extract_file(local_filename, destination_folder)
-
-    raise ValueError("Either url or bucket+key+credentials must be provided")
+    if "github.com" in url:
+        # GitHub repo
+        [clone_repo(url, "./files_cache", folder_name)]
+    else:
+        # R2 prefix
+        download_prefix_from_r2(prefix=url, destination_folder=destination_folder)
+    return destination_folder

@@ -3,14 +3,12 @@ import {
   Delete,
   Patch
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiTags, ApiParam, ApiResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
 import { AssessmentService } from './assessment.service';
-import { CreateAssessmentDTO } from '../../../libs/dtos/assessment/create-assessment.dto';
 import { GradeSubmissionDTO } from '../../../libs/dtos/submission/grade-submission.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UserId } from '../../common/decorators/user.decorator';
 import { UpdateAssessmentDTO } from '../../../libs/dtos/assessment/update-assessment.dto';
-import { EvaluationDto } from '../../../libs/dtos/assessment/ai-evaluation.dto';
 import { SubmitAssignmentDto } from '../../../libs/dtos/submission/submit-assignment.dto';
 import { FeedbackItemDto } from '../../../libs/dtos/submission/feedback-item.dto';
 
@@ -22,7 +20,7 @@ export class AssessmentController {
   constructor(private readonly assessmentService: AssessmentService) { }
 
   // ==========================================
-  // 1. Instructor Actions (Manage Assessments)
+  // 1. Routes accessible by BOTH Teacher & Student (General)
   // ==========================================
 
   // Specific static routes first
@@ -34,17 +32,82 @@ export class AssessmentController {
     return this.assessmentService.findAllByClass(classId);
   }
 
-  @Post('class/:classId')
-  @ApiOperation({ summary: 'Create Assessment (Instructor)' })
-  async createAssessment(
-    @Param('classId', ParseIntPipe) classId: number,
-    @Body() createAssessmentDto: CreateAssessmentDTO,
-    @UserId() instructorId: number,
-  ) {
-    return this.assessmentService.createAssessment(instructorId, classId, createAssessmentDto);
+  @Get('class/:classId/:sessionId')
+  @ApiOperation({
+    summary: 'List all assignments for a class session',
+  })
+  async getAllByClassSession(@Param('classId', ParseIntPipe) classId: number, @Param('sessionId', ParseIntPipe) sessionId: number) {
+    return this.assessmentService.findAllByClassSession(classId, sessionId);
   }
 
-  // Parameterized routes later
+  @Get(':id')
+  @ApiOperation({
+    summary: 'Get details of one assignment (Instructions, Attachments)',
+  })
+  async getOne(@Param('id', ParseIntPipe) id: number) {
+    return this.assessmentService.findOne(id);
+  }
+
+  // ==========================================
+  // 2. Student Actions (Submissions)
+  // ==========================================
+
+  @Patch(':id/submit')
+  @ApiOperation({ summary: 'Submit Assignment (Student/Team)' })
+  async submit(
+    @UserId() userId: number,
+    @Param('id', ParseIntPipe) assessmentId: number,
+    @Body() submitAssignmentDto: SubmitAssignmentDto,
+  ) {
+    return this.assessmentService.submitAssignment(userId, assessmentId, submitAssignmentDto);
+  }
+
+  @Get('my-status/class/:id')
+  @ApiOperation({
+    summary: 'Student: Check status of all assignments in a class',
+  })
+  async getMySubmissionStatus( 
+    @UserId() userId: number,
+    @Param('id', ParseIntPipe) classId: number,
+  ) {
+    return this.assessmentService.getMySubmissionsStatus(userId, classId);
+  }
+
+
+  @Get(':id/my-status')
+  @ApiOperation({
+    summary: 'Student: Check my status (Handles Team Sync automatically)',
+  })
+  async getMyStatus(
+    @UserId() userId: number,
+    @Param('id', ParseIntPipe) assessmentId: number,
+  ) {
+    return this.assessmentService.getMySubmission(userId, assessmentId);
+  }
+
+  // ==========================================
+  // 3. Teacher Actions (Instructor / Grading / Stats)
+  // ==========================================
+
+  @Post('class/:classId/draft')
+  @ApiOperation({ summary: 'Create Assessment Draft (Instructor)' })
+  async createDraft(
+    @Param('classId', ParseIntPipe) classId: number,
+    @Param('session', ParseIntPipe) session: number,
+    @UserId() instructorId: number,
+  ) {
+    return this.assessmentService.createDraft(instructorId, classId, session);
+  }
+
+  @Patch(':id/publish')
+  @ApiOperation({ summary: 'Publish Assessment' })
+  async publishAssessment(
+    @Param('id', ParseIntPipe) id: number,
+    @UserId() instructorId: number,
+  ) {
+    return this.assessmentService.publishAssessment(id, instructorId);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Teacher: Update assignment details' })
   async update(
@@ -64,56 +127,7 @@ export class AssessmentController {
     return this.assessmentService.deleteAssessment(userId, id);
   }
 
-  @Get(':id')
-  @ApiOperation({
-    summary: 'Get details of one assignment (Instructions, Attachments)',
-  })
-  async getOne(@Param('id', ParseIntPipe) id: number) {
-    return this.assessmentService.findOne(id);
-  }
-
-  // ==========================================
-  // 2. Student Actions (Submissions)
-  // ==========================================
-
-  @Post(':id/submit')
-  @ApiOperation({ summary: 'Submit Assignment (Student/Team)' })
-  async submit(
-    @UserId() userId: number,
-    @Param('id', ParseIntPipe) assessmentId: number,
-    @Body() submitAssignmentDto: SubmitAssignmentDto,
-  ) {
-    return this.assessmentService.submitAssignment(userId, assessmentId, submitAssignmentDto);
-  }
-
-  @Get(':id/my-status')
-  @ApiOperation({
-    summary: 'Student: Check my status (Handles Team Sync automatically)',
-  })
-  async getMyStatus(
-    @UserId() userId: number,
-    @Param('id', ParseIntPipe) assessmentId: number,
-  ) {
-    return this.assessmentService.getMySubmission(userId, assessmentId);
-  }
-
-  // ==========================================
-  // 3. Evaluation & Tracking
-  // ==========================================
-
-  // --- Instructor Views ---
-
-  @Get(':id/submissions')
-  @ApiOperation({ summary: 'Teacher: List all submissions for an assessment' })
-  async listSubmissions(
-    @UserId() userId: number,
-    @Param('id', ParseIntPipe) assessmentId: number,
-  ) {
-    return this.assessmentService.listSubmissionsForInstructor(
-      userId,
-      assessmentId,
-    );
-  }
+  // --- Evaluation & Tracking ---
 
   @Get(':id/students-status')
   @ApiOperation({
@@ -135,8 +149,7 @@ export class AssessmentController {
     return this.assessmentService.getAssessmentStats(assessmentId);
   }
 
-  // --- Grading/Evaluation ---
-  // Sub-resource routes are grouped together
+  // --- Grading & Feedback ---
 
   @Post('submission/:id/feedback')
   @ApiOperation({ summary: 'Add Feedback Line by Line (Instructor)' })
