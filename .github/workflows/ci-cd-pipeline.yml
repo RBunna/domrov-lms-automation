@@ -1,0 +1,112 @@
+name: CI/CD Deploy
+
+on:
+    push:
+        branches: [main]
+    workflow_dispatch:
+jobs:
+    # =========================
+    # 🟢 Detect changes
+    # =========================
+    changes:
+        runs-on: ubuntu-latest
+        outputs:
+            nestjs: ${{ steps.filter.outputs.nestjs }}
+            python: ${{ steps.filter.outputs.python }}
+        steps:
+            - uses: actions/checkout@v3
+
+            - uses: dorny/paths-filter@v3
+              id: filter
+              with:
+                  filters: |
+                      nestjs:
+                        - 'apps/backend_nest/**'
+                      python:
+                        - 'apps/code_eval/**'
+
+    # =========================
+    # 🟢 Build & Deploy NestJS
+    # =========================
+    build-nestjs:
+        needs: changes
+        if: needs.changes.outputs.nestjs == 'true'
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v3
+
+            - uses: docker/setup-buildx-action@v2
+
+            - uses: docker/login-action@v2
+              with:
+                  username: ${{ secrets.DOCKER_USERNAME }}
+                  password: ${{ secrets.DOCKER_PASSWORD }}
+
+            - name: Build & Push NestJS
+              uses: docker/build-push-action@v5
+              with:
+                  context: ./app/backend_nest
+                  push: true
+                  tags: phyvathanak/nestjs-backend:latest
+
+            - name: Deploy NestJS to EC2
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.EC2_HOST_NEST_JS }}
+                  username: ubuntu
+                  key: ${{ secrets.EC2_SSH_KEY_NEST_JS }}
+                  script: |
+                      docker pull phyvathanak/nestjs-backend:latest
+                      docker stop nestjs-backend || true
+                      docker rm nestjs-backend || true
+
+                      docker run -d \
+                        --name nestjs-backend \
+                        --restart unless-stopped \
+                        --env-file /home/ubuntu/.env \
+                        -p 3000:3000 \
+                        phyvathanak/nestjs-backend:latest
+
+    # =========================
+    # 🟢 Build & Deploy Python
+    # =========================
+    build-python:
+        needs: changes
+        if: needs.changes.outputs.python == 'true'
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v3
+
+            - uses: docker/setup-buildx-action@v2
+
+            - uses: docker/login-action@v2
+              with:
+                  username: ${{ secrets.DOCKER_USERNAME }}
+                  password: ${{ secrets.DOCKER_PASSWORD }}
+
+            - name: Build & Push Python
+              uses: docker/build-push-action@v5
+              with:
+                  context: ./app/code_eval
+                  push: true
+                  tags: phyvathanak/code_eval:latest
+
+            - name: Deploy Python to EC2
+              uses: appleboy/ssh-action@v1.0.3
+              with:
+                  host: ${{ secrets.EC2_HOST_CODE_EVAL }}
+                  username: ubuntu
+                  key: ${{ secrets.EC2_SSH_KEY_CODE_EVAL }}
+                  script: |
+                      docker pull phyvathanak/code_eval:latest
+                      docker stop code_eval || true
+                      docker rm code_eval || true
+
+                      docker run -d \
+                        --name code_eval \
+                        --restart unless-stopped \
+                        --env-file /home/ubuntu/.env \
+                        -p 50051:50051 \
+                        phyvathanak/code_eval:latest
