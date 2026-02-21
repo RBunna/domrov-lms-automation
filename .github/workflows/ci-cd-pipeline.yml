@@ -46,7 +46,7 @@ jobs:
             - name: Build & Push NestJS
               uses: docker/build-push-action@v5
               with:
-                  context: ./app/backend_nest
+                  context: ./apps/backend_nest
                   push: true
                   tags: phyvathanak/nestjs-backend:latest
 
@@ -89,7 +89,7 @@ jobs:
             - name: Build & Push Python
               uses: docker/build-push-action@v5
               with:
-                  context: ./app/code_eval
+                  context: ./apps/code_eval
                   push: true
                   tags: phyvathanak/code_eval:latest
 
