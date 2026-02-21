@@ -12,16 +12,16 @@ import { OAuthProvider } from './oauth-provider.entity';
 @Entity({ name: 'oauth_accounts' })
 export class OAuthAccount extends BaseEntity {
   @PrimaryGeneratedColumn()
-  id: number; 
+  id: number;
 
   @Column()
-  accountId: string; 
+  accountId: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn()
-  user: User; 
+  user: User;
 
-  @ManyToOne(() => OAuthProvider, (provider) => provider.accounts)
+  @ManyToOne(() => OAuthProvider, (provider) => provider.accounts, { onDelete: 'CASCADE' })
   @JoinColumn()
-  provider: OAuthProvider; 
+  provider: OAuthProvider;
 }

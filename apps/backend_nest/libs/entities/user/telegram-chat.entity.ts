@@ -11,12 +11,12 @@ import { User } from './user.entity';
 @Entity({ name: 'telegram_chats' })
 export class TelegramChat extends BaseEntity {
   @PrimaryGeneratedColumn()
-  id: number; 
+  id: number;
 
   @Column({ unique: true })
-  chatId: string; 
+  chatId: string;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn()
   user: User;
 }

@@ -19,7 +19,7 @@ export class UserTokenBalance extends BaseEntity {
   tokenBalance: number;
 
   // Changed to OneToOne: One user has exactly one wallet
-  @OneToOne(() => User)
+  @OneToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn()
   user: User;
 

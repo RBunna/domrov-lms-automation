@@ -64,11 +64,11 @@ export class Assessment extends BaseEntity {
   @Column({ default: false })
   allowTeamSubmition: boolean;
 
-  @ManyToOne(() => Class)
+  @ManyToOne(() => Class, { onDelete: 'CASCADE' })
   @JoinColumn()
   class: Class;
 
-  @ManyToOne(() => PlatformAIModel)
+  @ManyToOne(() => PlatformAIModel, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn()
   aiModel: PlatformAIModel;
 

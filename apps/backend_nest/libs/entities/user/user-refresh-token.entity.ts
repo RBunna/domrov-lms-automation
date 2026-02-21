@@ -15,7 +15,7 @@ export class UserRefreshToken extends BaseEntity {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @ManyToOne(() => User, (user) => user.refreshTokens)
+    @ManyToOne(() => User, (user) => user.refreshTokens, { onDelete: 'CASCADE' })
     user: User;
 
     @Column()

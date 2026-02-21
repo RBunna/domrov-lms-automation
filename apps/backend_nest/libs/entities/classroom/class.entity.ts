@@ -36,7 +36,7 @@ export class Class extends BaseEntity {
   })
   status: ClassStatus;
 
-  @ManyToOne(() => User, (user) => user.classes)
+  @ManyToOne(() => User, (user) => user.classes, { onDelete: 'CASCADE' })
   @JoinColumn()
   owner: User;
 

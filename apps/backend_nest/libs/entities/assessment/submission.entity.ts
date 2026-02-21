@@ -38,14 +38,14 @@ export class Submission extends BaseEntity {
   @Column({ default: 1 })
   attemptNumber: number;
 
-  @ManyToOne(() => User, { nullable: true })
+  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user: User;
 
   @Column({ nullable: true })
   userId: number;
 
-  @ManyToOne(() => Team, { nullable: true })
+  @ManyToOne(() => Team, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'teamId' })
   team: Team;
 

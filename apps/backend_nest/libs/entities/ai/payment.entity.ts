@@ -41,13 +41,13 @@ export class Payment extends BaseEntity {
   })
   status: PaymentStatus;
 
-  @ManyToOne(() => User)
+  @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn()
   user: User;
 
-  @ManyToOne(() => TokenPackage)
+  @ManyToOne(() => TokenPackage, { onDelete: 'SET NULL', nullable: true })
   @JoinColumn()
   tokenPackage: TokenPackage;
 
-  
+
 }

@@ -25,11 +25,11 @@ export class Team extends BaseEntity {
     @Column()
     maxMember: number;
 
-    @ManyToOne(() => User, (user) => user.leadTeams ,{nullable: true})
+    @ManyToOne(() => User, (user) => user.leadTeams, { nullable: true, onDelete: 'SET NULL' })
     @JoinColumn()
     leader: User;
 
-    @ManyToOne(() => Class, (cls) => cls.teams)
+    @ManyToOne(() => Class, (cls) => cls.teams, { onDelete: 'CASCADE' })
     @JoinColumn()
     class: Class;
 

@@ -6,12 +6,12 @@ export class UserEmailOtp extends BaseEntity {
     @PrimaryGeneratedColumn()
     id: number;
 
-    @OneToOne(() => User, (user) => user.emailOtps)
+    @OneToOne(() => User, (user) => user.emailOtps, { onDelete: 'CASCADE' })
     @JoinColumn()
     user: User;
 
     @Column()
-    otp: string; 
+    otp: string;
 
     @Column({ type: 'timestamp' })
     expiresAt: Date;

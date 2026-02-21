@@ -15,11 +15,11 @@ export class Enrollment extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => User, (user) => user.enrollments)
+  @ManyToOne(() => User, (user) => user.enrollments, { onDelete: 'CASCADE' })
   @JoinColumn()
   user: User;
 
-  @ManyToOne(() => Class, (cls) => cls.enrollments)
+  @ManyToOne(() => Class, (cls) => cls.enrollments, { onDelete: 'CASCADE' })
   @JoinColumn()
   class: Class;
 

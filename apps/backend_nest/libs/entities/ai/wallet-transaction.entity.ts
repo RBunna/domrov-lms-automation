@@ -38,12 +38,12 @@ export class WalletTransaction extends BaseEntity {
     @CreateDateColumn()
     createdAt: Date;
 
-    @ManyToOne(() => UserTokenBalance, (wallet) => wallet.transactions)
+    @ManyToOne(() => UserTokenBalance, (wallet) => wallet.transactions, { onDelete: 'CASCADE' })
     @JoinColumn()
     wallet: UserTokenBalance;
 
     // Optional: Link to a specific Payment if this was a Purchase
-    @ManyToOne(() => Payment, { nullable: true })
+    @ManyToOne(() => Payment, { nullable: true, onDelete: 'SET NULL' })
     @JoinColumn()
     payment: Payment;
 }

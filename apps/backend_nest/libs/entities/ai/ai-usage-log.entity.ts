@@ -26,11 +26,11 @@ export class AIUsageLog extends BaseEntity {
     @Column({ type: 'int' })
     outputTokenCount: number;
 
-    @ManyToOne(() => User, (user) => user.usageLogs)
+    @ManyToOne(() => User, (user) => user.usageLogs, { onDelete: 'CASCADE' })
     @JoinColumn()
     user: User;
 
-    @ManyToOne(() => PlatformAIModel, (model) => model.usageLogs)
+    @ManyToOne(() => PlatformAIModel, (model) => model.usageLogs, { onDelete: 'CASCADE' })
     @JoinColumn()
     model: PlatformAIModel;
 

@@ -16,11 +16,11 @@ export class TeamMember extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Team, (team) => team.members)
+  @ManyToOne(() => Team, (team) => team.members, { onDelete: 'CASCADE' })
   @JoinColumn()
   team: Team;
 
-  @ManyToOne(() => User, (user) => user.teamMemberships)
+  @ManyToOne(() => User, (user) => user.teamMemberships, { onDelete: 'CASCADE' })
   @JoinColumn()
   user: User;
 

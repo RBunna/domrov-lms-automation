@@ -8,11 +8,11 @@ export class AssessmentResource extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
-  @ManyToOne(() => Assessment, (assessment) => assessment.resources)
+  @ManyToOne(() => Assessment, (assessment) => assessment.resources, { onDelete: 'CASCADE' })
   @JoinColumn()
   assessment: Assessment;
 
-  @ManyToOne(() => Resource)
+  @ManyToOne(() => Resource, { onDelete: 'CASCADE' })
   @JoinColumn()
   resource: Resource;
 }

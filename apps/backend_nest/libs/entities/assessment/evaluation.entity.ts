@@ -41,7 +41,7 @@ export class Evaluation extends BaseEntity {
   @Column({ length: 100, nullable: true })
   confidencePoint: string;
 
-  @OneToOne(() => Submission, (submission) => submission.evaluation)
+  @OneToOne(() => Submission, (submission) => submission.evaluation, { onDelete: 'CASCADE' })
   @JoinColumn()
   submission: Submission;
 
@@ -55,5 +55,5 @@ export class Evaluation extends BaseEntity {
   // })
   // rubricScores: EvaluationRubricScore[];
 
-  
+
 }
