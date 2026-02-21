@@ -1,9 +1,9 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { R2Service } from '../../services/r2.service';
-import { ResourceType } from '../../../libs/enums/Resource';
+import { ResourceType } from '../../libs/enums/Resource';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Resource } from '../../../libs/entities/resource/resource.entity';
+import { Resource } from '../../libs/entities/resource/resource.entity';
 import { Readable } from 'stream';
 
 @Injectable()

@@ -19,10 +19,10 @@ import { PaymentGateway } from './modules/wallet/payment.gateway';
 import { PaymentFlowService } from './modules/wallet/payment-flow.service';
 // import { PaymentController } from './services/payment.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { Payment } from '../libs/entities/ai/payment.entity';
-import { TokenPackage } from '../libs/entities/ai/token-package.entity';
-import { UserTokenBalance } from '../libs/entities/ai/user-token-balance.entity';
-import { WalletTransaction } from '../libs/entities/ai/wallet-transaction.entity';
+import { Payment } from './libs/entities/ai/payment.entity';
+import { TokenPackage } from './libs/entities/ai/token-package.entity';
+import { UserTokenBalance } from './libs/entities/ai/user-token-balance.entity';
+import { WalletTransaction } from './libs/entities/ai/wallet-transaction.entity';
 
 @Module({
   imports: [
@@ -43,9 +43,9 @@ import { WalletTransaction } from '../libs/entities/ai/wallet-transaction.entity
     TasksModule,
     TypeOrmModule.forFeature([Payment, TokenPackage, UserTokenBalance, WalletTransaction]),
   ],
-  
+
   controllers: [AppController],
-  providers: [AppService,PaymentService, RedisService,PaymentFlowService,PaymentGateway],
-  exports:[AppService]
+  providers: [AppService, PaymentService, RedisService, PaymentFlowService, PaymentGateway],
+  exports: [AppService]
 })
 export class AppModule { }

@@ -1,23 +1,23 @@
-import { 
-  Controller, 
-  Patch, 
-  Param, 
-  Body, 
-  NotFoundException, 
+import {
+  Controller,
+  Patch,
+  Param,
+  Body,
+  NotFoundException,
   UseGuards,
   Get,
   Query
 } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { UpdateUserDTO } from '../../../libs/dtos/update.user.dto';
-import { User } from '../../../libs/entities/user/user.entity';
+import { UpdateUserDTO } from '../../libs/dtos/update.user.dto';
+import { User } from '../../libs/entities/user/user.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 
 @ApiTags('Users')
 @Controller('users')
 export class UserController {
-  constructor(private readonly userService: UserService) {}
+  constructor(private readonly userService: UserService) { }
 
   @Patch(':id')
   @ApiOperation({ summary: 'Update an existing user' })

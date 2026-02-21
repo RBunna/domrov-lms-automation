@@ -1,42 +1,38 @@
 import 'reflect-metadata';
-import { DataSource } from 'typeorm';
+import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 
-dotenv.config(); 
+dotenv.config();
 
-import { User } from '../../libs/entities/user/user.entity';
-import { OAuthAccount } from '../../libs/entities/user/oauth-account.entity';
-import { OAuthProvider } from '../../libs/entities/user/oauth-provider.entity';
-import { TelegramChat } from '../../libs/entities/user/telegram-chat.entity';
-import { UserEmailOtp } from '../../libs/entities/user/user-email-otp.entity';
-import { UserRefreshToken } from '../../libs/entities/user/user-refresh-token.entity';
-import { Class } from '../../libs/entities/classroom/class.entity';
-import { Enrollment } from '../../libs/entities/classroom/enrollment.entity';
-import { Team } from '../../libs/entities/classroom/team.entity';
-import { TeamMember } from '../../libs/entities/classroom/user-team.entity';
-import { Assessment } from '../../libs/entities/assessment/assessment.entity';
-import { Submission } from '../../libs/entities/assessment/submission.entity';
-import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
-import { Rubrics } from '../../libs/entities/assessment/rubic.entity';
-import { Resource } from '../../libs/entities/resource/resource.entity';
-import { AssessmentResource } from '../../libs/entities/resource/assessment-resource.entity';
-import { SubmissionResource } from '../../libs/entities/resource/submission-resource.entity';
-import { AIUsageLog } from '../../libs/entities/ai/ai-usage-log.entity';
-import { Payment } from '../../libs/entities/ai/payment.entity';
-import { PlatformAIModel } from '../../libs/entities/ai/platform-ai-model.entity';
-import { TokenPackage } from '../../libs/entities/ai/token-package.entity';
-import { UserTokenBalance } from '../../libs/entities/ai/user-token-balance.entity';
-import { WalletTransaction } from '../../libs/entities/ai/wallet-transaction.entity';
-import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-feedback.entity';
-import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
+import { User } from '../libs/entities/user/user.entity';
+import { OAuthAccount } from '../libs/entities/user/oauth-account.entity';
+import { OAuthProvider } from '../libs/entities/user/oauth-provider.entity';
+import { TelegramChat } from '../libs/entities/user/telegram-chat.entity';
+import { UserEmailOtp } from '../libs/entities/user/user-email-otp.entity';
+import { UserRefreshToken } from '../libs/entities/user/user-refresh-token.entity';
+import { Class } from '../libs/entities/classroom/class.entity';
+import { Enrollment } from '../libs/entities/classroom/enrollment.entity';
+import { Team } from '../libs/entities/classroom/team.entity';
+import { TeamMember } from '../libs/entities/classroom/user-team.entity';
+import { Assessment } from '../libs/entities/assessment/assessment.entity';
+import { Submission } from '../libs/entities/assessment/submission.entity';
+import { Evaluation } from '../libs/entities/assessment/evaluation.entity';
+import { Rubrics } from '../libs/entities/assessment/rubic.entity';
+import { Resource } from '../libs/entities/resource/resource.entity';
+import { AssessmentResource } from '../libs/entities/resource/assessment-resource.entity';
+import { SubmissionResource } from '../libs/entities/resource/submission-resource.entity';
+import { AIUsageLog } from '../libs/entities/ai/ai-usage-log.entity';
+import { Payment } from '../libs/entities/ai/payment.entity';
+import { PlatformAIModel } from '../libs/entities/ai/platform-ai-model.entity';
+import { TokenPackage } from '../libs/entities/ai/token-package.entity';
+import { UserTokenBalance } from '../libs/entities/ai/user-token-balance.entity';
+import { WalletTransaction } from '../libs/entities/ai/wallet-transaction.entity';
+import { EvaluationFeedback } from '../libs/entities/assessment/evaluation-feedback.entity';
+import { UserAIKey } from '../libs/entities/ai/user-ai-key.entity';
 
-export const AppDataSource = new DataSource({
+export const dataSourceOptions: DataSourceOptions = {
     type: 'postgres',
-    host: process.env.POSTGRES_HOST,
-    port: Number(process.env.POSTGRES_PORT),
-    username: process.env.POSTGRES_USER,
-    password: process.env.POSTGRES_PASSWORD,
-    database: process.env.POSTGRES_DB,
+    url: process.env.POSTGRES_URL,
     synchronize: false,
     logging: false,
     entities: [
@@ -67,4 +63,6 @@ export const AppDataSource = new DataSource({
         UserAIKey
     ],
     migrations: ['src/migrations/*.ts'],
-});
+};
+const AppDataSource = new DataSource(dataSourceOptions);
+export default AppDataSource;

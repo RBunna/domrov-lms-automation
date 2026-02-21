@@ -27,6 +27,7 @@ services:
     command: npm run start:dev
     volumes:
       - ./apps/backend_nest:/app
+      - ./apps/backend_nest/libs:/app/libs
       - ./apps/shared:/app/shared
       - /app/node_modules
     ports:

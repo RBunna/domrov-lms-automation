@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { S3Client, PutObjectCommand, HeadObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { ConfigService } from '@nestjs/config';
-import { MAX_FILE_SIZE } from '../../libs/const/system';
+import { MAX_FILE_SIZE } from '../libs/const/system';
 import { Readable } from 'stream';
 
 @Injectable()

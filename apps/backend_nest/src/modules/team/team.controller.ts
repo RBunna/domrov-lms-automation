@@ -21,10 +21,10 @@ import {
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TeamService } from './team.service';
-import { CreateTeamDto } from '../../../libs/dtos/team/create-team.dto';
+import { CreateTeamDto } from '../../libs/dtos/team/create-team.dto';
 import { UserId } from '../../common/decorators/user.decorator';
-import { InviteTeamByEmailDto, JoinTeamByTokenDto, JoinTeamDto } from '../../../libs/dtos/team/join-team.dto';
-import { CreateManyTeamsDto } from '../../../libs/dtos/team/create-many-teams.dto';
+import { InviteTeamByEmailDto, JoinTeamByTokenDto, JoinTeamDto } from '../../libs/dtos/team/join-team.dto';
+import { CreateManyTeamsDto } from '../../libs/dtos/team/create-many-teams.dto';
 
 @ApiTags('Team')
 @ApiBearerAuth('JWT-auth')

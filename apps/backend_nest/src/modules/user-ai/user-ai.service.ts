@@ -1,10 +1,10 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { CreateUserAIKeyDto } from '../../../libs/dtos/user/create-user-ai-key.dto';
-import { UpdateUserAIKeyDto } from '../../../libs/dtos/user/update-user-ai-key.dto';
-import { UserAIKey } from '../../../libs/entities/ai/user-ai-key.entity';
-import { Encryption } from '../../../libs/utils/Encryption';
+import { CreateUserAIKeyDto } from '../../libs/dtos/user/create-user-ai-key.dto';
+import { UpdateUserAIKeyDto } from '../../libs/dtos/user/update-user-ai-key.dto';
+import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
+import { Encryption } from '../../libs/utils/Encryption';
 @Injectable()
 export class UserAiService {
     constructor(

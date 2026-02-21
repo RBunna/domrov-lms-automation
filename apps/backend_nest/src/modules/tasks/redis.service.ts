@@ -9,10 +9,9 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
     constructor(private readonly configService: ConfigService) { }
 
     onModuleInit() {
-        this.client = new Redis({
-            host: this.configService.get<string>('REDIS_HOST') || 'redis',
-            port: this.configService.get<number>('REDIS_PORT') || 6379,
-            retryStrategy: (times) => Math.min(times * 50, 2000), 
+        const redisUrl = this.configService.get<string>('REDIS_URL') || 'redis://redis:6379';
+        this.client = new Redis(redisUrl, {
+            retryStrategy: (times) => Math.min(times * 50, 2000),
         });
     }
 
@@ -24,10 +23,10 @@ export class RedisService implements OnModuleInit, OnModuleDestroy {
         await this.client.quit();
     }
     async popFromQueue(queueName: string, timeout = 0): Promise<any | null> {
-    const res = await this.client.brpop(queueName, timeout); // blocking pop
-    if (!res) return null;
-    const [, job] = res;
-    return JSON.parse(job);
-}
+        const res = await this.client.brpop(queueName, timeout); // blocking pop
+        if (!res) return null;
+        const [, job] = res;
+        return JSON.parse(job);
+    }
 
 }

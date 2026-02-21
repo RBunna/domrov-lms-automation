@@ -1,15 +1,15 @@
 import { BadRequestException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../../../libs/entities/user/user.entity';
-import { RegisterUserDTO } from '../../../libs/dtos/user/register-user.dto';
-import { Encryption } from '../../../libs/utils/Encryption';
+import { User } from '../../libs/entities/user/user.entity';
+import { RegisterUserDTO } from '../../libs/dtos/user/register-user.dto';
+import { Encryption } from '../../libs/utils/Encryption';
 import { JwtService } from '@nestjs/jwt';
-import { LoginUserDTO } from '../../../libs/dtos/user/login.dto';
-import { UserRefreshToken } from '../../../libs/entities/user/user-refresh-token.entity';
-import { UserEmailOtp } from '../../../libs/entities/user/user-email-otp.entity';
+import { LoginUserDTO } from '../../libs/dtos/user/login.dto';
+import { UserRefreshToken } from '../../libs/entities/user/user-refresh-token.entity';
+import { UserEmailOtp } from '../../libs/entities/user/user-email-otp.entity';
 import { MailerService } from '@nestjs-modules/mailer';
-import { UserStatus } from '../../../libs/enums/Status';
+import { UserStatus } from '../../libs/enums/Status';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -44,7 +44,7 @@ export class AuthService {
                 email: createdUser.email
             };
         } catch (error) {
-            if (error.code === 11000) {
+            if ((error).code === 11000) {
                 throw new BadRequestException(`Duplicate field : ${Object.keys(error.keyValue).join(', ')}`);
             } else if (error.name === 'ValidationError') {
                 throw new BadRequestException(`Validation Fail : ${Object.keys(error.keyValue).join(', ')}`);
@@ -60,8 +60,11 @@ export class AuthService {
         const passwordMatches = await Encryption.verifyPassword(user.password, login.password);
         if (!passwordMatches) throw new UnauthorizedException('Invalid credentials');
         const payload = { sub: user.id, email: user.email };
-        const accessToken = this.accessJwtService.sign(payload);
-        const refreshToken = this.refreshJwtService.sign(payload);
+
+        const accessToken = await this.accessJwtService.signAsync(payload);
+
+        const refreshToken = await this.refreshJwtService.signAsync(payload);
+
         const expiresAt = new Date();
         expiresAt.setDate(expiresAt.getDate() + 7);
 
@@ -75,7 +78,9 @@ export class AuthService {
     }
 
     async refreshToken(id: string, email: string) {
-        return await this.refreshJwtService.signAsync({ sub: id, email: email })
+        return await this.refreshJwtService.signAsync(
+            { sub: id, email }
+        );
     }
 
     async logout(userId: number, refreshToken: string) {

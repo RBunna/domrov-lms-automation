@@ -5,9 +5,10 @@ import { ClientsModule, Transport } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
 import { AssessmentModule } from '../assessment/assessment.module';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
-import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
-import { Submission } from '../../../libs/entities/assessment/submission.entity';
+import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-feedback.entity';
+import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
+import { Submission } from '../../libs/entities/assessment/submission.entity';
+import { join } from 'path';
 
 @Module({
   imports: [
@@ -24,8 +25,8 @@ import { Submission } from '../../../libs/entities/assessment/submission.entity'
             url: `${config.get('CODE_EVAL_GRPC_CLIENT_HOST')}:${config.get('CODE_EVAL_GRPC_CLIENT_PORT')}`,
             package: 'submission',
             protoPath: [
-              '/app/shared/protos/submission.proto',
-              '/app/shared/protos/tasks.proto',
+              join(__dirname, '../../libs/protos/submission.proto'),
+              join(__dirname, '../../libs/protos/tasks.proto'),
             ],
             loader: { keepCase: true },
           },

@@ -14,7 +14,7 @@ import { Type } from 'class-transformer';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { SubmissionMethod, SubmissionType } from '../../enums/Assessment';
 import { CreateRubricDTO } from './create-rubric.dto';
-import { IsAfterStartDate } from '../../../src/common/decorators/IsAfterStartDate';
+import { IsAfterStartDate } from '../../../common/decorators/IsAfterStartDate';
 import { ResourceDTO } from '../file/resource.dto';
 export class CreateAssessmentDTO {
   @ApiProperty()

@@ -9,22 +9,22 @@ import { Repository } from 'typeorm';
 
 import { PaymentGateway } from './payment.gateway';
 import { PaymentService } from '../../services/payment.service';
-import { Payment } from '../../../libs/entities/ai/payment.entity';
-import { TokenPackage } from '../../../libs/entities/ai/token-package.entity';
-import { UserTokenBalance } from '../../../libs/entities/ai/user-token-balance.entity';
+import { Payment } from '../../libs/entities/ai/payment.entity';
+import { TokenPackage } from '../../libs/entities/ai/token-package.entity';
+import { UserTokenBalance } from '../../libs/entities/ai/user-token-balance.entity';
 import {
   TransactionType,
   WalletTransaction,
-} from '../../../libs/entities/ai/wallet-transaction.entity';
-import { PaymentStatus } from '../../../libs/enums/Status';
-import { Currency, PaymentMethod } from '../../../libs/enums/Payment'; // Ensure these are imported
-import { PaymentNotifier } from '../../../libs/interfaces/payment-notifier';
+} from '../../libs/entities/ai/wallet-transaction.entity';
+import { PaymentStatus } from '../../libs/enums/Status';
+import { Currency, PaymentMethod } from '../../libs/enums/Payment'; // Ensure these are imported
+import { PaymentNotifier } from '../../libs/interfaces/payment-notifier';
 // import { RedisService } from '../tasks/redis.service';
 
 @Injectable()
 export class PaymentFlowService implements OnModuleInit {
   private readonly logger = new Logger(PaymentFlowService.name);
-  
+
   constructor(
     private readonly paymentService: PaymentService,
     private readonly gateway: PaymentGateway,

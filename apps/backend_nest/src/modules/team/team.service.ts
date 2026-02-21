@@ -8,17 +8,17 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Team } from '../../../libs/entities/classroom/team.entity';
-import { Enrollment } from '../../../libs/entities/classroom/enrollment.entity';
-import { User } from '../../../libs/entities/user/user.entity';
-import { generateJoinCode } from '../../../libs/utils/GenerateRandom';
-import { CreateTeamDto } from '../../../libs/dtos/team/create-team.dto';
-import { UserRole } from '../../../libs/enums/Role';
-import { CreateManyTeamsDto } from '../../../libs/dtos/team/create-many-teams.dto';
+import { Team } from '../../libs/entities/classroom/team.entity';
+import { Enrollment } from '../../libs/entities/classroom/enrollment.entity';
+import { User } from '../../libs/entities/user/user.entity';
+import { generateJoinCode } from '../../libs/utils/GenerateRandom';
+import { CreateTeamDto } from '../../libs/dtos/team/create-team.dto';
+import { UserRole } from '../../libs/enums/Role';
+import { CreateManyTeamsDto } from '../../libs/dtos/team/create-many-teams.dto';
 import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
-import { TeamMember } from '../../../libs/entities/classroom/user-team.entity';
+import { TeamMember } from '../../libs/entities/classroom/user-team.entity';
 import { ClassService } from '../class/class.service';
 
 @Injectable()
@@ -35,7 +35,7 @@ export class TeamService {
         private readonly teamMemberRepository: Repository<TeamMember>,
 
         private readonly mailerService: MailerService,
-        private readonly classService:ClassService,
+        private readonly classService: ClassService,
         private config: ConfigService,
         private jwtService: JwtService
 
@@ -410,7 +410,7 @@ export class TeamService {
     async generateInviteLink(
         teamId: number,
         leaderId: number,
-        memberId:number,
+        memberId: number,
         internalCall: boolean = false,
     ) {
         if (!internalCall) {
@@ -418,7 +418,7 @@ export class TeamService {
         }
 
         const token = await this.jwtService.signAsync(
-            { teamId ,memberId},
+            { teamId, memberId },
             {
                 secret: this.config.get<string>('TEAM_INVITE_SECRET'),
                 expiresIn: '7d',
@@ -446,7 +446,7 @@ export class TeamService {
             throw new ConflictException('User is already in this team');
         }
 
-        const { link } = await this.generateInviteLink(teamId, leaderId, userToInvite.id,true);
+        const { link } = await this.generateInviteLink(teamId, leaderId, userToInvite.id, true);
 
         await this.mailerService.sendMail({
             to: userToInvite.email,
@@ -473,8 +473,8 @@ export class TeamService {
             throw new BadRequestException('Invalid or expired invite link');
         }
 
-        const { teamId,memberId } = payload;
-        if(memberId!=studentId){
+        const { teamId, memberId } = payload;
+        if (memberId != studentId) {
             throw new UnauthorizedException('You Are not invited.')
         }
         const team = await this.teamRepository.findOne({
@@ -485,7 +485,7 @@ export class TeamService {
         if (!team) {
             throw new NotFoundException('Team not found');
         }
-        
+
 
         await this.findUserAndVerifyEnrollment(studentId, team.class.id);
 

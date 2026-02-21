@@ -3,32 +3,32 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, In } from 'typeorm';
 
 // Entities
-import { Assessment } from '../../../libs/entities/assessment/assessment.entity';
-import { Submission } from '../../../libs/entities/assessment/submission.entity';
-import { Resource } from '../../../libs/entities/resource/resource.entity';
-import { AssessmentResource } from '../../../libs/entities/resource/assessment-resource.entity';
-import { Class } from '../../../libs/entities/classroom/class.entity';
-import { User } from '../../../libs/entities/user/user.entity';
-import { Team } from '../../../libs/entities/classroom/team.entity';
-import { Enrollment } from '../../../libs/entities/classroom/enrollment.entity';
-import { Rubrics } from '../../../libs/entities/assessment/rubic.entity';
+import { Assessment } from '../../libs/entities/assessment/assessment.entity';
+import { Submission } from '../../libs/entities/assessment/submission.entity';
+import { Resource } from '../../libs/entities/resource/resource.entity';
+import { AssessmentResource } from '../../libs/entities/resource/assessment-resource.entity';
+import { Class } from '../../libs/entities/classroom/class.entity';
+import { User } from '../../libs/entities/user/user.entity';
+import { Team } from '../../libs/entities/classroom/team.entity';
+import { Enrollment } from '../../libs/entities/classroom/enrollment.entity';
+import { Rubrics } from '../../libs/entities/assessment/rubic.entity';
 import { ConfigService } from '@nestjs/config';
 
 // Enums & DTOs
-import { SubmissionStatus } from '../../../libs/enums/Status';
-import { ResourceType } from '../../../libs/enums/Resource';
-import { CreateAssessmentDTO } from '../../../libs/dtos/assessment/create-assessment.dto';
-import { GradeSubmissionDTO } from '../../../libs/dtos/submission/grade-submission.dto';
-import { UpdateAssessmentDTO } from '../../../libs/dtos/assessment/update-assessment.dto';
-import { SubmissionResource } from '../../../libs/entities/resource/submission-resource.entity';
-import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
-import { AIModelSelectionMode, EvaluationType, SubmissionMethod, SubmissionType } from '../../../libs/enums/Assessment';
-import { SubmitAssignmentDto } from '../../../libs/dtos/submission/submit-assignment.dto';
-import { EvaluationFeedback } from '../../../libs/entities/assessment/evaluation-feedback.entity';
-import { FeedbackItemDto } from '../../../libs/dtos/submission/feedback-item.dto';
+import { SubmissionStatus } from '../../libs/enums/Status';
+import { ResourceType } from '../../libs/enums/Resource';
+import { CreateAssessmentDTO } from '../../libs/dtos/assessment/create-assessment.dto';
+import { GradeSubmissionDTO } from '../../libs/dtos/submission/grade-submission.dto';
+import { UpdateAssessmentDTO } from '../../libs/dtos/assessment/update-assessment.dto';
+import { SubmissionResource } from '../../libs/entities/resource/submission-resource.entity';
+import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
+import { AIModelSelectionMode, EvaluationType, SubmissionMethod, SubmissionType } from '../../libs/enums/Assessment';
+import { SubmitAssignmentDto } from '../../libs/dtos/submission/submit-assignment.dto';
+import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-feedback.entity';
+import { FeedbackItemDto } from '../../libs/dtos/submission/feedback-item.dto';
 import { EvaluationService } from '../evaluation/evaluation.service';
-import { Encryption } from '../../../libs/utils/Encryption';
-import { UserAIKey } from '../../../libs/entities/ai/user-ai-key.entity';
+import { Encryption } from '../../libs/utils/Encryption';
+import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
 
 @Injectable()
 export class AssessmentService {
@@ -632,9 +632,9 @@ export class AssessmentService {
    * 5. Get All Assignments for a Class (Dashboard View)
    * Sorted by Due Date (soonest first)
    */
-  async findAllByClassSession(classId: number,sessionId:number) {
+  async findAllByClassSession(classId: number, sessionId: number) {
     return await this.assessmentRepo.find({
-      where: { class: { id: classId },session:sessionId },
+      where: { class: { id: classId }, session: sessionId },
       order: { dueDate: 'ASC' },
       relations: ['resources', 'resources.resource'], // Show attached PDFs/Files
     });
@@ -747,7 +747,7 @@ export class AssessmentService {
     });
 
     if (submissions.length == 0) {
-return []
+      return []
     }
 
     // 3. Map assessments to include the submission status

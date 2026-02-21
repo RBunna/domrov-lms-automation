@@ -9,7 +9,7 @@ class RedisSingleton:
     @classmethod
     def get_instance(cls):
         if cls._instance is None:
-            cls._instance = Redis(
-                host=os.getenv("REDIS_HOST"), port=int(os.getenv("REDIS_PORT")), db=0
+            cls._instance = Redis.from_url(
+                os.getenv("REDIS_URL"), decode_responses=True
             )
         return cls._instance

@@ -2,13 +2,13 @@ import { Body, Controller, Delete, Get, Param, ParseIntPipe, Patch, Post, Query,
 import { ClassService } from './class.service';
 import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { UserId } from '../../common/decorators/user.decorator';
-import { JoinClassByTokenDto, JoinClassDto } from '../../../libs/dtos/class/join-class.dto';
+import { JoinClassByTokenDto, JoinClassDto } from '../../libs/dtos/class/join-class.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { CreateClassDto } from '../../../libs/dtos/class/create-class.dto';
-import { UpdateClassDto } from '../../../libs/dtos/class/update-class.dto';
-import { TransferOwnershipDto } from '../../../libs/dtos/class/transfer-ownership.dto';
-import { AssignTADto } from '../../../libs/dtos/class/assign-ta.dto';
-import { InviteClassByEmailDto } from '../../../libs/dtos/class/Invite-class.dto';
+import { CreateClassDto } from '../../libs/dtos/class/create-class.dto';
+import { UpdateClassDto } from '../../libs/dtos/class/update-class.dto';
+import { TransferOwnershipDto } from '../../libs/dtos/class/transfer-ownership.dto';
+import { AssignTADto } from '../../libs/dtos/class/assign-ta.dto';
+import { InviteClassByEmailDto } from '../../libs/dtos/class/Invite-class.dto';
 
 @ApiTags('Class')
 @ApiBearerAuth('JWT-auth')

@@ -13,20 +13,21 @@
     "target": "ES2023",
     "sourceMap": true,
     "outDir": "./dist",
-    // "baseUrl": "./",
     "incremental": true,
     "skipLibCheck": true,
     "ignoreDeprecations": "5.0",
-    "noImplicitAny": false,   
+    "noImplicitAny": false,
     "strictBindCallApply": false,
     "noFallthroughCasesInSwitch": false,
-    // "baseUrl": "./",
     "strictNullChecks": false,
-    "forceConsistentCasingInFileNames": false,
+    "forceConsistentCasingInFileNames": false
   },
   "watchOptions": {
     "watchFile": "dynamicPriorityPolling",
-    "watchDirectory":"dynamicPriorityPolling",
-    "excludeDirectories": ["node_modules", ".git"],
+    "watchDirectory": "dynamicPriorityPolling",
+    "excludeDirectories": [
+      "node_modules",
+      ".git"
+    ]
   }
 }

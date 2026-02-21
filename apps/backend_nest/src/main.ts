@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
+import { join } from 'path';
 
 async function bootstrap() {
   // --- 1. HTTP app for Swagger / REST ---
@@ -47,7 +48,7 @@ async function bootstrap() {
     transport: Transport.GRPC,
     options: {
       package: ['evaluation','submission'],
-      protoPath: ['/app/shared/protos/evaluate.proto', '/app/shared/protos/submission.proto'],
+      protoPath: [join(__dirname, './libs/protos/evaluate.proto'), join(__dirname, './libs/protos/submission.proto')],
       url: '0.0.0.0:50052',
       loader: { keepCase: true },
     }

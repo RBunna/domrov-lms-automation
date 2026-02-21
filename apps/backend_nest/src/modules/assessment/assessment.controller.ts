@@ -5,12 +5,12 @@ import {
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags, ApiResponse } from '@nestjs/swagger';
 import { AssessmentService } from './assessment.service';
-import { GradeSubmissionDTO } from '../../../libs/dtos/submission/grade-submission.dto';
+import { GradeSubmissionDTO } from '../../libs/dtos/submission/grade-submission.dto';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UserId } from '../../common/decorators/user.decorator';
-import { UpdateAssessmentDTO } from '../../../libs/dtos/assessment/update-assessment.dto';
-import { SubmitAssignmentDto } from '../../../libs/dtos/submission/submit-assignment.dto';
-import { FeedbackItemDto } from '../../../libs/dtos/submission/feedback-item.dto';
+import { UpdateAssessmentDTO } from '../../libs/dtos/assessment/update-assessment.dto';
+import { SubmitAssignmentDto } from '../../libs/dtos/submission/submit-assignment.dto';
+import { FeedbackItemDto } from '../../libs/dtos/submission/feedback-item.dto';
 
 @ApiTags('Assessments')
 @ApiBearerAuth('JWT-auth')
@@ -66,7 +66,7 @@ export class AssessmentController {
   @ApiOperation({
     summary: 'Student: Check status of all assignments in a class',
   })
-  async getMySubmissionStatus( 
+  async getMySubmissionStatus(
     @UserId() userId: number,
     @Param('id', ParseIntPipe) classId: number,
   ) {

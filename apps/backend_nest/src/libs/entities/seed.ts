@@ -37,48 +37,8 @@ import { Encryption } from '../utils/Encryption';
 import { EvaluationFeedback } from './assessment/evaluation-feedback.entity';
 // import { EvaluationRubricScore } from './assessment/evaluation-rubric-score.entity';
 import { ResourceType } from '../enums/Resource';
+import AppDataSource from '../../database/data-source';
 
-dotenv.config({ path: path.join(__dirname, '../../.env') });
-
-// ==========================================
-// 3. DATABASE CONFIGURATION
-// ==========================================
-const AppDataSource = new DataSource({
-    type: 'postgres',
-    host: process.env.POSTGRES_HOST || 'localhost',
-    port: parseInt(process.env.POSTGRES_PORT, 10) || 5432,
-    username: process.env.POSTGRES_USER,
-    password: process.env.POSTGRES_PASSWORD,
-    database: process.env.POSTGRES_DB,
-    entities: [
-        User,
-        OAuthAccount,
-        OAuthProvider,
-        TelegramChat,
-        UserEmailOtp,
-        UserRefreshToken,
-        Class,
-        Enrollment,
-        Team,
-        TeamMember,
-        Assessment,
-        Submission,
-        Evaluation,
-        Rubrics,
-        Resource,
-        AssessmentResource,
-        SubmissionResource,
-        AIUsageLog,
-        Payment,
-        PlatformAIModel,
-        TokenPackage,
-        UserTokenBalance,
-        WalletTransaction,
-        EvaluationFeedback,
-    ],
-    synchronize: true, // Set to false in production
-    logging: false,
-});
 
 async function seed() {
     await AppDataSource.initialize();
@@ -95,8 +55,8 @@ async function seed() {
     // Updated to match your entities
     await queryRunner.query(`
         TRUNCATE TABLE 
-            "submission_resources", "topic_resources", "module_resources", 
-            "class_resources", "assessment_resources", "resources",
+            "submission_resources", 
+            "assessment_resources", "resources",
             "evaluation_feedback", "evaluations",
             "submissions", "rubrics", "assessments",
             "team_members", "teams", "enrollments", "classes",

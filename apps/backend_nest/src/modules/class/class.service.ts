@@ -8,23 +8,23 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Class } from '../../../libs/entities/classroom/class.entity';
-import { Enrollment } from '../../../libs/entities/classroom/enrollment.entity';
-import { User } from '../../../libs/entities/user/user.entity';
-import { CreateClassDto } from '../../../libs/dtos/class/create-class.dto';
-import { generateJoinCode } from '../../../libs/utils/GenerateRandom';
-import { UserRole } from '../../../libs/enums/Role';
-import { TransferOwnershipDto } from '../../../libs/dtos/class/transfer-ownership.dto';
-import { AssignTADto } from '../../../libs/dtos/class/assign-ta.dto';
-import { ClassStatus } from '../../../libs/enums/Status';
+import { Class } from '../../libs/entities/classroom/class.entity';
+import { Enrollment } from '../../libs/entities/classroom/enrollment.entity';
+import { User } from '../../libs/entities/user/user.entity';
+import { CreateClassDto } from '../../libs/dtos/class/create-class.dto';
+import { generateJoinCode } from '../../libs/utils/GenerateRandom';
+import { UserRole } from '../../libs/enums/Role';
+import { TransferOwnershipDto } from '../../libs/dtos/class/transfer-ownership.dto';
+import { AssignTADto } from '../../libs/dtos/class/assign-ta.dto';
+import { ClassStatus } from '../../libs/enums/Status';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { MailerService } from '@nestjs-modules/mailer';
-import { UpdateClassDto } from '../../../libs/dtos/class/update-class.dto';
-import { Assessment } from '../../../libs/entities/assessment/assessment.entity';
-import { Submission } from '../../../libs/entities/assessment/submission.entity';
-import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
-import { UserResponseDto } from '../../../libs/dtos/user/user-response.dto';
+import { UpdateClassDto } from '../../libs/dtos/class/update-class.dto';
+import { Assessment } from '../../libs/entities/assessment/assessment.entity';
+import { Submission } from '../../libs/entities/assessment/submission.entity';
+import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
+import { UserResponseDto } from '../../libs/dtos/user/user-response.dto';
 @Injectable()
 export class ClassService {
 
@@ -322,7 +322,7 @@ export class ClassService {
             `Class with ID ${classId} not found, or you are not authorized to view this data.`
         );
     }
-    
+
 
     async transferOwnership(transferOwnershipDto: TransferOwnershipDto, currentOwnerId: number) {
         const { classId, newOwnerId } = transferOwnershipDto;

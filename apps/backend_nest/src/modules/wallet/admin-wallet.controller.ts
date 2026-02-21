@@ -3,8 +3,8 @@ import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { TokenPackageService } from './token-package.service';
 import { WalletService } from './wallet.service';
-import { CreateTokenPackageDTO } from '../../../libs/dtos/wallet/create-package.dto';
-import { AdminAdjustWalletDTO } from '../../../libs/dtos/wallet/admin-adjust-wallet.dto';
+import { CreateTokenPackageDTO } from '../../libs/dtos/wallet/create-package.dto';
+import { AdminAdjustWalletDTO } from '../../libs/dtos/wallet/admin-adjust-wallet.dto';
 
 @ApiTags('Wallet (Admin)')
 @Controller('admin/wallet')

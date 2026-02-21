@@ -9,9 +9,9 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
-import { CreateUserAIKeyDto } from '../../../libs/dtos/user/create-user-ai-key.dto';
-import { UpdateUserAIKeyDto } from '../../../libs/dtos/user/update-user-ai-key.dto';
-import { UserAIKey } from '../../../libs/entities/ai/user-ai-key.entity';
+import { CreateUserAIKeyDto } from '../../libs/dtos/user/create-user-ai-key.dto';
+import { UpdateUserAIKeyDto } from '../../libs/dtos/user/update-user-ai-key.dto';
+import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
 import { UserId } from '../../common/decorators/user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UserAiService } from './user-ai.service';

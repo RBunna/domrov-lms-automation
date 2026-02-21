@@ -3,7 +3,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { FileService } from './file.service';
 import { FileController } from './file.controller';
 import { R2Service } from '../../services/r2.service';
-import { Resource } from '../../../libs/entities/resource/resource.entity';
+import { Resource } from '../../libs/entities/resource/resource.entity';
 
 @Module({
   imports: [

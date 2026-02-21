@@ -5,15 +5,15 @@ import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
 
 // Entities
-import { Submission } from '../../../libs/entities/assessment/submission.entity';
-import { Evaluation } from '../../../libs/entities/assessment/evaluation.entity';
+import { Submission } from '../../libs/entities/assessment/submission.entity';
+import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
 // import { EvaluationRubricScore } from '../../../libs/entities/assessment/evaluation-rubric-score.entity';
 
 // DTOs & Enums
-import { EvaluationDto } from '../../../libs/dtos/assessment/ai-evaluation.dto';
-import { SubmissionStatus } from '../../../libs/enums/Status';
-import { TasksResponse } from '../../../libs/interfaces/evaluation';
-import { EvaluationType } from '../../../libs/enums/Assessment';
+import { EvaluationDto } from '../../libs/dtos/assessment/ai-evaluation.dto';
+import { SubmissionStatus } from '../../libs/enums/Status';
+import { TasksResponse } from '../../libs/interfaces/evaluation';
+import { EvaluationType } from '../../libs/enums/Assessment';
 
 // Service Interfaces
 interface SubmissionService {
@@ -98,7 +98,7 @@ export class EvaluationService implements OnModuleInit {
         feedback: string,
         scores: number[],
         input_token: number,
-        output_token:number,
+        output_token: number,
     ) {
         // 1. Fetch submission to ensure it exists
         const submission = await this.submissionRepo.findOne({
@@ -121,7 +121,7 @@ export class EvaluationService implements OnModuleInit {
             score: totalScore,
             aiOutput: feedback,
             evaluationType: EvaluationType.AI,
-            submission,            
+            submission,
         });
 
         //need to store token count
