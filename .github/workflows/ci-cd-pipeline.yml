@@ -66,6 +66,7 @@ jobs:
                         --restart unless-stopped \
                         --env-file /home/ubuntu/.env \
                         -p 3000:3000 \
+                        -p 50052:50052 \
                         phyvathanak/nestjs-backend:latest
 
     # =========================
