@@ -1,49 +1,60 @@
+// wallet-transaction.entity.ts
 import {
-    Entity,
-    PrimaryGeneratedColumn,
-    Column,
-    ManyToOne,
-    JoinColumn,
-    CreateDateColumn,
+  Entity,
+  PrimaryGeneratedColumn,
+  Column,
+  ManyToOne,
+  JoinColumn,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
-import { UserTokenBalance } from './user-token-balance.entity';
-import { Payment } from './payment.entity';
+import { UserCreditBalance } from './user-credit-balance.entity';
 
 export enum TransactionType {
-    PURCHASE = 'PURCHASE',   // Bought tokens
-    SPEND = 'SPEND',         // Used AI
-    REFUND = 'REFUND',       // Admin refunded
-    GIFT = 'GIFT',           // Sent to another user
-    BONUS = 'BONUS'          // System reward
+  CREDIT = 'credit',
+  DEBIT = 'debit',
+  PURCHASE = 'purchase',
+}
+
+export enum TransactionReason {
+  AI_USAGE = 'ai_usage',
+  PURCHASE = 'purchase',
+  REFUND = 'refund',
+  BONUS = 'bonus',
+  ADMIN_ADJUSTMENT = 'admin_adjustment',
 }
 
 @Entity({ name: 'wallet_transactions' })
 export class WalletTransaction extends BaseEntity {
-    @PrimaryGeneratedColumn()
-    id: number;
+  @PrimaryGeneratedColumn()
+  id: number;
 
-    @Column({ type: 'enum', enum: TransactionType })
-    type: TransactionType;
+  @Column({ nullable: true })
+  walletId?: number;
 
-    @Column({ type: 'float' })
-    amount: number; // Positive for add, Negative for deduct
+  @Column({ type: 'float' })
+  amount: number;
 
-    @Column({ type: 'float' })
-    balanceAfter: number; // Snapshot of balance after tx
+  @Column({ type: 'enum', enum: TransactionType })
+  type: TransactionType;
 
-    @Column({ nullable: true })
-    description: string; // e.g. "Usage for GPT-4", "Gold Package Purchase"
+  @Column({ type: 'enum', enum: TransactionReason, nullable: true })
+  reason?: TransactionReason;
 
-    @CreateDateColumn()
-    createdAt: Date;
+  @Column({ type: 'float', nullable: true })
+  balanceBefore?: number;
 
-    @ManyToOne(() => UserTokenBalance, (wallet) => wallet.transactions, { onDelete: 'CASCADE' })
-    @JoinColumn()
-    wallet: UserTokenBalance;
+  @Column({ type: 'float' })
+  balanceAfter: number;
 
-    // Optional: Link to a specific Payment if this was a Purchase
-    @ManyToOne(() => Payment, { nullable: true, onDelete: 'SET NULL' })
-    @JoinColumn()
-    payment: Payment;
+  @Column({ type: 'text', nullable: true })
+  description?: string;
+
+  @Column({ type: 'json', nullable: true })
+  metadata?: Record<string, any>;
+
+  @ManyToOne(() => UserCreditBalance, (wallet) => wallet.transactions, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'walletId' })
+  wallet: UserCreditBalance;
 }

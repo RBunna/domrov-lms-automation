@@ -10,14 +10,19 @@ import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
 // import { EvaluationRubricScore } from '../../../libs/entities/assessment/evaluation-rubric-score.entity';
 
 // DTOs & Enums
-import { EvaluationDto } from '../../libs/dtos/assessment/ai-evaluation.dto';
 import { SubmissionStatus } from '../../libs/enums/Status';
 import { TasksResponse } from '../../libs/interfaces/evaluation';
-import { EvaluationType } from '../../libs/enums/Assessment';
+import { AIModelSelectionMode, EvaluationType } from '../../libs/enums/Assessment';
+import { WalletService } from '../wallet/wallet.service';
+import { calculateCost } from '../../libs/utils/costCalculator';
+import { GrokBaseRates } from '../../libs/const/token-cost';
+import { TransactionReason } from '../../libs/entities/ai/wallet-transaction.entity';
 
 // Service Interfaces
 interface SubmissionService {
     processSubmission(request: { submission_id: string; file_path: string }): Observable<any>;
+    GetSubmissionFolderStructure(request: { submission_id: string}): Observable<any>;
+
 }
 
 interface TasksQueueService {
@@ -30,16 +35,17 @@ interface TasksQueueService {
 export class EvaluationService implements OnModuleInit {
     private submissionService: SubmissionService;
     private tasksQueueService: TasksQueueService;
-
+    
     constructor(
         @Inject('CODE_EVAL_GRPC')
         private readonly client: microservices.ClientGrpc,
-
+        
         @InjectRepository(Submission)
         private submissionRepo: Repository<Submission>,
-
+        
         @InjectRepository(Evaluation)
         private evaluationRepo: Repository<Evaluation>,
+        private walletService: WalletService
     ) { }
 
     onModuleInit() {
@@ -69,6 +75,36 @@ export class EvaluationService implements OnModuleInit {
         }
     }
 
+    async getSubmissionFolderStructure(submissionId: string) {
+        try {
+            // 1. Convert Observable to Promise to match processSubmission style
+            const result = await lastValueFrom(
+                this.submissionService.GetSubmissionFolderStructure({ submission_id:submissionId }),
+            );
+
+
+            // 2. Return consistent success structure
+            return {
+                success: true,
+                message: 'Folder structure fetched',
+                folder_structure: result.folder_structure
+                    ? JSON.parse(result.folder_structure)
+                    : {},
+            };
+        } catch (err: unknown) {
+            const grpcError = err as { code?: number; message?: string };
+            console.error('gRPC error (Folder Structure):', grpcError.message);
+
+            // 3. Handle gRPC code 5 (NOT_FOUND)
+            if (grpcError.code === 5) {
+                throw new NotFoundException(`Submission structure not found for ID: ${submissionId}`);
+            }
+
+            // 4. Re-throw unhandled errors (will likely result in 500 Internal Server Error)
+            throw err;
+        }
+    }
+
     async addTaskToQueue(submission_id: string) {
         try {
             const res = await lastValueFrom<TasksResponse>(
@@ -83,7 +119,6 @@ export class EvaluationService implements OnModuleInit {
                         }),
                     ),
             );
-
             if (!res.success) {
                 throw new Error(res.message);
             }
@@ -103,6 +138,11 @@ export class EvaluationService implements OnModuleInit {
         // 1. Fetch submission to ensure it exists
         const submission = await this.submissionRepo.findOne({
             where: { id: Number(submission_id) },
+            relations: [
+                'assessment',
+                'assessment.class',
+                'assessment.class.owner', // <--- this joins the teacher/owner
+            ],
         });
 
         if (!submission) {
@@ -123,8 +163,17 @@ export class EvaluationService implements OnModuleInit {
             evaluationType: EvaluationType.AI,
             submission,
         });
+        
+        if (submission.assessment.aiModelSelectionMode === AIModelSelectionMode.SYSTEM) {
+            const cost = calculateCost({ inputTokens: input_token, outputTokens: output_token }, { inputRate: GrokBaseRates.input, outputRate: GrokBaseRates.output })
+            await this.walletService.deductCredits(
+                submission.assessment.class.owner.id,
+                cost,
 
-        //need to store token count
+                TransactionReason.AI_USAGE,
+                `Evaluate submission ${submission.id}`
+            );
+        }
 
         await this.evaluationRepo.save(evaluation);
 

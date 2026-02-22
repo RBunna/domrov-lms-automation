@@ -47,6 +47,7 @@ services:
     volumes:
       - ./apps/code_eval:/app 
       - ./apps/shared:/app/shared
+      - ./files_cache_data:/files_cache
     env_file:
       - .env
     depends_on:

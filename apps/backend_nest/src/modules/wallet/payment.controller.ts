@@ -12,13 +12,9 @@ import {
   ApiResponse,
   ApiBearerAuth,
 } from '@nestjs/swagger';
-import { UnauthorizedException } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { PaymentFlowService } from './payment-flow.service';
-import { StartPaymentDto } from '../../libs/dtos/wallet/start-payment.dto';
 import { UserId } from '../../common/decorators/user.decorator';
-import { ConnectedSocket } from '@nestjs/websockets';
-import { Socket } from 'dgram';
 
 
 @ApiTags('Payment')

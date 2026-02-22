@@ -1,3 +1,4 @@
+// user-credit-balance.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
@@ -10,20 +11,20 @@ import { BaseEntity } from '../base.entity';
 import { User } from '../user/user.entity';
 import { WalletTransaction } from './wallet-transaction.entity';
 
-@Entity({ name: 'user_token_balances' })
-export class UserTokenBalance extends BaseEntity {
+@Entity({ name: 'user_credit_balances' })
+export class UserCreditBalance extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
 
   @Column({ type: 'float', default: 0 })
-  tokenBalance: number;
+  creditBalance: number;
 
-  // Changed to OneToOne: One user has exactly one wallet
-  @OneToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn()
+  @OneToOne(() => User, (user) => user.creditBalance, {
+    onDelete: 'CASCADE',
+  })
+  @JoinColumn({ name: 'userId' })
   user: User;
 
-  // Link to transaction history
   @OneToMany(() => WalletTransaction, (tx) => tx.wallet)
   transactions: WalletTransaction[];
 }

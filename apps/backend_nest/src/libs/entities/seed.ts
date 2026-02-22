@@ -7,10 +7,7 @@ import path from 'path';
 // 1. IMPORT YOUR ENTITIES HERE
 // ==========================================
 import { User } from './user/user.entity';
-import { UserTokenBalance } from './ai/user-token-balance.entity';
-import { TokenPackage } from './ai/token-package.entity';
 import { PlatformAIModel } from './ai/platform-ai-model.entity';
-import { WalletTransaction } from './ai/wallet-transaction.entity';
 import { Class } from './classroom/class.entity';
 import { Enrollment } from './classroom/enrollment.entity';
 import { Team } from './classroom/team.entity';
@@ -38,6 +35,8 @@ import { EvaluationFeedback } from './assessment/evaluation-feedback.entity';
 // import { EvaluationRubricScore } from './assessment/evaluation-rubric-score.entity';
 import { ResourceType } from '../enums/Resource';
 import AppDataSource from '../../database/data-source';
+import { CreditPackage } from './ai/credit-package.entity';
+import { UserCreditBalance } from './ai/user-credit-balance.entity';
 
 
 async function seed() {
@@ -54,33 +53,50 @@ async function seed() {
     console.log('🧹 Clearing existing data...');
     // Updated to match your entities
     await queryRunner.query(`
-        TRUNCATE TABLE 
-            "submission_resources", 
-            "assessment_resources", "resources",
-            "evaluation_feedback", "evaluations",
-            "submissions", "rubrics", "assessments",
-            "team_members", "teams", "enrollments", "classes",
-            "wallet_transactions", "user_token_balances", "payments",
-            "token_packages", "ai_usage_logs", "platform_ai_models",
-            "telegram_chats", "oauth_accounts", "oauth_providers",
-            "user_email_otp", "user_refresh_token", "users"
-        RESTART IDENTITY CASCADE;
+        DO
+        $$
+        DECLARE
+            tbl RECORD;
+        BEGIN
+            -- Loop over all tables in the current schema
+            FOR tbl IN
+                SELECT tablename
+                FROM pg_tables
+                WHERE schemaname = current_schema()
+            LOOP
+                -- Execute truncate with cascade and restart identity
+                EXECUTE 'TRUNCATE TABLE ' || quote_ident(tbl.tablename) || ' RESTART IDENTITY CASCADE;';
+            END LOOP;
+        END
+        $$;
     `);
 
     try {
         // --- 1. SEED USERS ---
         console.log('👤 Seeding Users...');
         const users: User[] = [];
+
         for (let i = 0; i < 15; i++) {
             const user = new User();
-            user.firstName = faker.person.firstName();
-            user.lastName = faker.person.lastName();
+
+            // 1. Generate names first
+            const firstName = faker.person.firstName();
+            const lastName = faker.person.lastName();
+
+            user.firstName = firstName;
+            user.lastName = lastName;
             user.gender = faker.person.sexType();
             user.dob = faker.date.birthdate({ min: 18, max: 60, mode: 'age' });
             user.phoneNumber = faker.string.numeric(10);
             user.status = UserStatus.ACTIVE;
             user.isVerified = true;
-            user.email = faker.internet.email();
+
+            // 2. Create the email MANUALLY using the names
+            // We lowercase them and remove spaces/special characters to ensure a valid email format
+            const cleanFirstName = firstName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            const cleanLastName = lastName.toLowerCase().replace(/[^a-z0-9]/g, '');
+            user.email = `${cleanFirstName}.${cleanLastName}@example.com`;
+
             user.password = await Encryption.hashPassword('password123');
 
             users.push(await queryRunner.manager.save(user));
@@ -100,21 +116,26 @@ async function seed() {
             models.push(await queryRunner.manager.save(model));
         }
 
-        // --- 3. SEED WALLETS & PACKAGES ---
-        console.log('💰 Seeding Wallets & Packages...');
-        const tokenPackages: TokenPackage[] = [];
+        // --- 3. SEED WALLETS & CREDIT PACKAGES ---
+        console.log('💰 Seeding Wallets & Credit Packages...');
+        const creditPackages: CreditPackage[] = [];
         for (let i = 0; i < 3; i++) {
-            const pkg = new TokenPackage();
+            const pkg = new CreditPackage();
             pkg.name = `${faker.commerce.productName()} Pack`;
-            pkg.tokenAmount = faker.number.int({ min: 1000, max: 10000 });
+            pkg.description = faker.lorem.sentence();
+            pkg.credits = faker.number.int({ min: 1000, max: 10000 });
             pkg.price = faker.number.float({ min: 5, max: 50, fractionDigits: 2 });
-            tokenPackages.push(await queryRunner.manager.save(pkg));
+            pkg.currency = Currency.USD;
+            pkg.bonusCredits = faker.number.int({ min: 0, max: 500 });
+            pkg.isActive = true;
+            pkg.sortOrder = i + 1;
+            creditPackages.push(await queryRunner.manager.save(pkg));
         }
 
         for (const user of users) {
-            const wallet = new UserTokenBalance();
+            const wallet = new UserCreditBalance();
             wallet.user = user;
-            wallet.tokenBalance = faker.number.int({ min: 500, max: 5000 });
+            wallet.creditBalance = faker.number.int({ min: 500, max: 5000 });
             await queryRunner.manager.save(wallet);
         }
 
@@ -161,8 +182,8 @@ async function seed() {
         // --- 5. SEED ASSESSMENTS ---
         console.log('📝 Seeding Assessments...');
         const assessment = new Assessment();
-        assessment.title = 'Final Project Proposal';
-        assessment.instruction = faker.lorem.paragraph();
+        assessment.title = 'Library Management System - Week 2';
+        assessment.instruction = 'Implement a library system using C++ structs and pointers.';
         assessment.startDate = new Date();
         assessment.dueDate = faker.date.future();
         assessment.maxScore = 100;
@@ -170,48 +191,65 @@ async function seed() {
         assessment.class = myClass;
         assessment.aiModel = models[0];
         assessment.aiEvaluationEnable = true;
-        assessment.allowTeamSubmition = true;
-        assessment.allowedSubmissionMethod = SubmissionMethod.ANY; // 👈 Updated
+        assessment.allowedSubmissionMethod = SubmissionMethod.GITHUB;
+
         const savedAssessment = await queryRunner.manager.save(assessment);
 
-        // Add Rubrics
-        for (let i = 0; i < 3; i++) {
+        // Specific Rubrics based on your requirement (Total: 100)
+        const rubricCriteria = [
+            { text: "Define Book struct in models/Book.h", score: 15 },
+            { text: "Implement addBook and displayAllBooks", score: 15 },
+            { text: "Implement findBookById returning a pointer (Book*)", score: 25 },
+            { text: "Implement checkOutBook and returnBook", score: 10 },
+            { text: "Implement showPromotionalBooks in main.cpp", score: 10 },
+            { text: "Implement Sorting and Searching (Bubble/Binary)", score: 25 }
+        ];
+
+        for (const item of rubricCriteria) {
             const rubric = new Rubrics();
-            rubric.definition = faker.lorem.sentence();
-            rubric.totalScore = 100 / 3;
+            rubric.definition = item.text;
+            rubric.totalScore = item.score;
             rubric.assessment = savedAssessment;
             await queryRunner.manager.save(rubric);
         }
 
-        // --- 6. SEED SUBMISSIONS & EVALUATIONS ---
-        console.log('📊 Seeding Submissions & Evaluations...');
-        const student = studentUsers[0];
+        // --- 6. SEED SUBMISSIONS (Excluding Teacher) ---
+        console.log('📊 Seeding Submissions for Students...');
 
-        const submission = new Submission();
-        submission.assessment = savedAssessment;
-        submission.user = student;
-        submission.status = SubmissionStatus.SUBMITTED;
-        const savedSubmission = await queryRunner.manager.save(submission);
+        const githubUrls = [
+            "https://github.com/Next-Gen-G9/week-2-algorithms-anisda.git",
+            "https://github.com/Next-Gen-G9/week-2-algorithms-chill-chill.git",
+            "https://github.com/Next-Gen-G9/week-2-algorithms-dy-jin.git",
+            "https://github.com/Next-Gen-G9/week-2-algorithms-gossip-team.git"
+        ];
 
-        // 👈 Updated: Seed Submission Resource instead of direct URL
-        const submissionResource = new SubmissionResource();
-        submissionResource.submission = savedSubmission;
-        const resource = new Resource();
-        resource.title = 'Project Proposal.pdf';
-        resource.type = ResourceType.FILE;
-        resource.url = faker.internet.url();
-        resource.owner = `Student:${student.id}`;
-        await queryRunner.manager.save(resource);
+        for (let i = 0; i < githubUrls.length; i++) {
+            // 👈 LOGIC: Offset by 1 to skip the Teacher (users[0])
+            // Student 1 gets users[1], Student 2 gets users[2], etc.
+            const studentUser = users[i + 1];
 
-        submissionResource.resource = resource;
-        await queryRunner.manager.save(submissionResource);
+            if (!studentUser) break;
 
-        const evaluation = new Evaluation();
-        evaluation.submission = savedSubmission;
-        evaluation.score = faker.number.int({ min: 60, max: 100 });
-        evaluation.evaluationType = EvaluationType.AI;
-        evaluation.feedback = "Good work.";
-        await queryRunner.manager.save(evaluation);
+            const submission = new Submission();
+            submission.assessment = savedAssessment;
+            submission.user = studentUser;
+            submission.status = SubmissionStatus.PENDING; // Ready to test
+            const savedSubmission = await queryRunner.manager.save(submission);
+
+            // Create the Resource as a GitHub LINK
+            const resource = new Resource();
+            resource.title = `Project Repo: ${studentUser.lastName}`;
+            resource.type = ResourceType.URL;
+            resource.url = githubUrls[i];
+            resource.owner = `Student:${studentUser.id}`;
+            const savedResource = await queryRunner.manager.save(resource);
+
+            // Link Resource to Submission via Junction Table
+            const submissionResource = new SubmissionResource();
+            submissionResource.submission = savedSubmission;
+            submissionResource.resource = savedResource;
+            await queryRunner.manager.save(submissionResource);
+        }
 
         // --- 7. SEED USAGE LOGS & PAYMENTS ---
         console.log('📊 Seeding Usage & Payments...');
@@ -233,7 +271,7 @@ async function seed() {
             payment.currency = Currency.USD;
             payment.status = PaymentStatus.COMPLETED;
             payment.user = user;
-            payment.tokenPackage = faker.helpers.arrayElement(tokenPackages);
+            payment.creditPackage = faker.helpers.arrayElement(creditPackages);
             await queryRunner.manager.save(payment);
         }
 

@@ -1,48 +1,57 @@
-import { Body, Controller, Get, Post, Patch, Param, UseGuards, ParseIntPipe } from '@nestjs/common';
+import { Body, Controller, Get, Post, Patch, Param, ParseIntPipe } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { TokenPackageService } from './token-package.service';
 import { WalletService } from './wallet.service';
-import { CreateTokenPackageDTO } from '../../libs/dtos/wallet/create-package.dto';
+import { CreditPackageService } from './credit-package.service';
+import { CreateCreditPackageDto, UpdateCreditPackageDto } from '../../libs/dtos/wallet/wallet.dto';
 import { AdminAdjustWalletDTO } from '../../libs/dtos/wallet/admin-adjust-wallet.dto';
 
 @ApiTags('Wallet (Admin)')
 @Controller('admin/wallet')
+@ApiBearerAuth()
 // @UseGuards(JwtAuthGuard, RolesGuard)
 // @Roles('ADMIN')
-@ApiBearerAuth()
 export class AdminWalletController {
     constructor(
-        private packageService: TokenPackageService,
-        private walletService: WalletService
+        private readonly packageService: CreditPackageService,
+        private readonly walletService: WalletService,
     ) { }
 
     @Post('packages')
     @ApiOperation({ summary: 'Create new token package' })
-    async createPackage(@Body() dto: CreateTokenPackageDTO) {
+    async createPackage(@Body() dto: CreateCreditPackageDto) {
         return this.packageService.create(dto);
     }
 
     @Get('packages')
     @ApiOperation({ summary: 'View all packages (active & inactive)' })
     async getAllPackages() {
-        return this.packageService.findAllAdmin();
+        return this.packageService.findAll();
     }
 
     @Patch('packages/:id/toggle')
     @ApiOperation({ summary: 'Activate/Deactivate package' })
     async togglePackage(@Param('id', ParseIntPipe) id: number) {
-        return this.packageService.toggleStatus(id);
+        return this.packageService.toggleActive(id);
     }
 
     @Post('adjust')
     @ApiOperation({ summary: 'Manually add/remove tokens from user (Refund/Bonus)' })
     async manualAdjustment(@Body() dto: AdminAdjustWalletDTO) {
         if (dto.amount >= 0) {
-            return this.walletService.addTokens(dto.userId, dto.amount, dto.type, dto.description);
+            return this.walletService.addCredits(
+                dto.userId,
+                dto.amount,
+                dto.reason,
+                dto.description,
+            );
         } else {
-            const ok = await this.walletService.deductTokens(dto.userId, Math.abs(dto.amount), dto.description);
-            return { success: ok };
+            const result = await this.walletService.deductCredits(
+                dto.userId,
+                Math.abs(dto.amount),
+                dto.reason,
+                dto.description,
+            );
+            return { success: result };
         }
     }
 }

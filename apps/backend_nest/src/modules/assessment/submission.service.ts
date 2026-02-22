@@ -1,0 +1,695 @@
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+
+// Entities
+import { Assessment } from '../../libs/entities/assessment/assessment.entity';
+import { Submission } from '../../libs/entities/assessment/submission.entity';
+import { Resource } from '../../libs/entities/resource/resource.entity';
+import { Class } from '../../libs/entities/classroom/class.entity';
+import { Team } from '../../libs/entities/classroom/team.entity';
+import { Enrollment } from '../../libs/entities/classroom/enrollment.entity';
+import { SubmissionResource } from '../../libs/entities/resource/submission-resource.entity';
+import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
+import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-feedback.entity';
+import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
+
+// Enums & DTOs
+import { SubmissionStatus } from '../../libs/enums/Status';
+import { ResourceType } from '../../libs/enums/Resource';
+import { GradeSubmissionDTO } from '../../libs/dtos/submission/grade-submission.dto';
+import { AIModelSelectionMode, EvaluationType, SubmissionMethod, SubmissionType } from '../../libs/enums/Assessment';
+import { SubmitAssignmentDto } from '../../libs/dtos/submission/submit-assignment.dto';
+import { FeedbackItemDto } from '../../libs/dtos/submission/feedback-item.dto';
+import { EvaluationService } from '../evaluation/evaluation.service';
+import { Encryption } from '../../libs/utils/Encryption';
+import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
+import { WalletService } from '../wallet/wallet.service';
+
+@Injectable()
+export class SubmissionService {
+    constructor(
+        @InjectRepository(Assessment)
+        private assessmentRepo: Repository<Assessment>,
+        @InjectRepository(Submission)
+        private submissionRepo: Repository<Submission>,
+        @InjectRepository(Resource)
+        private resourceRepo: Repository<Resource>,
+        @InjectRepository(SubmissionResource)
+        private subResourceRepo: Repository<SubmissionResource>,
+        @InjectRepository(Evaluation)
+        private evaluationRepo: Repository<Evaluation>,
+        @InjectRepository(Class)
+        private classRepo: Repository<Class>,
+        @InjectRepository(Team)
+        private teamRepo: Repository<Team>,
+        @InjectRepository(Enrollment)
+        private enrollmentRepo: Repository<Enrollment>,
+        @InjectRepository(EvaluationFeedback)
+        private readonly evaluationFeedbackRepo: Repository<EvaluationFeedback>,
+        @InjectRepository(UserAIKey)
+        private readonly userAIKeyRepo: Repository<UserAIKey>,
+        private walletService:WalletService,
+        private readonly aiEvaluationService: EvaluationService
+    ) { }
+
+    async createSubmissionsForAssessment(assessment: Assessment) {
+        // Load assessment with teamAssessments and class enrollments
+        const assessmentWithTeams = await this.assessmentRepo.findOne({
+            where: { id: assessment.id },
+            relations: [
+                'teamAssessments',
+                'teamAssessments.team',
+                'teamAssessments.team.members',
+                'teamAssessments.team.members.user',
+                'class',
+                'class.enrollments',
+                'class.enrollments.user',
+            ],
+        });
+
+        if (!assessmentWithTeams) return;
+
+        if (assessment.submissionType === SubmissionType.INDIVIDUAL) {
+            for (const enrollment of assessmentWithTeams.class.enrollments) {
+                if (!enrollment.user) continue;
+                await this.submissionRepo.save({
+                    assessment,
+                    user: enrollment.user,
+                    status: SubmissionStatus.PENDING,
+                    attemptNumber: 0,
+                });
+            }
+        } else if (assessment.submissionType === SubmissionType.TEAM) {
+            // Pre-create submissions only for teams that actually exist
+            for (const teamAssessment of assessmentWithTeams.teamAssessments) {
+                const team = teamAssessment.team;
+                if (!team) continue;
+
+                await this.submissionRepo.save({
+                    assessment,
+                    team,
+                    status: SubmissionStatus.PENDING,
+                    attemptNumber: 0,
+                });
+            }
+        }
+    }
+
+    async submitAssignment(userId: number, assessmentId: number, dto: SubmitAssignmentDto) {
+        // Determine which relations to load
+        const relations = [
+            'class',
+            'class.enrollments',
+            'class.enrollments.user',
+        ];
+
+        // Only load team data if this is a TEAM submission
+        const assessmentMeta = await this.assessmentRepo.findOne({
+            where: { id: assessmentId },
+            relations: relations,
+        });
+
+        if (!assessmentMeta) throw new NotFoundException('Assessment not found');
+
+        // Check enrollment for individual or team submissions
+        const isEnrolled = assessmentMeta.class.enrollments.some(e => e.user.id === userId);
+        if (!isEnrolled) throw new ForbiddenException('Not enrolled in class');
+
+        let submission: Submission;
+
+        if (assessmentMeta.submissionType === SubmissionType.TEAM) {
+            // Lazy-load team data only for TEAM submissions
+            const assessment = await this.assessmentRepo.findOne({
+                where: { id: assessmentId },
+                relations: [
+                    'teamAssessments',
+                    'teamAssessments.team',
+                    'teamAssessments.team.members',
+                    'teamAssessments.team.members.user',
+                ],
+            });
+
+            const teamAssessment = assessment.teamAssessments.find(ta =>
+                ta.team.members.some(m => m.user.id === userId)
+            );
+
+            if (!teamAssessment)
+                throw new BadRequestException('Team assignment but you are not in an allowed team for this assessment');
+
+            const team = teamAssessment.team;
+
+            if (team.members.length > team.maxMember)
+                throw new BadRequestException('Team exceeds maximum members');
+
+            // Check if submission exists
+            submission = await this.submissionRepo.findOne({
+                where: { assessment: { id: assessmentId }, team: { id: team.id } },
+            });
+
+            if (!submission) {
+                submission = this.submissionRepo.create({
+                    assessment,
+                    team,
+                    status: SubmissionStatus.SUBMITTED,
+                    attemptNumber: 1,
+                    submissionTime: new Date(),
+                });
+            } else {
+                submission.attemptNumber += 1;
+                submission.status = submission.status === SubmissionStatus.PENDING
+                    ? SubmissionStatus.SUBMITTED
+                    : SubmissionStatus.RESUBMITTED;
+                submission.submissionTime = new Date();
+            }
+        } else {
+            // INDIVIDUAL submission
+            submission = await this.submissionRepo.findOne({
+                where: { assessment: { id: assessmentId }, user: { id: userId } },
+            });
+
+            if (!submission) {
+                submission = this.submissionRepo.create({
+                    assessment: assessmentMeta,
+                    user: { id: userId },
+                    status: SubmissionStatus.SUBMITTED,
+                    attemptNumber: 1,
+                    submissionTime: new Date(),
+                });
+            } else {
+                submission.attemptNumber += 1;
+                submission.status = submission.status === SubmissionStatus.PENDING
+                    ? SubmissionStatus.SUBMITTED
+                    : SubmissionStatus.RESUBMITTED;
+                submission.submissionTime = new Date();
+            }
+        }
+
+        // Handle late submissions
+        const now = new Date();
+        if (now > assessmentMeta.dueDate) {
+            submission.status = assessmentMeta.allowLate ? SubmissionStatus.LATE : submission.status;
+        }
+
+        // Comments
+        if (dto.comments) submission.comments = dto.comments;
+        await this.submissionRepo.save(submission);
+
+        // Handle resources
+        if (dto.resources?.length) {
+            for (const resDto of dto.resources) {
+                const resource = await this.resourceRepo.findOne({ where: { id: resDto.resourceId } });
+                if (!resource) throw new BadRequestException(`Resource ${resDto.resourceId} not found`);
+
+                if (assessmentMeta.allowedSubmissionMethod === SubmissionMethod.GITHUB && resource.type !== ResourceType.URL) {
+                    throw new BadRequestException(`Resource ${resDto.resourceId} must be a GitHub URL`);
+                }
+
+                const exists = await this.subResourceRepo.findOne({
+                    where: { submission: { id: submission.id }, resource: { id: resource.id } },
+                });
+
+                if (!exists) {
+                    const subRes = this.subResourceRepo.create({ submission, resource });
+                    await this.subResourceRepo.save(subRes);
+                }
+            }
+        }
+
+        // Handle GitHub URL
+        if (dto.githubUrl) {
+            const resource = await this.resourceRepo.save({
+                title: `GitHub: ${assessmentMeta.title}`,
+                type: ResourceType.URL,
+                url: dto.githubUrl,
+                owner: `${userId}`,
+            });
+            await this.subResourceRepo.save({ submission, resource });
+        }
+
+        // AI evaluation
+        if (assessmentMeta.aiEvaluationEnable) {
+            this.aiEvaluationService.addTaskToQueue(submission.id.toString());
+        }
+
+        return { message: 'Submitted successfully', submissionId: submission.id };
+    }
+
+    async gradeSubmission(teacherId: number, submissionId: number, dto: GradeSubmissionDTO) {
+        const submission = await this.submissionRepo.findOne({
+            where: { id: submissionId },
+            relations: ['evaluation', 'assessment', 'assessment.class', 'assessment.class.owner'],
+        });
+
+        if (!submission) throw new NotFoundException('Submission not found');
+
+        if (submission.assessment?.class?.owner?.id !== teacherId) {
+            throw new BadRequestException('Unauthorized');
+        }
+
+        let evaluation = submission.evaluation;
+        if (!evaluation) {
+            evaluation = this.evaluationRepo.create({
+                submission
+            });
+        }
+
+        evaluation.evaluationType = EvaluationType.MANUAL;
+
+        evaluation.score = dto.score;
+        evaluation.feedback = dto.feedback;
+        await this.evaluationRepo.save(evaluation);
+
+        submission.status = SubmissionStatus.GRADED;
+        await this.submissionRepo.save(submission);
+
+        return evaluation;
+    }
+
+    async approveSubmission(teacherId: number, submissionId: number) {
+        const submission = await this.submissionRepo.findOne({
+            where: { id: submissionId },
+            relations: ['assessment', 'assessment.class', 'assessment.class.owner', 'evaluation'],
+        });
+
+        if (!submission) throw new NotFoundException('Submission not found');
+
+        if (submission.assessment.class.owner.id !== teacherId) {
+            throw new BadRequestException('Unauthorized');
+        }
+
+        if (!submission.evaluation) {
+            throw new BadRequestException('Submission has no evaluation yet');
+        }
+
+        submission.evaluation.isApproved = true;
+        await this.evaluationRepo.save(submission.evaluation);
+
+        return {
+            message: 'Submission approved successfully',
+            submissionId: submission.id,
+            evaluationId: submission.evaluation.id,
+            isApproved: submission.evaluation.isApproved,
+        };
+    }
+
+    async getSubmissionForViewer(userId: number, submissionId: number) {
+        const submission = await this.submissionRepo.findOne({
+            where: { id: submissionId },
+            relations: [
+                'user', 'team', 'team.members', 'team.members.user',
+                'assessment', 'assessment.class', 'assessment.class.owner',
+                'resources', 'resources.resource', 'evaluation',
+            ],
+        });
+        if (!submission) throw new NotFoundException('Submission not found');
+        const isTeacher = submission.assessment.class.owner.id === userId;
+        const isOwner = submission.user?.id === userId;
+        const isTeamMember = submission.team?.members?.some((m) => m.user?.id === userId) ?? false;
+
+        if (!isTeacher && !isOwner && !isTeamMember) {
+            throw new BadRequestException('Unauthorized');
+        }
+
+        return {
+            id: submission.id,
+            created_at: submission.created_at,
+            updated_at: submission.updated_at,
+            submissionTime: submission.submissionTime,
+            status: submission.status,
+            attemptNumber: submission.attemptNumber,
+            user: submission.user ? { id: submission.user.id, firstName: submission.user.firstName, lastName: submission.user.lastName } : null,
+            team: submission.team ? {
+                id: submission.team.id,
+                name: submission.team.name,
+                maxMember: submission.team.maxMember,
+                members: submission.team.members.map((m) => ({
+                    id: m.id,
+                    user: m.user ? { id: m.user.id, firstName: m.user.firstName, lastName: m.user.lastName } : null,
+                })),
+            } : null,
+            assessment: submission.assessment ? {
+                id: submission.assessment.id,
+                title: submission.assessment.title,
+                maxScore: submission.assessment.maxScore,
+                class: submission.assessment.class ? { id: submission.assessment.class.id, name: submission.assessment.class.name } : null,
+            } : null,
+            evaluation: submission.evaluation ?? null,
+            resources: submission.resources.map((r) => ({
+                id: r.id,
+                resource: r.resource ? { id: r.resource.id, title: r.resource.title, type: r.resource.type, url: r.resource.url } : null,
+            })),
+        };
+    }
+
+    async getMySubmission(userId: number, assessmentId: number) {
+        const assessmentWithTeams = await this.assessmentRepo.findOne({
+            where: { id: assessmentId },
+            relations: [
+                'class',
+                'class.enrollments',
+                'class.enrollments.user',
+                'teamAssessments',
+                'teamAssessments.team',
+                'teamAssessments.team.members',
+                'teamAssessments.team.members.user',
+                'submissions',
+                'submissions.resources',
+                'submissions.resources.resource',
+                'submissions.evaluation',
+            ],
+        });
+
+        if (!assessmentWithTeams) throw new NotFoundException('Assessment not found');
+        if (!assessmentWithTeams.isPublic) throw new BadRequestException('Assessment not found');
+
+        let submission: Submission | null = null;
+
+        if (assessmentWithTeams.submissionType === SubmissionType.TEAM) {
+            const teamAssessment = assessmentWithTeams.teamAssessments.find(ta =>
+                ta.team.members.some(m => m.user.id === userId)
+            );
+
+            if (!teamAssessment) {
+                return {
+                    status: SubmissionStatus.PENDING,
+                    message: 'Not in an allowed team for this assessment',
+                    resources: [],
+                    evaluation: null,
+                };
+            }
+
+            submission = await this.submissionRepo.findOne({
+                where: { assessment: { id: assessmentId }, team: { id: teamAssessment.team.id } },
+                relations: ['resources', 'resources.resource', 'evaluation'],
+            });
+        } else {
+            submission = await this.submissionRepo.findOne({
+                where: { assessment: { id: assessmentId }, user: { id: userId } },
+                relations: ['resources', 'resources.resource', 'evaluation'],
+            });
+        }
+
+        if (!submission) {
+            return {
+                status: SubmissionStatus.PENDING,
+                resources: [],
+                evaluation: null,
+            };
+        }
+
+        const evaluationData =
+            submission.evaluation && (submission?.evaluation?.isApproved ?? false)
+                ? {
+                    id: submission.evaluation.id,
+                    score: submission.evaluation.score,
+                    feedback: submission.evaluation.feedback || null,
+                    isApproved: true,
+                }
+                : null;
+
+        return {
+            id: submission.id,
+            status: submission.status,
+            attemptNumber: submission.attemptNumber,
+            submissionTime: submission.submissionTime,
+            comments: submission.comments || null,
+            resources: submission.resources?.map(r => ({
+                id: r.resource.id,
+                title: r.resource.title,
+                type: r.resource.type,
+                url: r.resource.url || null,
+            })) || [],
+            evaluation: evaluationData,
+        };
+    }
+
+    async getMySubmissionsStatus(userId: number, classId: number) {
+        const assessments = await this.assessmentRepo.find({ where: { class: { id: classId } } });
+        const submissions = await this.submissionRepo.find({
+            where: { user: { id: userId }, assessment: { class: { id: classId } } },
+            relations: ['evaluation', 'assessment'],
+        });
+
+        if (submissions.length == 0) return [];
+        
+        return assessments.map((assessment) => {
+            if (!assessment.isPublic) throw new BadRequestException('Assessment not found');
+
+            const submission = submissions.find((s) => s.assessment.id === assessment.id && (s?.evaluation?.isApproved??false));
+
+            return {
+                assessmentId: assessment.id,
+                title: assessment.title,
+                dueDate: assessment.dueDate,
+                status: submission ? submission.status : 'PENDING',
+                submissionId: submission?.id || null,
+                grade: submission?.evaluation?.score || null,
+            };
+        });
+    }
+
+    async getAssignmentRoster(assessmentId: number) {
+        const assessment = await this.assessmentRepo.findOne({
+            where: { id: assessmentId },
+            relations: ['class'],
+        });
+        if (!assessment) throw new NotFoundException('Assessment not found');
+        if (!assessment.isPublic) throw new BadRequestException('Assessment not found');
+
+        const submissions = await this.submissionRepo.find({
+            where: { assessment: { id: assessmentId } },
+            relations: ['user', 'team', 'evaluation'],
+        });
+
+        if (assessment.submissionType == SubmissionType.TEAM) {
+            const teams = await this.teamRepo.find({
+                where: { class: { id: assessment.class.id } },
+                relations: ['members', 'members.user'],
+            });
+
+            return teams.map((team) => {
+                const sub = submissions.find((s) => s.team?.id === team.id);
+                return {
+                    type: 'TEAM',
+                    id: team.id,
+                    name: team.name,
+                    members: team.members.map((m) => ({
+                        userId: m.user.id,
+                        fullName: `${m.user.firstName} ${m.user.lastName}`,
+                        profileUrl: m.user.profilePictureUrl,
+                    })),
+                    status: sub ? sub.status : 'NOT_SUBMITTED',
+                    submissionId: sub?.id || null,
+                    score: sub?.evaluation?.score || null,
+                    submittedAt: sub?.submissionTime || null,
+                };
+            });
+        } else {
+            const enrollments = await this.enrollmentRepo.find({
+                where: { class: { id: assessment.class.id } },
+                relations: ['user'],
+            });
+
+            return enrollments.map((enrollment) => {
+                const student = enrollment.user;
+                const sub = submissions.find((s) => s.user?.id === student.id);
+                return {
+                    type: 'INDIVIDUAL',
+                    id: student.id,
+                    name: `${student.firstName} ${student.lastName}`,
+                    email: student.email,
+                    profileUrl: student.profilePictureUrl,
+                    status: sub ? sub.status : 'NOT_SUBMITTED',
+                    submissionId: sub?.id || null,
+                    score: sub?.evaluation?.score || null,
+                    submittedAt: sub?.submissionTime || null,
+                };
+            });
+        }
+    }
+
+    async getAssessmentStats(assessmentId: number) {
+        const roster = await this.getAssignmentRoster(assessmentId);
+        const total = roster.length;
+        const submitted = roster.filter((r) => r.status !== 'NOT_SUBMITTED').length;
+        const graded = roster.filter((r) => r.status === 'GRADED' || r.status === 'EVALUATED').length;
+
+        return {
+            totalStudentsOrTeams: total,
+            submittedCount: submitted,
+            pendingCount: total - submitted,
+            gradedCount: graded,
+        };
+    }
+
+    async evaluateSubmission(submissionId: number, totalScore: number, feedback: string) {
+        const submission = await this.submissionRepo.findOne({ where: { id: submissionId } });
+        if (!submission) throw new NotFoundException('Submission not found');
+
+        let evaluation = await this.evaluationRepo.findOne({ where: { submission: { id: submissionId } } });
+        if (!evaluation) {
+            evaluation = this.evaluationRepo.create({
+                submission,
+                score: totalScore,
+                feedback,
+                evaluationType: EvaluationType.MANUAL,
+            });
+        } else {
+            evaluation.score = totalScore;
+            evaluation.feedback = feedback;
+        }
+        await this.evaluationRepo.save(evaluation);
+        return evaluation;
+    }
+
+    async addFeedbackLineByLine(userId: number, submissionId: number, dto: FeedbackItemDto) {
+        const submission = await this.checkOwnership(userId, submissionId);
+        let evaluation = await this.evaluationRepo.findOne({ where: { submission: { id: submissionId } } });
+
+        if (!evaluation) {
+            evaluation = this.evaluationRepo.create({
+                submission,
+                score: 0,
+                feedback: '',
+                evaluationType: EvaluationType.AI,
+            });
+            await this.evaluationRepo.save(evaluation);
+        }
+
+        if (dto && dto.path) {
+            const feedbackEntity = this.evaluationFeedbackRepo.create({
+                evaluation,
+                filePath: dto.path,
+                startLine: dto.startLine,
+                endLine: dto.endLine,
+                message: dto.message,
+                feedbackType: dto.type,
+            });
+            await this.evaluationFeedbackRepo.save(feedbackEntity);
+        }
+
+        return { message: 'Feedback item added successfully', evaluationId: evaluation.id, addedItemsCount: dto ? 1 : 0 };
+    }
+
+    async updateSingleFeedback(userId: number, feedbackId: string, dto: FeedbackItemDto) {
+        const feedback = await this.evaluationFeedbackRepo.findOne({
+            where: { id: feedbackId },
+            relations: ['evaluation', 'evaluation.submission', 'evaluation.submission.assessment', 'evaluation.submission.assessment.class', 'evaluation.submission.assessment.class.owner'],
+        });
+
+        if (!feedback) throw new NotFoundException('Feedback item not found');
+        if (feedback.evaluation.submission.assessment.class.owner.id !== userId) {
+            throw new ForbiddenException('You do not have permission to update this feedback');
+        }
+
+        feedback.filePath = dto.path;
+        feedback.startLine = dto.startLine;
+        feedback.endLine = dto.endLine;
+        feedback.message = dto.message;
+        feedback.feedbackType = dto.type;
+
+        await this.evaluationFeedbackRepo.save(feedback);
+        return { message: 'Feedback item updated successfully', feedbackId: feedback.id };
+    }
+
+    async getSubmissionDetails(submissionId: number) {
+        const submission = await this.submissionRepo.findOne({
+            where: { id: submissionId },
+            relations: [
+                'assessment', 'assessment.rubrics', 'resources', 'resources.resource',
+                'assessment.class', 'assessment.class.owner', 'evaluation'
+            ],
+        });
+
+        if (!submission) throw new NotFoundException('Submission not found');
+        if (submission.evaluation) throw new BadRequestException('Submission already evaluated');
+
+        const assessment = submission.assessment;
+        if (!assessment.aiEvaluationEnable) throw new NotFoundException('Submission not found');
+
+        const R2_KEY = `${submission.userId}/submission/${submission.id}`;
+        let resourceUrl: string | null = null;
+        if (assessment.allowedSubmissionMethod === SubmissionMethod.ANY || assessment.allowedSubmissionMethod == SubmissionMethod.ZIP) {
+            const githubRes = submission.resources?.find((sr) => sr.resource.type === ResourceType.URL && sr.resource.url.includes('github.com'));
+            resourceUrl = githubRes ? githubRes.resource.url : R2_KEY;
+        } else if (assessment.allowedSubmissionMethod === SubmissionMethod.GITHUB) {
+            const githubRes = submission.resources?.find((sr) => sr.resource.url.includes('github.com'));
+            resourceUrl = githubRes ? githubRes.resource.url : null;
+        }
+
+        const rubric = assessment.rubrics.map((r) => ({ criterion: r.definition, weight: r.totalScore }));
+
+        if (assessment.aiModelSelectionMode === AIModelSelectionMode.SYSTEM) {
+            const balance = await this.walletService.getBalance(submission.assessment.class.owner.id);
+            if (balance < 0)
+                throw new BadRequestException('Insufficient Balance');
+            return {
+                submission_id: submission.id.toString(),
+                instructions: assessment.instruction,
+                resource_url: resourceUrl,
+                rubric,
+                ai: { provider: 'domrov', api_key: 'nothing', api_endpoint: 'domrov.edu', model: 'domrov', label: 'domrov' },
+            };
+        } else if (assessment.aiModelSelectionMode === AIModelSelectionMode.USER) {
+            const userKey = await this.userAIKeyRepo.findOne({
+                where: { userId: submission.assessment.class.owner.id, isActive: true, isValid: true },
+                order: { created_at: 'DESC' },
+            });
+
+            if (!userKey) throw new NotFoundException('Submission not found');
+
+            const decryptedKey = Encryption.decryptKey(userKey.encryptedKey);
+            return {
+                submission_id: submission.id.toString(),
+                instructions: assessment.instruction,
+                resource_url: resourceUrl,
+                rubric,
+                ai: {
+                    provider: userKey.provider,
+                    api_key: decryptedKey,
+                    api_endpoint: userKey.apiEndpoint,
+                    model: userKey.model,
+                    label: userKey.label,
+                },
+            };
+        }
+        throw new NotFoundException('Submission not found');
+    }
+
+    async getSubmissionResoucrs(submissionId: number) {
+        const submission = await this.submissionRepo.findOne({
+            where: { id: submissionId },
+            relations: ['resources', 'resources.resource', 'assessment.class', 'assessment.class.owner'],
+        });
+
+        if (!submission) throw new NotFoundException('Submission not found');
+
+        const assessment = submission.assessment;
+        const R2_KEY = `${submission.userId}/submission/${submission.id}`;
+        let resourceUrl: string | null = null;
+
+        if (assessment.allowedSubmissionMethod === SubmissionMethod.ANY || assessment.allowedSubmissionMethod == SubmissionMethod.ZIP) {
+            const githubRes = submission.resources?.find((sr) => sr.resource.type === ResourceType.URL && sr.resource.url.includes('github.com'));
+            resourceUrl = githubRes ? githubRes.resource.url : R2_KEY;
+        } else if (assessment.allowedSubmissionMethod === SubmissionMethod.GITHUB) {
+            const githubRes = submission.resources?.find((sr) => sr.resource.url.includes('github.com'));
+            resourceUrl = githubRes ? githubRes.resource.url : null;
+        }
+
+        return { resource_url: resourceUrl };
+    }
+
+    private async checkOwnership(userId: number, submissionId: number) {
+        const submission = await this.submissionRepo.findOne({
+            where: { id: submissionId },
+            relations: ['assessment', 'assessment.class', 'assessment.class.owner'],
+        });
+
+        if (!submission) throw new NotFoundException('Submission not found');
+        if (submission.assessment.class.owner.id !== userId) {
+            throw new ForbiddenException('You do not have permission to evaluate this submission');
+        }
+        return submission;
+    }
+}

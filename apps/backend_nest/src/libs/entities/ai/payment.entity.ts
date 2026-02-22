@@ -1,17 +1,16 @@
+// payment.entity.ts
 import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
   ManyToOne,
   JoinColumn,
-  CreateDateColumn,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { User } from '../user/user.entity';
-import { TokenPackage } from './token-package.entity';
+import { CreditPackage } from './credit-package.entity';
 import { Currency, PaymentMethod } from '../../enums/Payment';
 import { PaymentStatus } from '../../enums/Status';
-
 
 @Entity({ name: 'payments' })
 export class Payment extends BaseEntity {
@@ -22,17 +21,14 @@ export class Payment extends BaseEntity {
   paymentMethod: PaymentMethod;
 
   @Column({ type: 'float' })
-  amount: number; // Real Money Amount (e.g. $10.00)
+  amount: number;
 
-  @Column({ type: 'enum', enum: Currency })
+  @Column({
+    type: 'enum',
+    enum: Currency,
+    default: Currency.USD,
+  })
   currency: Currency;
-
-  // Store the External ID from Stripe/PayPal
-  @Column({ nullable: true })
-  providerTransactionId: string;
-
-  @CreateDateColumn()
-  transactionDate: Date;
 
   @Column({
     type: 'enum',
@@ -41,13 +37,20 @@ export class Payment extends BaseEntity {
   })
   status: PaymentStatus;
 
-  @ManyToOne(() => User, { onDelete: 'CASCADE' })
-  @JoinColumn()
-  user: User;
+  @Column({ nullable: true })
+  transactionId?: string;
 
-  @ManyToOne(() => TokenPackage, { onDelete: 'SET NULL', nullable: true })
-  @JoinColumn()
-  tokenPackage: TokenPackage;
+  @ManyToOne(() => User, (user) => user.payments, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'userId' })
+  user?: User;
 
-
+  @ManyToOne(() => CreditPackage, (pkg) => pkg.payments, {
+    nullable: true,
+    onDelete: 'SET NULL',
+  })
+  @JoinColumn({ name: 'creditPackageId' })
+  creditPackage?: CreditPackage;
 }

@@ -1,4 +1,3 @@
-import 'reflect-metadata';
 import { DataSource, DataSourceOptions } from 'typeorm';
 import * as dotenv from 'dotenv';
 
@@ -24,45 +23,47 @@ import { SubmissionResource } from '../libs/entities/resource/submission-resourc
 import { AIUsageLog } from '../libs/entities/ai/ai-usage-log.entity';
 import { Payment } from '../libs/entities/ai/payment.entity';
 import { PlatformAIModel } from '../libs/entities/ai/platform-ai-model.entity';
-import { TokenPackage } from '../libs/entities/ai/token-package.entity';
-import { UserTokenBalance } from '../libs/entities/ai/user-token-balance.entity';
 import { WalletTransaction } from '../libs/entities/ai/wallet-transaction.entity';
 import { EvaluationFeedback } from '../libs/entities/assessment/evaluation-feedback.entity';
 import { UserAIKey } from '../libs/entities/ai/user-ai-key.entity';
+import { UserCreditBalance } from '../libs/entities/ai/user-credit-balance.entity';
+import { CreditPackage } from '../libs/entities/ai/credit-package.entity';
+import { TeamAssessment } from '../libs/entities/classroom/team-assessment.entity';
 
 export const dataSourceOptions: DataSourceOptions = {
-    type: 'postgres',
-    url: process.env.POSTGRES_URL,
-    synchronize: false,
-    logging: false,
-    entities: [
-        User,
-        OAuthAccount,
-        OAuthProvider,
-        TelegramChat,
-        UserEmailOtp,
-        UserRefreshToken,
-        Class,
-        Enrollment,
-        Team,
-        TeamMember,
-        Assessment,
-        Submission,
-        Evaluation,
-        Rubrics,
-        Resource,
-        AssessmentResource,
-        SubmissionResource,
-        AIUsageLog,
-        Payment,
-        PlatformAIModel,
-        TokenPackage,
-        UserTokenBalance,
-        WalletTransaction,
-        EvaluationFeedback,
-        UserAIKey
-    ],
-    migrations: ['src/migrations/*.ts'],
+  type: 'postgres',
+  url: process.env.POSTGRES_URL,
+  synchronize: false,
+  logging: false,
+  entities: [
+    User,
+    OAuthAccount,
+    OAuthProvider,
+    TelegramChat,
+    UserEmailOtp,
+    UserRefreshToken,
+    Class,
+    Enrollment,
+    Team,
+    TeamMember,
+    Assessment,
+    Submission,
+    Evaluation,
+    Rubrics,
+    Resource,
+    AssessmentResource,
+    SubmissionResource,
+    AIUsageLog,
+    Payment,
+    PlatformAIModel,
+    UserCreditBalance,
+    CreditPackage,
+    WalletTransaction,
+    EvaluationFeedback,
+    UserAIKey,
+    TeamAssessment
+  ],
+  migrations: ['migrations/*.ts'],
 };
 const AppDataSource = new DataSource(dataSourceOptions);
 export default AppDataSource;

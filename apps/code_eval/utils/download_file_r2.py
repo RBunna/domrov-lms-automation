@@ -83,20 +83,25 @@ def download_prefix_from_r2(prefix: str, destination_folder: str) -> list[str]:
 
 
 # ---------------- Unified downloadFiles ----------------
-def downloadFiles(url: str, folder_name: str) -> list[str]:
-    """
-    Unified downloader:
-    - GitHub repo -> clone
-    - R2 prefix -> download all files
-    Returns a list of local file paths (raw files or folders for multiple extracted files).
-    """
-    destination_folder = os.path.join("./files_cache", folder_name)
-    os.makedirs(destination_folder, exist_ok=True)
+import os
 
+
+def downloadFiles(url: str, folder_name: str) -> str:
+    dest = os.path.join("/files_cache", str(folder_name))
+
+    # 1. Create the folder if it doesn't exist
+    os.makedirs(dest, exist_ok=True)
+
+    # 2. FORCE the folder to be 777 (drwxrwxrwx)
+    # This allows the git clone process to write files inside
+    try:
+        os.chmod(dest, 0o777)
+        print(f"DEBUG: Successfully set 777 permissions on {dest}", flush=True)
+    except Exception as e:
+        print(f"DEBUG: Failed to set permissions: {e}", flush=True)
+
+    # 3. Now perform the clone
     if "github.com" in url:
-        # GitHub repo
-        [clone_repo(url, "./files_cache", folder_name)]
-    else:
-        # R2 prefix
-        download_prefix_from_r2(prefix=url, destination_folder=destination_folder)
-    return destination_folder
+        clone_repo(url, "/files_cache", str(folder_name))
+
+    return dest

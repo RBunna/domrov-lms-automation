@@ -1,4 +1,5 @@
 import os
+from typing import Dict, List, Union
 import chardet
 from pathlib import Path
 from utils.ignore_checker import IgnoreChecker
@@ -135,3 +136,53 @@ def process_path(path_str: str, user_exclude=None, user_include=None):
     content_output = collected_file_content(path, checker)
 
     return tree_output, content_output
+
+
+def build_directory_json(directory: Path, checker: IgnoreChecker) -> Union[Dict, None]:
+    if not directory.exists():
+        return None
+
+    if directory.is_file():
+        return {"name": directory.name, "type": "file"}
+
+    node = {"name": directory.name, "type": "folder"}
+    children = []
+
+    try:
+        items = sorted(
+            directory.iterdir(), key=lambda x: (not x.is_dir(), x.name.lower())
+        )
+        for item in items:
+            if checker.is_ignored(item):
+                continue
+
+            child_node = build_directory_json(item, checker)
+            if child_node:
+                children.append(child_node)
+    except PermissionError:
+        pass
+
+    if children:
+        node["children"] = children
+
+    return node
+
+
+if __name__ == "__main__":
+    base_path = Path("./files_cache/35")  # Replace with your folder path
+    user_exclude = ["models/", "examples/"]  # Optional extra exclude patterns
+    user_include = [
+        "src/main.ts",
+        "src/utils/",
+    ]  # Optional exact files/folders to include
+
+    # Create IgnoreChecker with user exclude/include
+    checker = IgnoreChecker(
+        base_path, user_exclude=user_exclude, user_include=user_include
+    )
+
+    tree_json = build_directory_json(base_path, checker)
+
+    import json
+
+    print(json.dumps(tree_json, indent=2))

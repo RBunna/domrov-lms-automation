@@ -1,113 +1,134 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+// wallet.service.ts
+import { Injectable, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
-import { UserTokenBalance } from '../../libs/entities/ai/user-token-balance.entity';
-import { TransactionType, WalletTransaction } from '../../libs/entities/ai/wallet-transaction.entity';
-
-// Entities
+import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
+import { WalletTransaction, TransactionType, TransactionReason } from '../../libs/entities/ai/wallet-transaction.entity';
 
 @Injectable()
 export class WalletService {
     constructor(
-        @InjectRepository(UserTokenBalance) private balanceRepo: Repository<UserTokenBalance>,
-        @InjectRepository(WalletTransaction) private txRepo: Repository<WalletTransaction>,
-        private dataSource: DataSource, // Used for database transactions (safety)
+        @InjectRepository(UserCreditBalance)
+        private readonly walletRepository: Repository<UserCreditBalance>,
+        @InjectRepository(WalletTransaction)
+        private readonly transactionRepository: Repository<WalletTransaction>,
+        private readonly dataSource: DataSource,
+
     ) { }
 
-    /**
-     * Get User Balance (Auto-creates wallet if missing)
-     */
-    async getBalance(userId: number): Promise<UserTokenBalance> {
-        let wallet = await this.balanceRepo.findOne({
-            where: { user: { id: userId } }
+    async getOrCreateWallet(userId: number): Promise<UserCreditBalance> {
+        let wallet = await this.walletRepository.findOne({
+            where: { user: { id: userId } },
+            relations: ['user'],
         });
 
         if (!wallet) {
-            wallet = this.balanceRepo.create({
+            wallet = this.walletRepository.create({
                 user: { id: userId },
-                tokenBalance: 0
+                creditBalance: 0,
             });
-            await this.balanceRepo.save(wallet);
+            await this.walletRepository.save(wallet);
         }
+
         return wallet;
     }
 
-    /**
-     * Get Transaction History
-     */
-    async getTransactionHistory(userId: number) {
-        const wallet = await this.balanceRepo.findOne({ where: { user: { id: userId } } });
-        if (!wallet) return [];
-        return this.txRepo.find({
-            where: { wallet: { id: wallet.id } },
-            order: { createdAt: 'DESC' }
-        });
+    async getBalance(userId: number): Promise<number> {
+        const wallet = await this.getOrCreateWallet(userId);
+        return wallet.creditBalance;
     }
 
-    /**
-     * DEDUCT TOKENS (Use this when User uses AI)
-     * Uses Pessimistic Locking to prevent double-spending.
-     */
-    async deductTokens(userId: number, amount: number, description: string): Promise<boolean> {
-        return await this.dataSource.transaction(async (manager) => {
-            // 1. Lock the wallet row
-            const wallet = await manager.findOne(UserTokenBalance, {
-                where: { user: { id: userId } },
-                lock: { mode: 'pessimistic_write' },
-            });
+    async addCredits(
+        userId: number,
+        amount: number,
+        reason: TransactionReason,
+        description?: string,
+    ): Promise<UserCreditBalance> {
+        return this.dataSource.transaction(async (manager) => {
+            const wallet = await this.getOrCreateWallet(userId);
+            const balanceBefore = wallet.creditBalance;
+            const balanceAfter = balanceBefore + amount;
 
-            if (!wallet || wallet.tokenBalance < amount) {
-                throw new BadRequestException('Insufficient token balance');
-            }
-
-            // 2. Update Balance
-            wallet.tokenBalance -= amount;
+            wallet.creditBalance = balanceAfter;
             await manager.save(wallet);
 
-            // 3. Log Transaction
-            const tx = manager.create(WalletTransaction, {
-                wallet,
-                amount: -amount,
-                balanceAfter: wallet.tokenBalance,
-                type: TransactionType.SPEND,
-                description,
+            const transaction = this.transactionRepository.create({
+                walletId: wallet.id,
+                amount,
+                type: TransactionType.CREDIT,
+                reason,
+                balanceBefore,
+                balanceAfter,
+                description: description || `Added ${amount} credits`,
             });
-            await manager.save(tx);
-
-            return true;
-        });
-    }
-
-    /**
-     * ADD TOKENS (Use this in your custom Payment/Buy Controller)
-     */
-    async addTokens(userId: number, amount: number, type: TransactionType, description: string) {
-        return await this.dataSource.transaction(async (manager) => {
-            // 1. Get Wallet
-            let wallet = await manager.findOne(UserTokenBalance, {
-                where: { user: { id: userId } }
-            });
-
-            if (!wallet) {
-                wallet = manager.create(UserTokenBalance, { user: { id: userId }, tokenBalance: 0 });
-                await manager.save(wallet);
-            }
-
-            // 2. Add Balance
-            wallet.tokenBalance += amount;
-            await manager.save(wallet);
-
-            // 3. Log Transaction
-            const tx = manager.create(WalletTransaction, {
-                wallet,
-                amount: amount,
-                balanceAfter: wallet.tokenBalance,
-                type: type,
-                description,
-            });
-            await manager.save(tx);
+            await manager.save(transaction);
 
             return wallet;
         });
+    }
+
+    async deductCredits(
+        userId: number,
+        amount: number,
+        reason: TransactionReason,
+        description?: string,
+        tpye: TransactionType = TransactionType.DEBIT,
+        metadata?: Record<string, any>,
+    ): Promise<UserCreditBalance> {
+        return this.dataSource.transaction(async (manager) => {
+            const wallet = await this.getOrCreateWallet(userId);
+            const balanceBefore = wallet.creditBalance;
+
+            if (balanceBefore < amount) {
+                throw new BadRequestException('Insufficient credit balance');
+            }
+
+            const balanceAfter = balanceBefore - amount;
+            wallet.creditBalance = balanceAfter;
+            await manager.save(wallet);
+
+            const transaction = this.transactionRepository.create({
+                walletId: wallet.id,
+                amount,
+                type: tpye,
+                reason,
+                balanceBefore,
+                balanceAfter,
+                description: description || `Deducted ${amount} credits`,
+            });
+            await manager.save(transaction);
+
+            return wallet;
+        });
+    }
+
+    async hasEnoughBalance(userId: number, amount: number): Promise<boolean> {
+        const balance = await this.getBalance(userId);
+        return balance >= amount;
+    }
+
+    async getTransactionHistory(
+        userId: number,
+        page: number = 1,
+        limit: number = 10,
+    ) {
+        const wallet = await this.getOrCreateWallet(userId);
+
+        const [transactions, total] = await this.transactionRepository.findAndCount({
+            where: { walletId: wallet.id },
+            order: { created_at: 'DESC' },
+            skip: (page - 1) * limit,
+            take: limit,
+        });
+
+        return {
+            data: transactions,
+            meta: {
+                total,
+                page,
+                limit,
+                totalPages: Math.ceil(total / limit),
+            },
+        };
     }
 }

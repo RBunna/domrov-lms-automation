@@ -23,7 +23,8 @@ COPY . .
 RUN rm -rf __pycache__ resource/ shared/ .env Dockerfile* .dockerignore .gitignore *.log
 
 # Create cache directory for runtime
-RUN mkdir -p /app/files_cache
+USER root
+RUN mkdir -p /files_cache && chmod -R 777 /files_cache
 
 # Non-root user for security
 RUN addgroup -S appgroup && adduser -S appuser -G appgroup

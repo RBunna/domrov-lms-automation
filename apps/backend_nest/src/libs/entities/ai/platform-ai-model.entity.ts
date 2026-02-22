@@ -17,7 +17,6 @@ export class PlatformAIModel extends BaseEntity {
   @Column({ type: 'float', nullable: true })
   accuracy: number;
 
-  // Cost per token usage (to calculate how much to deduct from wallet)
   @Column({ type: 'float', default: 1 })
   costPerInputToken: number;
 

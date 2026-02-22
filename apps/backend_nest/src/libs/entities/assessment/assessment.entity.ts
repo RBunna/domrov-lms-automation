@@ -5,6 +5,8 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
+  ManyToMany,
+  JoinTable,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { AIModelSelectionMode, SubmissionMethod, SubmissionType } from '../../enums/Assessment';
@@ -13,6 +15,8 @@ import { PlatformAIModel } from '../ai/platform-ai-model.entity';
 import { Submission } from './submission.entity';
 import { AssessmentResource } from '../resource/assessment-resource.entity';
 import { Rubrics } from './rubic.entity';
+import { Team } from '../classroom/team.entity';
+import { TeamAssessment } from '../classroom/team-assessment.entity';
 
 
 @Entity({ name: 'assessments' })
@@ -61,9 +65,6 @@ export class Assessment extends BaseEntity {
   @Column({ type: 'enum', enum: SubmissionMethod, default: SubmissionMethod.ANY })
   allowedSubmissionMethod: SubmissionMethod;
 
-  @Column({ default: false })
-  allowTeamSubmition: boolean;
-
   @ManyToOne(() => Class, { onDelete: 'CASCADE' })
   @JoinColumn()
   class: Class;
@@ -74,6 +75,10 @@ export class Assessment extends BaseEntity {
 
   @OneToMany(() => Submission, (submission) => submission.assessment)
   submissions: Submission[];
+
+  @OneToMany(() => TeamAssessment, (ta) => ta.assessment)
+  teamAssessments: TeamAssessment[];
+
 
   @OneToMany(() => AssessmentResource, (ar) => ar.assessment)
   resources: AssessmentResource[];

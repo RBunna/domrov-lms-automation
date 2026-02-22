@@ -6,10 +6,14 @@ import {
     ManyToOne,
     JoinColumn,
     OneToMany,
+    JoinTable,
+    ManyToMany,
 } from 'typeorm';
 import { User } from '../user/user.entity';
 import { Class } from './class.entity';
 import { TeamMember } from './user-team.entity';
+import { Assessment } from '../assessment/assessment.entity';
+import { TeamAssessment } from './team-assessment.entity';
 
 @Entity({ name: 'teams' })
 export class Team extends BaseEntity {
@@ -32,6 +36,10 @@ export class Team extends BaseEntity {
     @ManyToOne(() => Class, (cls) => cls.teams, { onDelete: 'CASCADE' })
     @JoinColumn()
     class: Class;
+    
+    @OneToMany(() => TeamAssessment, (ta) => ta.team)
+    teamAssessments: TeamAssessment[];
+
 
     @OneToMany(() => TeamMember, (member) => member.team)
     members: TeamMember[];

@@ -90,6 +90,17 @@ export class UpdateAssessmentDTO {
     @IsOptional()
     allowedSubmissionMethod?: SubmissionMethod;
 
+    @ApiPropertyOptional({
+        description: 'IDs of teams allowed to submit this assessment',
+        type: [Number],
+        example: [1, 2, 3],
+    })
+    @IsOptional()
+    @IsArray()
+    @IsNumber({}, { each: true })
+    allowedTeamIds?: number[];
+
+
     @ApiPropertyOptional({ type: [UpdateRubricDTO] })
     @IsOptional()
     @IsArray()

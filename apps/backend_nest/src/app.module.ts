@@ -20,9 +20,9 @@ import { PaymentFlowService } from './modules/wallet/payment-flow.service';
 // import { PaymentController } from './services/payment.controller';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { Payment } from './libs/entities/ai/payment.entity';
-import { TokenPackage } from './libs/entities/ai/token-package.entity';
-import { UserTokenBalance } from './libs/entities/ai/user-token-balance.entity';
 import { WalletTransaction } from './libs/entities/ai/wallet-transaction.entity';
+import { CreditPackage } from './libs/entities/ai/credit-package.entity';
+import { UserCreditBalance } from './libs/entities/ai/user-credit-balance.entity';
 
 @Module({
   imports: [
@@ -41,7 +41,7 @@ import { WalletTransaction } from './libs/entities/ai/wallet-transaction.entity'
     WalletModule,
     EvaluationModule,
     TasksModule,
-    TypeOrmModule.forFeature([Payment, TokenPackage, UserTokenBalance, WalletTransaction]),
+    TypeOrmModule.forFeature([Payment, CreditPackage, UserCreditBalance, WalletTransaction]),
   ],
 
   controllers: [AppController],

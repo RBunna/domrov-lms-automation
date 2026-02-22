@@ -9,12 +9,13 @@ import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-fe
 import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
 import { Submission } from '../../libs/entities/assessment/submission.entity';
 import { join } from 'path';
+import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Submission, Evaluation, EvaluationFeedback]),
     forwardRef(() => AssessmentModule),
-
+    WalletModule,
     ClientsModule.registerAsync([
       {
         name: 'CODE_EVAL_GRPC',

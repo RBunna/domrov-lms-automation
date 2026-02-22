@@ -20,6 +20,11 @@ import { Rubrics } from '../../libs/entities/assessment/rubic.entity';
 import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-feedback.entity';
 import { FileModule } from '../file/file.module';
 import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
+import { SubmissionService } from './submission.service';
+import { SubmissionController } from './submission.controller';
+import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
+import { WalletModule } from '../wallet/wallet.module';
+import { TeamAssessment } from '../../libs/entities/classroom/team-assessment.entity';
 
 @Module({
   imports: [
@@ -37,12 +42,15 @@ import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
       Rubrics,
       EvaluationFeedback,
       FileModule,
-      UserAIKey
+      UserAIKey,
+      UserCreditBalance,
+      TeamAssessment
     ]),
+    WalletModule,
     forwardRef(() => EvaluationModule), // <-- import with forwardRef to resolve circular dependency
   ],
-  controllers: [AssessmentController],
-  providers: [AssessmentService],
-  exports: [AssessmentService],
+  controllers: [AssessmentController,SubmissionController],
+  providers: [AssessmentService,SubmissionService],
+  exports: [AssessmentService, SubmissionService],
 })
 export class AssessmentModule { }

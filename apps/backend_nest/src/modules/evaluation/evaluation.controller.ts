@@ -5,22 +5,23 @@ import { GrpcMethod, RpcException } from '@nestjs/microservices';
 import * as evaluation from '../../libs/interfaces/evaluation';
 import * as submission from '../../libs/interfaces/submission';
 
-import { GetFilesSubmissionDto } from '../../libs/dtos/submission/process-submission.dto';
+import { GetFilesSubmissionDto, GetSubmissionFolderDto } from '../../libs/dtos/submission/process-submission.dto';
 import { AddQueueDto } from '../../libs/dtos/submission/add-queue.dto';
 import { ApiResponse, ApiTags } from '@nestjs/swagger';
-import { AssessmentService } from '../assessment/assessment.service';
+import { SubmissionService } from '../assessment/submission.service';
 
 @ApiTags('evaluations')
 // @ApiBearerAuth('JWT-auth')
 // @UseGuards(JwtAuthGuard)
 @Controller('evaluations')
 export class EvaluationController {
-  constructor(private readonly evaluationService: EvaluationService, private readonly assessmentService: AssessmentService) { }
+  constructor(private readonly evaluationService: EvaluationService,
+    private readonly submissionService: SubmissionService) { }
 
   @Get('submission')
   @ApiResponse({
     status: 200,
-    description: 'Submission processed',
+    description: 'view file in submisison',
     schema: {
       example: {
         success: true,
@@ -45,6 +46,42 @@ export class EvaluationController {
     return this.evaluationService.processSubmission(
       String(submission_id),
       String(file_path),
+    );
+  }
+
+  @Get('submission/folder-structure')
+  @ApiResponse({
+    status: 200,
+    description: 'Folder structure retrieved',
+    schema: {
+      example: {
+        success: true,
+        message: 'Folder structure fetched',
+        folder_structure: {
+          name: 'repo',
+          type: 'folder',
+          children: [
+            {
+              name: 'src',
+              type: 'folder',
+              children: [
+                { name: 'main.ts', type: 'file' },
+                { name: 'utils.ts', type: 'file' }
+              ]
+            }
+          ]
+        }
+      }
+    }
+  })
+  async getSubmissionFolderStructure(
+    @Query(new ValidationPipe({ transform: true }))
+    query: GetSubmissionFolderDto,
+  ) {
+    const { submission_id } = query;
+
+    return this.evaluationService.getSubmissionFolderStructure(
+      String(submission_id),
     );
   }
 
@@ -133,7 +170,7 @@ export class EvaluationController {
     call.sendMetadata(serverMetadata);
 
     try {
-      const result = await this.assessmentService.getSubmissionDetails(Number(submission_id));
+      const result = await this.submissionService.getSubmissionDetails(Number(submission_id));
       console.log('Submission found:', result);
 
       return result;
@@ -153,14 +190,13 @@ export class EvaluationController {
     call: grpcJs.ServerUnaryCall<any, any>,
   ): Promise<submission.SubmissionContentResource> {
     const { submission_id } = data;
-    console.log('getSubmission called with:', data);
 
     const serverMetadata = new grpcJs.Metadata();
     serverMetadata.add('served-by', 'nestjs-grpc');
     call.sendMetadata(serverMetadata);
 
     try {
-      const result = await this.assessmentService.getSubmissionResoucrs(Number(submission_id));
+      const result = await this.submissionService.getSubmissionResoucrs(Number(submission_id));
       console.log('Submission found:', result);
       return result;
     } catch (err) {

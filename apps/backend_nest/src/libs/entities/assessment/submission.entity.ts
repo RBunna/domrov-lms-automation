@@ -66,3 +66,4 @@ export class Submission extends BaseEntity {
   @OneToMany(() => SubmissionResource, (sr) => sr.submission)
   resources: SubmissionResource[];
 }
+

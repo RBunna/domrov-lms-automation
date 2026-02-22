@@ -14,7 +14,7 @@ import { TeamMember } from '../classroom/user-team.entity';
 import { OAuthAccount } from './oauth-account.entity';
 import { TelegramChat } from './telegram-chat.entity';
 import { AIUsageLog } from '../ai/ai-usage-log.entity';
-import { UserTokenBalance } from '../ai/user-token-balance.entity';
+import { UserCreditBalance } from '../ai/user-credit-balance.entity';
 import { Payment } from '../ai/payment.entity';
 import { Submission } from '../assessment/submission.entity';
 import { UserRefreshToken } from './user-refresh-token.entity';
@@ -88,8 +88,8 @@ export class User extends BaseEntity {
   @OneToMany(() => AIUsageLog, (log) => log.user)
   usageLogs: AIUsageLog[];
 
-  @OneToMany(() => UserTokenBalance, (balance) => balance.user)
-  tokenBalances: UserTokenBalance[];
+  @OneToOne(() => UserCreditBalance, (balance) => balance.user)
+  creditBalance: UserCreditBalance;
 
   @OneToMany(() => Payment, (payment) => payment.user)
   payments: Payment[];
