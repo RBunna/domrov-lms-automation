@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
 
@@ -6,7 +6,6 @@ import { In, Repository } from 'typeorm';
 import { Assessment } from '../../libs/entities/assessment/assessment.entity';
 import { Resource } from '../../libs/entities/resource/resource.entity';
 import { AssessmentResource } from '../../libs/entities/resource/assessment-resource.entity';
-import { Class } from '../../libs/entities/classroom/class.entity';
 import { Enrollment } from '../../libs/entities/classroom/enrollment.entity';
 import { Rubrics } from '../../libs/entities/assessment/rubic.entity';
 import { Submission } from '../../libs/entities/assessment/submission.entity';
@@ -27,6 +26,7 @@ import {
 import { SubmissionService } from './submission.service';
 import { Team } from '../../libs/entities/classroom/team.entity';
 import { TeamAssessment } from '../../libs/entities/classroom/team-assessment.entity';
+import type { AssessmentContext, ClassContext } from '../../common/security/dtos/guard.dto';
 
 // Services
 @Injectable()
@@ -38,8 +38,6 @@ export class AssessmentService {
     private resourceRepo: Repository<Resource>,
     @InjectRepository(AssessmentResource)
     private assessResRepo: Repository<AssessmentResource>,
-    @InjectRepository(Class)
-    private classRepo: Repository<Class>,
     @InjectRepository(Enrollment)
     private enrollmentRepo: Repository<Enrollment>,
     @InjectRepository(Rubrics)
@@ -55,15 +53,7 @@ export class AssessmentService {
     private readonly submissionService: SubmissionService
   ) { }
 
-  async createDraft(userId: number, classId: number, session: number): Promise<CreateDraftResponseDto> {
-    const classEntity = await this.classRepo.findOne({
-      where: { id: classId },
-      relations: ['owner'],
-    });
-
-    if (!classEntity) throw new NotFoundException('Class not found');
-    if (classEntity.owner.id !== userId) throw new ForbiddenException('You do not have permission to create assessments in this class');
-
+  async createDraft(session: number, context: ClassContext): Promise<CreateDraftResponseDto> {
     const assessment = await this.assessmentRepo.save({
       title: 'Untitled Assignment',
       instruction: '',
@@ -75,7 +65,7 @@ export class AssessmentService {
       startDate: new Date(),
       dueDate: new Date(),
       isPublic: false,
-      class: classEntity,
+      class: context.classEntity,
       aiEvaluationEnable: false,
       allowedSubmissionMethod: SubmissionMethod.ANY,
     });
@@ -83,14 +73,14 @@ export class AssessmentService {
     return { message: 'Draft created', assessmentId: assessment.id };
   }
 
-  async publishAssessment(assessmentId: number, userId: number): Promise<PublishAssessmentResponseDto> {
+  async publishAssessment(context: AssessmentContext): Promise<PublishAssessmentResponseDto> {
+    // Reload with rubrics for validation
     const assessment = await this.assessmentRepo.findOne({
-      where: { id: assessmentId },
-      relations: ['class', 'class.owner', 'rubrics'],
+      where: { id: context.assessmentId },
+      relations: ['class', 'rubrics'],
     });
 
     if (!assessment) throw new NotFoundException('Assessment not found');
-    if (assessment.class.owner.id !== userId) throw new ForbiddenException('You do not have permission to publish this assessment');
     if (assessment.isPublic) throw new BadRequestException('Assessment already published');
 
     if (!assessment.title?.trim()) throw new BadRequestException('Title is required');
@@ -110,14 +100,14 @@ export class AssessmentService {
     return { message: 'Assessment published successfully' };
   }
 
-  async updateAssessment(userId: number, assessmentId: number, dto: UpdateAssessmentDTO): Promise<UpdateAssessmentResponseDto> {
+  async updateAssessment(dto: UpdateAssessmentDTO, context: AssessmentContext): Promise<UpdateAssessmentResponseDto> {
+    // Reload with resources relation for update logic
     const assessment = await this.assessmentRepo.findOne({
-      where: { id: assessmentId },
-      relations: ['class', 'class.owner', 'resources', 'resources.resource'],
+      where: { id: context.assessmentId },
+      relations: ['class', 'resources', 'resources.resource'],
     });
 
     if (!assessment) throw new NotFoundException('Assessment not found');
-    if (assessment.class.owner.id !== userId) throw new ForbiddenException('You do not have permission to update this assessment');
 
     const { resources, rubrics, ...metadata } = dto;
     Object.assign(assessment, metadata);
@@ -139,7 +129,7 @@ export class AssessmentService {
     }
 
     if (rubrics) {
-      await this.rubricsRepo.delete({ assessment: { id: assessmentId } });
+      await this.rubricsRepo.delete({ assessment: { id: context.assessmentId } });
       for (const rubricDto of rubrics) {
         await this.rubricsRepo.save({
           definition: rubricDto.criterion,
@@ -151,7 +141,7 @@ export class AssessmentService {
 
     if (dto.allowedTeamIds?.length) {
       // Remove old teamAssessments
-      await this.teamAssessmentRepo.delete({ assessment: { id: assessmentId } });
+      await this.teamAssessmentRepo.delete({ assessment: { id: context.assessmentId } });
 
       // Add new teamAssessments
       const teams = await this.teamRepo.findBy({ id: In(dto.allowedTeamIds) });
@@ -170,16 +160,17 @@ export class AssessmentService {
     };
   }
 
-  async getTracking(assessmentId: number): Promise<TeamTrackingItemDto[] | IndividualTrackingItemDto[]> {
+  async getTracking(context: AssessmentContext): Promise<TeamTrackingItemDto[] | IndividualTrackingItemDto[]> {
+    // Reload with class relation for tracking queries
     const assessment = await this.assessmentRepo.findOne({
-      where: { id: assessmentId },
+      where: { id: context.assessmentId },
       relations: ['class'],
     });
     if (!assessment) throw new NotFoundException('Assessment not found');
     if (!assessment.isPublic) throw new BadRequestException('Assessment is not published yet')
     
     const submissions = await this.submissionRepo.find({
-      where: { assessment: { id: assessmentId } },
+      where: { assessment: { id: context.assessmentId } },
       relations: ['user', 'team', 'evaluation'],
     });
 
@@ -227,40 +218,33 @@ export class AssessmentService {
     }
   }
 
-  async findAllByClass(classId: number): Promise<AssessmentListItemDto[]> {
+  async findAllByClass(context: ClassContext): Promise<AssessmentListItemDto[]> {
     return await this.assessmentRepo.find({
-      where: { class: { id: classId } },
+      where: { class: { id: context.classId } },
       order: { dueDate: 'ASC' },
       relations: ['resources', 'resources.resource'],
     });
   }
 
-  async findAllByClassSession(classId: number, sessionId: number): Promise<AssessmentListItemDto[]> {
+  async findAllByClassSession(sessionId: number, context: ClassContext): Promise<AssessmentListItemDto[]> {
     return await this.assessmentRepo.find({
-      where: { class: { id: classId }, session: sessionId },
+      where: { class: { id: context.classId }, session: sessionId },
       order: { dueDate: 'ASC' },
       relations: ['resources', 'resources.resource'],
     });
   }
 
-  async findOne(assessmentId: number, userId: number): Promise<AssessmentDetailDto> {
+  async findOne(context: AssessmentContext): Promise<AssessmentDetailDto> {
+    // Reload with resources and rubrics relations for detail view
     const assessment = await this.assessmentRepo.findOne({
-      where: { id: assessmentId },
+      where: { id: context.assessmentId },
       relations: ['resources', 'resources.resource', 'rubrics'],
     });
     if (!assessment) throw new NotFoundException('Assessment not found');
     return assessment;
   }
 
-  async deleteAssessment(userId: number, assessmentId: number): Promise<DeleteAssessmentResponseDto> {
-    const assessment = await this.assessmentRepo.findOne({
-      where: { id: assessmentId },
-      relations: ['class', 'class.owner'],
-    });
-
-    if (!assessment) throw new NotFoundException('Assessment not found');
-    if (assessment.class.owner.id !== userId) throw new ForbiddenException('You do not have permission to delete this assessment');
-
-    return await this.assessmentRepo.remove(assessment);
+  async deleteAssessment(context: AssessmentContext): Promise<DeleteAssessmentResponseDto> {
+    return await this.assessmentRepo.remove(context.assessmentEntity);
   }
 }

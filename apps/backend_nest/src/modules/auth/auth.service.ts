@@ -71,12 +71,12 @@ export class AuthService {
     async login(login: LoginUserDTO): Promise<LoginResponseDto> {
         const user = await this.userRepository.findOne({ where: { email: login.email } });
         if (!user) {
-            throw new UnauthorizedException('Invalid email or password');
+            throw new UnauthorizedException('User not found with this email');
         }
         
         const passwordMatches = await Encryption.verifyPassword(user.password, login.password);
         if (!passwordMatches) {
-            throw new UnauthorizedException('Invalid email or password');
+            throw new UnauthorizedException('Password Incorrect Please Try Again');
         }
         
         const payload = { sub: user.id, email: user.email };

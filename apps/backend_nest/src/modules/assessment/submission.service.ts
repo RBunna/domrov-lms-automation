@@ -6,13 +6,15 @@ import { Repository } from 'typeorm';
 import { Assessment } from '../../libs/entities/assessment/assessment.entity';
 import { Submission } from '../../libs/entities/assessment/submission.entity';
 import { Resource } from '../../libs/entities/resource/resource.entity';
-import { Class } from '../../libs/entities/classroom/class.entity';
 import { Team } from '../../libs/entities/classroom/team.entity';
 import { Enrollment } from '../../libs/entities/classroom/enrollment.entity';
 import { SubmissionResource } from '../../libs/entities/resource/submission-resource.entity';
 import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
 import { EvaluationFeedback } from '../../libs/entities/assessment/evaluation-feedback.entity';
 import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
+
+// Context
+import { SubmissionContext } from '../../common/security/dtos/guard.dto';
 
 // Enums & DTOs
 import { SubmissionStatus } from '../../libs/enums/Status';
@@ -54,8 +56,6 @@ export class SubmissionService {
         private subResourceRepo: Repository<SubmissionResource>,
         @InjectRepository(Evaluation)
         private evaluationRepo: Repository<Evaluation>,
-        @InjectRepository(Class)
-        private classRepo: Repository<Class>,
         @InjectRepository(Team)
         private teamRepo: Repository<Team>,
         @InjectRepository(Enrollment)
@@ -250,17 +250,8 @@ export class SubmissionService {
         return { message: 'Submitted successfully', submissionId: submission.id };
     }
 
-    async gradeSubmission(teacherId: number, submissionId: number, dto: GradeSubmissionDTO): Promise<EvaluationResponseDto> {
-        const submission = await this.submissionRepo.findOne({
-            where: { id: submissionId },
-            relations: ['evaluation', 'assessment', 'assessment.class', 'assessment.class.owner'],
-        });
-
-        if (!submission) throw new NotFoundException('Submission not found');
-
-        if (submission.assessment?.class?.owner?.id !== teacherId) {
-            throw new ForbiddenException('You do not have permission to grade this submission');
-        }
+    async gradeSubmission(context: SubmissionContext, dto: GradeSubmissionDTO): Promise<EvaluationResponseDto> {
+        const submission = context.submissionEntity;
 
         let evaluation = submission.evaluation;
         if (!evaluation) {
@@ -281,17 +272,8 @@ export class SubmissionService {
         return evaluation;
     }
 
-    async approveSubmission(teacherId: number, submissionId: number): Promise<ApproveSubmissionResponseDto> {
-        const submission = await this.submissionRepo.findOne({
-            where: { id: submissionId },
-            relations: ['assessment', 'assessment.class', 'assessment.class.owner', 'evaluation'],
-        });
-
-        if (!submission) throw new NotFoundException('Submission not found');
-
-        if (submission.assessment.class.owner.id !== teacherId) {
-            throw new ForbiddenException('You do not have permission to approve this submission');
-        }
+    async approveSubmission(context: SubmissionContext): Promise<ApproveSubmissionResponseDto> {
+        const submission = context.submissionEntity;
 
         if (!submission.evaluation) {
             throw new BadRequestException('Submission has no evaluation yet');
@@ -308,23 +290,8 @@ export class SubmissionService {
         };
     }
 
-    async getSubmissionForViewer(userId: number, submissionId: number): Promise<SubmissionViewerResponseDto> {
-        const submission = await this.submissionRepo.findOne({
-            where: { id: submissionId },
-            relations: [
-                'user', 'team', 'team.members', 'team.members.user',
-                'assessment', 'assessment.class', 'assessment.class.owner',
-                'resources', 'resources.resource', 'evaluation',
-            ],
-        });
-        if (!submission) throw new NotFoundException('Submission not found');
-        const isTeacher = submission.assessment.class.owner.id === userId;
-        const isOwner = submission.user?.id === userId;
-        const isTeamMember = submission.team?.members?.some((m) => m.user?.id === userId) ?? false;
-
-        if (!isTeacher && !isOwner && !isTeamMember) {
-            throw new ForbiddenException('You do not have permission to view this submission');
-        }
+    async getSubmissionForViewer(context: SubmissionContext): Promise<SubmissionViewerResponseDto> {
+        const submission = context.submissionEntity;
 
         return {
             id: submission.id,
@@ -559,9 +526,9 @@ export class SubmissionService {
         return evaluation;
     }
 
-    async addFeedbackLineByLine(userId: number, submissionId: number, dto: FeedbackItemDto): Promise<AddFeedbackResponseDto> {
-        const submission = await this.checkOwnership(userId, submissionId);
-        let evaluation = await this.evaluationRepo.findOne({ where: { submission: { id: submissionId } } });
+    async addFeedbackLineByLine(context: SubmissionContext, dto: FeedbackItemDto): Promise<AddFeedbackResponseDto> {
+        const submission = context.submissionEntity;
+        let evaluation = await this.evaluationRepo.findOne({ where: { submission: { id: submission.id } } });
 
         if (!evaluation) {
             evaluation = this.evaluationRepo.create({
@@ -596,7 +563,7 @@ export class SubmissionService {
 
         if (!feedback) throw new NotFoundException('Feedback item not found');
         if (feedback.evaluation.submission.assessment.class.owner.id !== userId) {
-            throw new ForbiddenException('You do not have permission to update this feedback');
+            throw new BadRequestException('You do not have permission to update this feedback');
         }
 
         feedback.filePath = dto.path;
@@ -699,18 +666,5 @@ export class SubmissionService {
         }
 
         return { resource_url: resourceUrl };
-    }
-
-    private async checkOwnership(userId: number, submissionId: number) {
-        const submission = await this.submissionRepo.findOne({
-            where: { id: submissionId },
-            relations: ['assessment', 'assessment.class', 'assessment.class.owner'],
-        });
-
-        if (!submission) throw new NotFoundException('Submission not found');
-        if (submission.assessment.class.owner.id !== userId) {
-            throw new ForbiddenException('You do not have permission to evaluate this submission');
-        }
-        return submission;
     }
 }

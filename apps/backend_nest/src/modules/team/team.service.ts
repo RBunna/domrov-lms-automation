@@ -19,12 +19,12 @@ import { MailerService } from '@nestjs-modules/mailer';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { TeamMember } from '../../libs/entities/classroom/user-team.entity';
-import { ClassService } from '../class/class.service';
 import { TeamResponseDto } from '../../libs/dtos/team/team-response.dto';
 import { JoinTeamResponseDto } from '../../libs/dtos/team/join-team-response.dto';
 import { CreateManyTeamsResponseDto } from '../../libs/dtos/team/create-many-teams-response.dto';
 import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto';
 import { InviteLinkResponseDto } from '../../libs/dtos/team/invite-link-response.dto';
+import { ClassContext, TeamContext } from '../../common/security/dtos/guard.dto';
 
 @Injectable()
 export class TeamService {
@@ -40,7 +40,6 @@ export class TeamService {
         private readonly teamMemberRepository: Repository<TeamMember>,
 
         private readonly mailerService: MailerService,
-        private readonly classService: ClassService,
         private config: ConfigService,
         private jwtService: JwtService
 
@@ -210,9 +209,10 @@ export class TeamService {
         return teams.map(TeamResponseDto.fromEntity);
     }
 
-    async getTeamDetails(teamId: number, userId: number): Promise<TeamResponseDto> {
+    async getTeamDetails(context: TeamContext): Promise<TeamResponseDto> {
+        // Fetch team with full relations for response (guard only loads leader and class)
         const team = await this.teamRepository.findOne({
-            where: { id: teamId },
+            where: { id: context.teamId },
             relations: [
                 'leader',
                 'members',
@@ -224,8 +224,6 @@ export class TeamService {
         if (!team) {
             throw new NotFoundException('Team not found');
         }
-
-        await this.findUserAndVerifyEnrollment(userId, team.class.id);
 
         return {
             id: team.id,
@@ -251,11 +249,9 @@ export class TeamService {
         };
     }
 
-    async getTeamsWithMembersInClass(classId: number, userId: number): Promise<TeamResponseDto[]> {
-        await this.classService.findClassAndVerifyMember(userId, classId);
-
+    async getTeamsWithMembersInClass(context: ClassContext): Promise<TeamResponseDto[]> {
         const teams = await this.teamRepository.find({
-            where: { class: { id: classId } },
+            where: { class: { id: context.classId } },
             relations: ['leader', 'members', 'members.user'],
             order: { name: 'ASC' },
         });
@@ -284,38 +280,30 @@ export class TeamService {
         }));
     }
 
-    async leaveTeam(teamId: number, userId: number): Promise<MessageResponseDto> {
-        const teamMember = await this.teamMemberRepository.findOne({
-            where: { team: { id: teamId }, user: { id: userId } },
-            relations: ['team', 'team.leader'],
-        });
-
-        if (!teamMember) throw new NotFoundException('You are not in this team');
-
-        const team = teamMember.team;
-
-        if (team.leader && team.leader.id === userId) {
+    async leaveTeam(context: TeamContext): Promise<MessageResponseDto> {
+        if (context.isLeader) {
             throw new ForbiddenException('Leader cannot leave the team. Transfer leadership first.');
         }
 
-        await this.teamMemberRepository.remove(teamMember);
+        if (!context.membership) {
+            throw new NotFoundException('You are not in this team');
+        }
+
+        await this.teamMemberRepository.remove(context.membership);
         return { message: 'You have successfully left the team' };
     }
 
     async removeMember(
-        teamId: number,
         memberId: number,
-        leaderId: number,
+        context: TeamContext,
     ): Promise<MessageResponseDto> {
-        const { team } = await this.findTeamAndVerifyLeader(teamId, leaderId);
-
-        if (memberId === leaderId) {
+        if (memberId === context.userId) {
             throw new BadRequestException('The leader cannot be removed');
         }
 
         const member = await this.teamMemberRepository.findOne({
             where: {
-                team: { id: teamId },
+                team: { id: context.teamId },
                 user: { id: memberId },
             },
         });
@@ -355,23 +343,6 @@ export class TeamService {
         return { message: 'Successfully joined team', teamId: team.id };
     }
 
-    private async findTeamAndVerifyLeader(teamId: number, leaderId: number) {
-        const team = await this.teamRepository.findOne({
-            where: { id: teamId },
-            relations: ['leader', 'class'],
-        });
-
-        if (!team) {
-            throw new NotFoundException('Team not found');
-        }
-
-        if (team.leader.id !== leaderId) {
-            throw new ForbiddenException('Only the team leader can perform this action');
-        }
-
-        return { team };
-    }
-
     private async findUserAndVerifyEnrollment(userId: number, classId: number) {
         const leader = await this.userRepository.findOneBy({ id: userId });
         if (!leader) throw new NotFoundException('User not found');
@@ -400,17 +371,11 @@ export class TeamService {
     }
 
     async generateInviteLink(
-        teamId: number,
-        leaderId: number,
         memberId: number,
-        internalCall: boolean = false,
+        context: TeamContext,
     ): Promise<InviteLinkResponseDto> {
-        if (!internalCall) {
-            await this.findTeamAndVerifyLeader(teamId, leaderId);
-        }
-
         const token = await this.jwtService.signAsync(
-            { teamId, memberId },
+            { teamId: context.teamId, memberId },
             {
                 secret: this.config.get<string>('TEAM_INVITE_SECRET'),
                 expiresIn: '7d',
@@ -424,8 +389,8 @@ export class TeamService {
         };
     }
 
-    async inviteByEmail(teamId: number, email: string, leaderId: number): Promise<MessageResponseDto> {
-        const { team } = await this.findTeamAndVerifyLeader(teamId, leaderId);
+    async inviteByEmail(email: string, context: TeamContext): Promise<MessageResponseDto> {
+        const team = context.teamEntity;
 
         const userToInvite = await this.userRepository.findOneBy({ email });
         if (!userToInvite) {
@@ -438,7 +403,7 @@ export class TeamService {
             throw new ConflictException('User is already in this team');
         }
 
-        const { link } = await this.generateInviteLink(teamId, leaderId, userToInvite.id, true);
+        const { link } = await this.generateInviteLink(userToInvite.id, context);
 
         await this.mailerService.sendMail({
             to: userToInvite.email,

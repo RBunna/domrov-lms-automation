@@ -20,7 +20,6 @@ import {
 } from '@nestjs/swagger';
 import { AssessmentService } from './assessment.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { UserId } from '../../common/decorators/user.decorator';
 import { UpdateAssessmentDTO } from '../../libs/dtos/assessment/update-assessment.dto';
 import {
   CreateDraftResponseDto,
@@ -32,6 +31,16 @@ import {
   IndividualTrackingItemDto,
   DeleteAssessmentResponseDto,
 } from '../../libs/dtos/assessment/assessment-response.dto';
+import {
+  ClassMemberGuard,
+  ClassInstructorGuard,
+  AssessmentMemberGuard,
+  AssessmentInstructorGuard,
+  AssessmentIdParam,
+  GetClassContext,
+  GetAssessmentContext,
+} from '../../common/security';
+import type { ClassContext, AssessmentContext } from '../../common/security/dtos/guard.dto';
 
 @ApiTags('Assessments')
 @ApiBearerAuth('JWT-auth')
@@ -42,6 +51,7 @@ export class AssessmentController {
 
   // ==================== LIST ASSESSMENTS BY CLASS ====================
   @Get('class/:classId')
+  @UseGuards(ClassMemberGuard)
   @ApiOperation({ 
     summary: 'List all assessments for a class',
     description: 'Returns all assessments (assignments, quizzes, etc.) for a specific class, ordered by due date ascending.'
@@ -73,13 +83,15 @@ export class AssessmentController {
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
   async getAllByClass(
-    @Param('classId', ParseIntPipe) classId: number
+    @Param('classId', ParseIntPipe) classId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<AssessmentListItemDto[]> {
-    return this.assessmentService.findAllByClass(classId);
+    return this.assessmentService.findAllByClass(context);
   }
 
   // ==================== LIST ASSESSMENTS BY CLASS SESSION ====================
   @Get('class/:classId/:sessionId')
+  @UseGuards(ClassMemberGuard)
   @ApiOperation({ 
     summary: 'List all assessments for a class session',
     description: 'Returns all assessments for a specific class session/week, ordered by due date ascending.'
@@ -113,13 +125,16 @@ export class AssessmentController {
   })
   async getAllByClassSession(
     @Param('classId', ParseIntPipe) classId: number,
-    @Param('sessionId', ParseIntPipe) sessionId: number
+    @Param('sessionId', ParseIntPipe) sessionId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<AssessmentListItemDto[]> {
-    return this.assessmentService.findAllByClassSession(classId, sessionId);
+    return this.assessmentService.findAllByClassSession(sessionId, context);
   }
 
   // ==================== GET ASSESSMENT DETAILS ====================
   @Get(':id')
+  @UseGuards(AssessmentMemberGuard)
+  @AssessmentIdParam('id')
   @ApiOperation({ 
     summary: 'Get assessment details',
     description: 'Returns detailed information about an assessment including instructions, attached resources, and rubrics.'
@@ -162,14 +177,15 @@ export class AssessmentController {
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
   async getOne(
-    @Param('id', ParseIntPipe) id: number, 
-    @UserId() userid: number
+    @Param('id', ParseIntPipe) id: number,
+    @GetAssessmentContext() context: AssessmentContext,
   ): Promise<AssessmentDetailDto> {
-    return this.assessmentService.findOne(id, userid);
+    return this.assessmentService.findOne(context);
   }
 
   // ==================== CREATE DRAFT ====================
   @Post('class/:classId/draft')
+  @UseGuards(ClassInstructorGuard)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({ 
     summary: 'Create assessment draft (Teacher)',
@@ -216,13 +232,15 @@ export class AssessmentController {
   async createDraft(
     @Param('classId', ParseIntPipe) classId: number,
     @Body('session', ParseIntPipe) session: number,
-    @UserId() instructorId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<CreateDraftResponseDto> {
-    return this.assessmentService.createDraft(instructorId, classId, session);
+    return this.assessmentService.createDraft(session, context);
   }
 
   // ==================== PUBLISH ASSESSMENT ====================
   @Patch(':id/publish')
+  @UseGuards(AssessmentInstructorGuard)
+  @AssessmentIdParam('id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
     summary: 'Publish assessment (Teacher)',
@@ -269,13 +287,15 @@ export class AssessmentController {
   })
   async publishAssessment(
     @Param('id', ParseIntPipe) id: number,
-    @UserId() instructorId: number,
+    @GetAssessmentContext() context: AssessmentContext,
   ): Promise<PublishAssessmentResponseDto> {
-    return this.assessmentService.publishAssessment(id, instructorId);
+    return this.assessmentService.publishAssessment(context);
   }
 
   // ==================== UPDATE ASSESSMENT ====================
   @Patch(':id')
+  @UseGuards(AssessmentInstructorGuard)
+  @AssessmentIdParam('id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
     summary: 'Update assessment (Teacher)',
@@ -419,15 +439,17 @@ export class AssessmentController {
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
   async update(
-    @UserId() userId: number,
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateAssessmentDTO,
+    @GetAssessmentContext() context: AssessmentContext,
   ): Promise<UpdateAssessmentResponseDto> {
-    return this.assessmentService.updateAssessment(userId, id, dto);
+    return this.assessmentService.updateAssessment(dto, context);
   }
 
   // ==================== DELETE ASSESSMENT ====================
   @Delete(':id')
+  @UseGuards(AssessmentInstructorGuard)
+  @AssessmentIdParam('id')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ 
     summary: 'Delete assessment (Teacher)',
@@ -452,14 +474,16 @@ export class AssessmentController {
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
   async remove(
-    @UserId() userId: number,
     @Param('id', ParseIntPipe) id: number,
+    @GetAssessmentContext() context: AssessmentContext,
   ): Promise<DeleteAssessmentResponseDto> {
-    return this.assessmentService.deleteAssessment(userId, id);
+    return this.assessmentService.deleteAssessment(context);
   }
 
   // ==================== GET TRACKING / ROSTER ====================
   @Get(':id/tracking')
+  @UseGuards(AssessmentInstructorGuard)
+  @AssessmentIdParam('id')
   @ApiOperation({ 
     summary: 'Get assessment roster (Teacher)',
     description: 'Returns the submission status for all students or teams in the class. For team assessments, shows team-level status. For individual assessments, shows per-student status.'
@@ -505,8 +529,9 @@ export class AssessmentController {
     example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
   })
   async getTracking(
-    @Param('id', ParseIntPipe) assessmentId: number
+    @Param('id', ParseIntPipe) assessmentId: number,
+    @GetAssessmentContext() context: AssessmentContext,
   ): Promise<TeamTrackingItemDto[] | IndividualTrackingItemDto[]> {
-    return this.assessmentService.getTracking(assessmentId);
+    return this.assessmentService.getTracking(context);
   }
 }

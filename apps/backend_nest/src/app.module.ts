@@ -23,6 +23,7 @@ import { Payment } from './libs/entities/ai/payment.entity';
 import { WalletTransaction } from './libs/entities/ai/wallet-transaction.entity';
 import { CreditPackage } from './libs/entities/ai/credit-package.entity';
 import { UserCreditBalance } from './libs/entities/ai/user-credit-balance.entity';
+import { SecurityModule } from './common/security';
 
 @Module({
   imports: [
@@ -31,6 +32,7 @@ import { UserCreditBalance } from './libs/entities/ai/user-credit-balance.entity
       expandVariables: true,
     }),
     SQLDatabaseModule,
+    SecurityModule, // Global permission guard service
     AuthModule,
     UserModule,
     ClassModule,

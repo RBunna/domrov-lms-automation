@@ -43,6 +43,13 @@ import { UserResponseDto } from '../../libs/dtos/user/user-response.dto';
 import { JoinClassResponseDto } from '../../libs/dtos/class/join-class-response.dto';
 import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto';
 import { LeaderboardItemDto } from '../../libs/dtos/class/leaderboard-response.dto';
+import {
+  ClassMemberGuard,
+  ClassInstructorGuard,
+  ClassOwnerGuard,
+  GetClassContext,
+} from '../../common/security';
+import type { ClassContext } from '../../common/security';
 
 @ApiTags('Class')
 @ApiBearerAuth('JWT-auth')
@@ -87,6 +94,7 @@ export class ClassController {
   }
 
   @Patch(':classId')
+  @UseGuards(ClassInstructorGuard)
   @ApiOperation({
     summary: 'Update class info',
     description: 'Updates class name, description, or cover image. Only teachers can update.',
@@ -103,12 +111,13 @@ export class ClassController {
   async updateClass(
     @Param('classId', ParseIntPipe) classId: number,
     @Body() dto: UpdateClassDto,
-    @UserId() teacherId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<ClassResponseDto> {
-    return this.classService.updateClass(classId, teacherId, dto);
+    return this.classService.updateClass(dto, context);
   }
 
   @Delete(':classId')
+  @UseGuards(ClassOwnerGuard)
   @ApiOperation({
     summary: 'Delete a class',
     description: 'Permanently deletes a class. Only the class owner can delete.',
@@ -124,12 +133,13 @@ export class ClassController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async deleteClass(
     @Param('classId', ParseIntPipe) classId: number,
-    @UserId() teacherId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<MessageResponseDto> {
-    return this.classService.deleteClass(classId, teacherId);
+    return this.classService.deleteClass(context);
   }
 
   @Post(':classId/complete')
+  @UseGuards(ClassInstructorGuard)
   @ApiOperation({
     summary: 'Mark class as completed',
     description: 'Changes class status to END. Only teachers can mark as complete.',
@@ -144,9 +154,9 @@ export class ClassController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async markComplete(
     @Param('classId', ParseIntPipe) classId: number,
-    @UserId() teacherId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<MessageResponseDto> {
-    return this.classService.markClassComplete(classId, teacherId);
+    return this.classService.markClassComplete(context);
   }
 
   // ==================== JOIN CLASS ====================
@@ -201,6 +211,7 @@ export class ClassController {
   // ==================== STUDENTS MANAGEMENT ====================
 
   @Get(':classId/students')
+  @UseGuards(ClassMemberGuard)
   @ApiOperation({
     summary: 'Get all students in a class',
     description: 'Returns a list of all enrolled students in the class. Accessible by class members.',
@@ -215,12 +226,13 @@ export class ClassController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async getStudentsInClass(
     @Param('classId', ParseIntPipe) classId: number,
-    @UserId() teacherId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<UserResponseDto[]> {
-    return this.classService.getStudentsInClass(classId, teacherId);
+    return this.classService.getStudentsInClass(context);
   }
 
   @Delete(':classId/student/:studentId')
+  @UseGuards(ClassInstructorGuard)
   @ApiOperation({
     summary: 'Remove a student from a class',
     description: 'Removes a student from the class enrollment. Only teachers can remove students.',
@@ -238,14 +250,15 @@ export class ClassController {
   async removeStudent(
     @Param('classId', ParseIntPipe) classId: number,
     @Param('studentId', ParseIntPipe) studentId: number,
-    @UserId() teacherId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<MessageResponseDto> {
-    return this.classService.removeStudent(classId, studentId, teacherId);
+    return this.classService.removeStudent(studentId, context);
   }
 
   // ==================== INVITE ====================
 
   @Post(':classId/invite')
+  @UseGuards(ClassInstructorGuard)
   @ApiOperation({
     summary: 'Invite a user by email',
     description: 'Sends an email invitation to join the class. The user must be registered. Only teachers can invite.',
@@ -263,14 +276,15 @@ export class ClassController {
   async inviteByEmail(
     @Param('classId', ParseIntPipe) classId: number,
     @Body() dto: InviteClassByEmailDto,
-    @UserId() teacherId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<MessageResponseDto> {
-    return this.classService.inviteByEmail(classId, dto.email, teacherId);
+    return this.classService.inviteByEmail(dto.email, context);
   }
 
   // ==================== TEACHER MANAGEMENT ====================
 
   @Post('transfer-ownership')
+  @UseGuards(ClassOwnerGuard)
   @ApiOperation({
     summary: 'Transfer class ownership',
     description: 'Transfers ownership to another enrolled user. The current owner becomes a TA.',
@@ -285,12 +299,13 @@ export class ClassController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async transferOwnership(
     @Body() dto: TransferOwnershipDto,
-    @UserId() userId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<MessageResponseDto> {
-    return this.classService.transferOwnership(dto, userId);
+    return this.classService.transferOwnership(dto.newOwnerId, context);
   }
 
   @Post('assign-ta')
+  @UseGuards(ClassInstructorGuard)
   @ApiOperation({
     summary: 'Assign a Teaching Assistant',
     description: 'Assigns or promotes a user to Teaching Assistant role. Only teachers can assign TAs.',
@@ -305,14 +320,15 @@ export class ClassController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async assignTA(
     @Body() dto: AssignTADto,
-    @UserId() teacherId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<MessageResponseDto> {
-    return this.classService.assignTA(dto, teacherId);
+    return this.classService.assignTA(dto.taId, context);
   }
 
   // ==================== LEADERBOARD ====================
 
   @Get(':classId/leaderboard')
+  @UseGuards(ClassInstructorGuard)
   @ApiOperation({
     summary: 'Get class leaderboard',
     description: 'Returns students ranked by their total submission scores. Only teachers can view.',
@@ -327,8 +343,8 @@ export class ClassController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async getLeaderboard(
     @Param('classId', ParseIntPipe) classId: number,
-    @UserId() teacherId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<LeaderboardItemDto[]> {
-    return this.classService.getLeaderboard(classId, teacherId);
+    return this.classService.getLeaderboard(context);
   }
 }

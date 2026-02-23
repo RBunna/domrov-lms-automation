@@ -36,16 +36,19 @@ import { TeamResponseDto } from '../../libs/dtos/team/team-response.dto';
 import { JoinTeamResponseDto } from '../../libs/dtos/team/join-team-response.dto';
 import { CreateManyTeamsResponseDto } from '../../libs/dtos/team/create-many-teams-response.dto';
 import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto';
+import { ClassOwnerGuard, ClassMemberGuard, TeamMemberGuard, TeamLeaderGuard, GetClassContext, GetTeamContext } from '../../common/security';
+import type { ClassContext, TeamContext } from '../../common/security/dtos/guard.dto';
 
 @ApiTags('Team')
 @ApiBearerAuth('JWT-auth')
 @UseGuards(JwtAuthGuard)
 @Controller('team')
 export class TeamController {
-  constructor(private readonly teamService: TeamService) {}
+  constructor(private readonly teamService: TeamService) { }
 
   // ==================== TEAM CREATION ====================
 
+  @UseGuards(ClassMemberGuard)
   @Post()
   @ApiOperation({
     summary: 'Create a new team',
@@ -66,6 +69,7 @@ export class TeamController {
     return this.teamService.createTeam(createTeamDto, userId);
   }
 
+  @UseGuards(ClassOwnerGuard)
   @Post('many')
   @ApiOperation({
     summary: 'Create multiple teams',
@@ -135,6 +139,7 @@ export class TeamController {
 
   // ==================== GET TEAMS ====================
 
+  @UseGuards(ClassMemberGuard)
   @Get('class/:classId')
   @ApiOperation({
     summary: 'Get all teams in a class with members',
@@ -150,11 +155,12 @@ export class TeamController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async getTeamsWithMembers(
     @Param('classId', ParseIntPipe) classId: number,
-    @UserId() userId: number,
+    @GetClassContext() context: ClassContext,
   ): Promise<TeamResponseDto[]> {
-    return this.teamService.getTeamsWithMembersInClass(classId, userId);
+    return this.teamService.getTeamsWithMembersInClass(context);
   }
 
+  @UseGuards(TeamMemberGuard)
   @Get(':teamId')
   @ApiOperation({
     summary: 'Get team details',
@@ -170,13 +176,14 @@ export class TeamController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async getTeamDetails(
     @Param('teamId', ParseIntPipe) teamId: number,
-    @UserId() userId: number,
+    @GetTeamContext() context: TeamContext,
   ): Promise<TeamResponseDto> {
-    return this.teamService.getTeamDetails(teamId, userId);
+    return this.teamService.getTeamDetails(context);
   }
 
   // ==================== INVITE ====================
 
+  @UseGuards(TeamLeaderGuard)
   @Post(':teamId/invite')
   @ApiOperation({
     summary: 'Invite a user to a team by email',
@@ -195,13 +202,14 @@ export class TeamController {
   async inviteTeamByEmail(
     @Param('teamId', ParseIntPipe) teamId: number,
     @Body() dto: InviteTeamByEmailDto,
-    @UserId() inviterId: number,
+    @GetTeamContext() context: TeamContext,
   ): Promise<MessageResponseDto> {
-    return this.teamService.inviteByEmail(teamId, dto.email, inviterId);
+    return this.teamService.inviteByEmail(dto.email, context);
   }
 
   // ==================== LEAVE / REMOVE ====================
 
+  @UseGuards(TeamMemberGuard)
   @Delete(':teamId/leave')
   @ApiOperation({
     summary: 'Leave a team',
@@ -217,11 +225,12 @@ export class TeamController {
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async leaveTeam(
     @Param('teamId', ParseIntPipe) teamId: number,
-    @UserId() userId: number,
+    @GetTeamContext() context: TeamContext,
   ): Promise<MessageResponseDto> {
-    return this.teamService.leaveTeam(teamId, userId);
+    return this.teamService.leaveTeam(context);
   }
 
+  @UseGuards(TeamLeaderGuard)
   @Delete(':teamId/members/:memberId')
   @ApiOperation({
     summary: 'Remove a member from a team',
@@ -240,8 +249,8 @@ export class TeamController {
   async removeMember(
     @Param('teamId', ParseIntPipe) teamId: number,
     @Param('memberId', ParseIntPipe) memberId: number,
-    @UserId() leaderId: number,
+    @GetTeamContext() context: TeamContext,
   ): Promise<MessageResponseDto> {
-    return this.teamService.removeMember(teamId, memberId, leaderId);
+    return this.teamService.removeMember(memberId, context);
   }
 }

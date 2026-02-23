@@ -14,8 +14,6 @@ import { User } from '../../libs/entities/user/user.entity';
 import { CreateClassDto } from '../../libs/dtos/class/create-class.dto';
 import { generateJoinCode } from '../../libs/utils/GenerateRandom';
 import { UserRole } from '../../libs/enums/Role';
-import { TransferOwnershipDto } from '../../libs/dtos/class/transfer-ownership.dto';
-import { AssignTADto } from '../../libs/dtos/class/assign-ta.dto';
 import { ClassStatus } from '../../libs/enums/Status';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -28,6 +26,7 @@ import { JoinClassResponseDto } from '../../libs/dtos/class/join-class-response.
 import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto';
 import { LeaderboardItemDto } from '../../libs/dtos/class/leaderboard-response.dto';
 import { InviteLinkResponseDto } from '../../libs/dtos/class/invite-link-response.dto';
+import type { ClassContext } from '../../common/security';
 @Injectable()
 export class ClassService {
     constructor(
@@ -83,18 +82,15 @@ export class ClassService {
     }
 
     async removeStudent(
-        classId: number,
         studentId: number,
-        teacherId: number,
+        context: ClassContext,
     ): Promise<MessageResponseDto> {
-        await this.findClassAndVerifyTeacher(classId, teacherId);
-
-        if (studentId === teacherId) {
+        if (studentId === context.userId) {
             throw new BadRequestException('You cannot remove yourself');
         }
 
         const enrollment = await this.enrollmentRepository.findOne({
-            where: { class: { id: classId }, user: { id: studentId } },
+            where: { class: { id: context.classId }, user: { id: studentId } },
         });
 
         if (!enrollment) {
@@ -110,12 +106,10 @@ export class ClassService {
     }
 
     async updateClass(
-        classId: number,
-        teacherId: number,
         dto: UpdateClassDto,
+        context: ClassContext,
     ): Promise<ClassResponseDto> {
-        const { class: classEntity } =
-            await this.findClassAndVerifyTeacher(classId, teacherId);
+        const classEntity = context.classEntity;
 
         if (dto.name !== undefined) classEntity.name = dto.name;
         if (dto.description !== undefined)
@@ -124,24 +118,14 @@ export class ClassService {
             classEntity.coverImageUrl = dto.coverImageUrl;
 
         const saved = await this.classRepository.save(classEntity);
-        return ClassResponseDto.fromEntity(saved, UserRole.Teacher);
+        return ClassResponseDto.fromEntity(saved, context.role);
     }
 
     async deleteClass(
-        classId: number,
-        teacherId: number,
+        context: ClassContext,
     ): Promise<MessageResponseDto> {
-        const { class: classEntity } =
-            await this.findClassAndVerifyTeacher(classId, teacherId);
-
-        if (classEntity.owner?.id !== teacherId) {
-            throw new ForbiddenException(
-                'Only the class owner can delete this class',
-            );
-        }
-
         try {
-            await this.classRepository.remove(classEntity);
+            await this.classRepository.remove(context.classEntity);
         } catch {
             throw new BadRequestException(
                 'Class cannot be deleted due to existing dependencies',
@@ -211,11 +195,9 @@ export class ClassService {
         return uniqueClasses;
     }
 
-    async getStudentsInClass(classId: number, userId: number) {
-        await this.findClassAndVerifyMember(classId, userId);
-
+    async getStudentsInClass(context: ClassContext) {
         const enrollments = await this.enrollmentRepository.find({
-            where: { class: { id: classId }, role: UserRole.Student },
+            where: { class: { id: context.classId }, role: UserRole.Student },
             relations: ['user'],
         });
 
@@ -226,53 +208,32 @@ export class ClassService {
 
 
     async transferOwnership(
-        transferOwnershipDto: TransferOwnershipDto,
-        currentOwnerId: number,
+        newOwnerId: number,
+        context: ClassContext,
     ): Promise<MessageResponseDto> {
-        const { classId, newOwnerId } = transferOwnershipDto;
+        const classToTransfer = context.classEntity;
 
-        const classToTransfer = await this.classRepository.findOne({
-            where: { id: classId },
-            relations: ['owner'],
+        const newOwnerEnrollment = await this.enrollmentRepository.findOne({
+            where: {
+                class: { id: context.classId },
+                user: { id: newOwnerId },
+            },
+            relations: ['user'],
         });
-        if (!classToTransfer) throw new NotFoundException('Class not found');
-        if (classToTransfer.owner.id !== currentOwnerId)
-            throw new ForbiddenException(
-                'Only the current owner can transfer ownership',
-            );
+        if (!newOwnerEnrollment) {
+            throw new NotFoundException('New owner must be enrolled in this class');
+        }
 
-        const newOwnerEnrollment =
-            await this.enrollmentRepository.findOne({
-                where: {
-                    class: { id: classId },
-                    user: { id: newOwnerId },
-                },
-                relations: ['user'],
-            });
-        if (!newOwnerEnrollment)
-            throw new NotFoundException(
-                'New owner must be enrolled in this class',
-            );
-
-        const currentOwnerEnrollment =
-            await this.enrollmentRepository.findOne({
-                where: {
-                    class: { id: classId },
-                    user: { id: currentOwnerId },
-                },
-            });
-        if (!currentOwnerEnrollment)
-            throw new NotFoundException(
-                'Current owner enrollment not found',
-            );
+        // Use enrollment from context
+        const currentOwnerEnrollment = context.enrollment;
+        if (!currentOwnerEnrollment) {
+            throw new NotFoundException('Current owner enrollment not found');
+        }
 
         newOwnerEnrollment.role = UserRole.Teacher;
         currentOwnerEnrollment.role = UserRole.TeacherAssistant;
 
-        await this.enrollmentRepository.save([
-            newOwnerEnrollment,
-            currentOwnerEnrollment,
-        ]);
+        await this.enrollmentRepository.save([newOwnerEnrollment, currentOwnerEnrollment]);
 
         classToTransfer.owner = newOwnerEnrollment.user;
         await this.classRepository.save(classToTransfer);
@@ -281,36 +242,15 @@ export class ClassService {
     }
 
     async assignTA(
-        dto: AssignTADto,
-        teacherId: number,
+        taId: number,
+        context: ClassContext,
     ): Promise<MessageResponseDto> {
-        const { classId, taId } = dto;
-
-        const teacherEnrollment =
-            await this.enrollmentRepository.findOne({
-                where: {
-                    user: { id: teacherId },
-                    class: { id: classId },
-                    role: UserRole.Teacher,
-                },
-                relations: ['class'],
-            });
-
-        if (!teacherEnrollment) {
-            throw new ForbiddenException(
-                'You are not a teacher of this class.',
-            );
-        }
-
-        const classEntity = teacherEnrollment.class;
-
         const taUser = await this.userRepository.findOneBy({ id: taId });
         if (!taUser) throw new NotFoundException('TA user not found.');
 
-        const existingEnrollment =
-            await this.enrollmentRepository.findOne({
-                where: { user: { id: taId }, class: { id: classId } },
-            });
+        const existingEnrollment = await this.enrollmentRepository.findOne({
+            where: { user: { id: taId }, class: { id: context.classId } },
+        });
 
         if (existingEnrollment) {
             existingEnrollment.role = UserRole.TeacherAssistant;
@@ -318,54 +258,26 @@ export class ClassService {
         } else {
             const newTAEnrollment = this.enrollmentRepository.create({
                 user: taUser,
-                class: classEntity,
+                class: context.classEntity,
                 role: UserRole.TeacherAssistant,
             });
             await this.enrollmentRepository.save(newTAEnrollment);
         }
 
-        return {
-            message: `User ${taId} assigned as TA for class ${classId}.`,
-        };
+        return { message: `User ${taId} assigned as TA for class ${context.classId}.` };
     }
 
-    async markClassComplete(
-        classId: number,
-        teacherId: number,
-    ): Promise<MessageResponseDto> {
-        const teacherEnrollment =
-            await this.enrollmentRepository.findOne({
-                where: {
-                    user: { id: teacherId },
-                    class: { id: classId },
-                    role: UserRole.Teacher,
-                },
-                relations: ['class'],
-            });
-
-        if (!teacherEnrollment) {
-            throw new ForbiddenException(
-                'You are not the teacher of this class.',
-            );
-        }
-
-        const classEntity = teacherEnrollment.class;
+    async markClassComplete(context: ClassContext): Promise<MessageResponseDto> {
+        const classEntity = context.classEntity;
         classEntity.status = ClassStatus.END;
         await this.classRepository.save(classEntity);
 
-        return {
-            message: `Class "${classEntity.name}" marked as completed.`,
-        };
+        return { message: `Class "${classEntity.name}" marked as completed.` };
     }
 
-    async getLeaderboard(
-        classId: number,
-        teacherId: number,
-    ): Promise<LeaderboardItemDto[]> {
-        await this.findClassAndVerifyTeacher(classId, teacherId);
-
+    async getLeaderboard(context: ClassContext): Promise<LeaderboardItemDto[]> {
         const students = await this.enrollmentRepository.find({
-            where: { class: { id: classId }, role: UserRole.Student },
+            where: { class: { id: context.classId }, role: UserRole.Student },
             relations: ['user'],
         });
 
@@ -373,7 +285,7 @@ export class ClassService {
             .createQueryBuilder('submission')
             .leftJoin('submission.evaluation', 'evaluation')
             .leftJoin('submission.assessment', 'assessment')
-            .where('assessment.classId = :classId', { classId })
+            .where('assessment.classId = :classId', { classId: context.classId })
             .andWhere('submission.userId IS NOT NULL')
             .select('submission.userId', 'userId')
             .addSelect('SUM(COALESCE(evaluation.score, 0))', 'totalScore')
@@ -396,36 +308,22 @@ export class ClassService {
     }
 
     async inviteByEmail(
-        classId: number,
         email: string,
-        teacherId: number,
+        context: ClassContext,
     ): Promise<MessageResponseDto> {
-        const { class: classToJoin } =
-            await this.findClassAndVerifyTeacher(classId, teacherId);
+        const classToJoin = context.classEntity;
 
-        const userToInvite = await this.userRepository.findOneBy({
-            email,
-        });
+        const userToInvite = await this.userRepository.findOneBy({ email });
         if (!userToInvite) {
-            throw new NotFoundException(
-                'User with this email not found. They must register first.',
-            );
+            throw new NotFoundException('User with this email not found. They must register first.');
         }
 
-        const existingEnrollment = await this.isUserEnrolled(
-            classToJoin.id,
-            userToInvite.id,
-        );
+        const existingEnrollment = await this.isUserEnrolled(context.classId, userToInvite.id);
         if (existingEnrollment) {
             throw new ConflictException('User is already in this class');
         }
 
-        const { link } = await this.generateInviteLink(
-            classId,
-            teacherId,
-            userToInvite.id,
-            true,
-        );
+        const { link } = await this.generateInviteLink(context.classId, userToInvite.id);
 
         await this.mailerService.sendMail({
             to: userToInvite.email,
@@ -504,39 +402,6 @@ export class ClassService {
         };
     }
 
-    private async findClassAndVerifyTeacher(
-        classId: number,
-        teacherId: number,
-    ) {
-        // 1. Find the class directly to check ownership
-        const classEntity = await this.classRepository.findOne({
-            where: { id: classId },
-            relations: ['owner'],
-        });
-
-        // 2. Check if user is the owner
-        // Added optional chaining (?.) for safety
-        if (classEntity && classEntity.owner?.id === teacherId) {
-            return { class: classEntity };
-        }
-
-        // 3. If not owner, check for explicit Teacher enrollment
-        const enrollment = await this.enrollmentRepository.findOne({
-            where: {
-                class: { id: classId },
-                user: { id: teacherId },
-                role: UserRole.Teacher, // Must be teacher
-            },
-            relations: ['class'],
-        });
-
-        if (!enrollment) {
-            throw new NotFoundException('Class not found or you are not authorized');
-        }
-
-        return { class: enrollment.class, enrollment };
-    }
-
     private async isUserEnrolled(
         classId: number,
         userId: number,
@@ -585,14 +450,8 @@ export class ClassService {
 
     async generateInviteLink(
         classId: number,
-        teacherId: number,
         userInvitedId: number,
-        internalCall: boolean = false,
     ): Promise<InviteLinkResponseDto> {
-        if (!internalCall) {
-            await this.findClassAndVerifyTeacher(classId, teacherId);
-        }
-
         const payload = { classId, userId: userInvitedId };
 
         const token = await this.jwtService.signAsync(payload, {

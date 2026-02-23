@@ -34,6 +34,8 @@ import {
     AddFeedbackResponseDto,
     UpdateFeedbackResponseDto,
 } from '../../libs/dtos/submission/submission-response.dto';
+import { ClassMemberGuard, AssessmentMemberGuard, AssessmentStudentGuard, AssessmentInstructorGuard, AssessmentIdParam, SubmissionMemberGuard, SubmissionInstructorGuard, SubmissionIdParam, GetSubmissionContext } from '../../common/security';
+import type { SubmissionContext } from '../../common/security/dtos/guard.dto';
 
 @ApiTags('Submissions')
 @ApiBearerAuth('JWT-auth')
@@ -44,6 +46,8 @@ export class SubmissionController {
 
     // ==================== APPROVE SUBMISSION ====================
     @Patch('approve/:id')
+    @UseGuards(SubmissionInstructorGuard)
+    @SubmissionIdParam('id')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
         summary: 'Approve submission evaluation',
@@ -93,14 +97,15 @@ export class SubmissionController {
         }
     })
     async approveSubmission(
-        @UserId() teacherId: number,
-        @Param('id', ParseIntPipe) submissionId: number,
+        @GetSubmissionContext() context: SubmissionContext,
     ): Promise<ApproveSubmissionResponseDto> {
-        return this.submissionService.approveSubmission(teacherId, submissionId);
+        return this.submissionService.approveSubmission(context);
     }
 
     // ==================== SUBMIT ASSIGNMENT ====================
     @Patch(':assessmentId/submit')
+    @UseGuards(AssessmentStudentGuard)
+    @AssessmentIdParam('assessmentId')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
         summary: 'Submit assignment (Student/Team)',
@@ -206,6 +211,7 @@ export class SubmissionController {
 
     // ==================== GET MY SUBMISSIONS STATUS IN CLASS ====================
     @Get('my-status/class/:classId')
+    @UseGuards(ClassMemberGuard)
     @ApiOperation({ 
         summary: 'Get status of all assignments in a class (Student)',
         description: 'Returns the submission status, grades, and due dates for all assessments in a class for the authenticated student.'
@@ -250,6 +256,8 @@ export class SubmissionController {
 
     // ==================== GET MY SUBMISSION FOR ASSESSMENT ====================
     @Get(':assessmentId/my-status')
+    @UseGuards(AssessmentMemberGuard)
+    @AssessmentIdParam('assessmentId')
     @ApiOperation({ 
         summary: 'Get my submission status for an assessment (Student)',
         description: 'Returns the current user\'s submission details for a specific assessment. Handles team synchronization automatically for team submissions.'
@@ -331,6 +339,8 @@ export class SubmissionController {
 
     // ==================== GET ASSIGNMENT ROSTER ====================
     @Get('assessment/:assessmentId/roster')
+    @UseGuards(AssessmentInstructorGuard)
+    @AssessmentIdParam('assessmentId')
     @ApiOperation({ 
         summary: 'Get submission roster for an assessment (Teacher)',
         description: 'Returns a list of all students/teams with their submission status, scores, and submission times. Response format depends on assessment submission type.'
@@ -424,6 +434,8 @@ export class SubmissionController {
 
     // ==================== GET ASSESSMENT STATS ====================
     @Get('assessment/:assessmentId/stats')
+    @UseGuards(AssessmentInstructorGuard)
+    @AssessmentIdParam('assessmentId')
     @ApiOperation({ 
         summary: 'Get assessment submission statistics (Teacher)',
         description: 'Returns aggregate statistics about submissions for an assessment including total count, submitted count, pending count, and graded count.'
@@ -471,6 +483,8 @@ export class SubmissionController {
 
     // ==================== GRADE SUBMISSION ====================
     @Post(':id/grade')
+    @UseGuards(SubmissionInstructorGuard)
+    @SubmissionIdParam('id')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
         summary: 'Grade a submission (Teacher)',
@@ -539,15 +553,16 @@ export class SubmissionController {
         }
     })
     async grade(
-        @UserId() userId: number,
-        @Param('id', ParseIntPipe) submissionId: number,
+        @GetSubmissionContext() context: SubmissionContext,
         @Body() dto: GradeSubmissionDTO,
     ): Promise<EvaluationResponseDto> {
-        return this.submissionService.gradeSubmission(userId, submissionId, dto);
+        return this.submissionService.gradeSubmission(context, dto);
     }
 
     // ==================== GET SUBMISSION DETAILS ====================
     @Get(':id')
+    @UseGuards(SubmissionMemberGuard)
+    @SubmissionIdParam('id')
     @ApiOperation({ 
         summary: 'Get submission details',
         description: 'Returns detailed information about a submission including files, evaluation, team/user info. Accessible by the submission owner, team members, or the class teacher.'
@@ -618,14 +633,15 @@ export class SubmissionController {
         }
     })
     async getSubmission(
-        @UserId() userId: number,
-        @Param('id', ParseIntPipe) submissionId: number,
+        @GetSubmissionContext() context: SubmissionContext,
     ): Promise<SubmissionViewerResponseDto> {
-        return this.submissionService.getSubmissionForViewer(userId, submissionId);
+        return this.submissionService.getSubmissionForViewer(context);
     }
 
     // ==================== ADD LINE-BY-LINE FEEDBACK ====================
     @Post(':id/feedback')
+    @UseGuards(SubmissionInstructorGuard)
+    @SubmissionIdParam('id')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
         summary: 'Add line-by-line feedback (Teacher)',
@@ -702,11 +718,10 @@ export class SubmissionController {
         }
     })
     async addFeedbackLineByLine(
-        @UserId() userId: number,
-        @Param('id', ParseIntPipe) submissionId: number,
+        @GetSubmissionContext() context: SubmissionContext,
         @Body() dto: FeedbackItemDto,
     ): Promise<AddFeedbackResponseDto> {
-        return this.submissionService.addFeedbackLineByLine(userId, submissionId, dto);
+        return this.submissionService.addFeedbackLineByLine(context, dto);
     }
 
     // ==================== UPDATE SINGLE FEEDBACK ====================

@@ -110,7 +110,7 @@ export class AuthController {
                 summary: 'Standard login',
                 value: {
                     email: 'john.doe@example.com',
-                    password: 'SecurePass123!'
+                    password: 'password123'
                 }
             }
         }
