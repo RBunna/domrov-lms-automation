@@ -59,6 +59,13 @@ export class Assessment extends BaseEntity {
   @Column({ default: false })
   aiEvaluationEnable: boolean;
 
+  @Column('text', { array: true, default: [] })
+  user_exclude_files: string[];
+
+  @Column('text', { array: true, default: [] })
+  user_include_files: string[];
+
+
   @Column({ type: 'enum', enum: AIModelSelectionMode, default: AIModelSelectionMode.SYSTEM })
   aiModelSelectionMode: AIModelSelectionMode;
 

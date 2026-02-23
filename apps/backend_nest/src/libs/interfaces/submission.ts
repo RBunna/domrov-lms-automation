@@ -12,6 +12,8 @@ export interface SubmissionContentResponse {
     submission_id: string;           // Submission ID
     instructions: string;            // Processing instructions
     resource_url: string;            // URL of the repo / resource
+    user_include_files: string[];            // URL of the repo / resource
+    user_exclude_files: string[];            // URL of the repo / resource
     rubric: RubricCriterion[];       // List of rubric criteria
     ai?: AIKeyInfo;                  // Optional AI key info (only for USER mode with valid key)
 }

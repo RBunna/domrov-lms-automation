@@ -33,10 +33,12 @@ def process_submission(submission_id: str):
             job.delete()
             return
 
-        submission_url = submission["resource_url"]
-        submission_rubric = submission["rubric"]
+        submission_url = submission.get("resource_url")
+        submission_rubric = submission.get("rubric")
         ai_info = submission.get("ai") or {}
-
+        user_include_files = submission.get("user_include_files")
+        user_exclude_files = submission.get("user_exclude_files")
+        print(user_exclude_files,user_include_files)
         # ===============================
         # SYSTEM MODE
         # ===============================
@@ -70,6 +72,8 @@ def process_submission(submission_id: str):
             api_key=api_key,
             api_endpoint=api_endpoint,
             provider=provider,
+            user_exclude_files=user_exclude_files,
+            user_include_files=user_include_files
         )
 
         print(f"Raw evaluation response: {raw_response}")

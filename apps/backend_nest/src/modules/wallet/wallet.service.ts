@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
 import { WalletTransaction, TransactionType, TransactionReason } from '../../libs/entities/ai/wallet-transaction.entity';
-
+import { WalletBalanceResponseDto, TransactionHistoryResponseDto, WalletTransactionDto } from '../../libs/dtos/wallet/wallet.dto';
 @Injectable()
 export class WalletService {
     constructor(
@@ -111,7 +111,7 @@ export class WalletService {
         userId: number,
         page: number = 1,
         limit: number = 10,
-    ) {
+    ): Promise<TransactionHistoryResponseDto> {
         const wallet = await this.getOrCreateWallet(userId);
 
         const [transactions, total] = await this.transactionRepository.findAndCount({
@@ -121,8 +121,21 @@ export class WalletService {
             take: limit,
         });
 
+        const transactionDtos: WalletTransactionDto[] = transactions.map((transaction) => ({
+            id: transaction.id,
+            walletId: transaction.walletId!, // Non-null assertion since WalletTransactionDto requires walletId
+            amount: transaction.amount,
+            type: transaction.type,
+            reason: transaction.reason,
+            balanceBefore: transaction.balanceBefore,
+            balanceAfter: transaction.balanceAfter,
+            description: transaction.description,
+            created_at: transaction.created_at,
+            updatedAt: transaction.updated_at,
+        }));
+
         return {
-            data: transactions,
+            data: transactionDtos,
             meta: {
                 total,
                 page,

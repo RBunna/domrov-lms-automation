@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Logger, Param, ParseIntPipe, Post, Query, UseGuards, ValidationPipe } from '@nestjs/common';
+import { Body, Controller, Get, Logger, Param, ParseIntPipe, Post, Query, UseGuards, ValidationPipe, HttpCode, HttpStatus } from '@nestjs/common';
 import { EvaluationService } from './evaluation.service';
 import * as grpcJs from '@grpc/grpc-js';
 import { GrpcMethod, RpcException } from '@nestjs/microservices';
@@ -7,41 +7,69 @@ import * as submission from '../../libs/interfaces/submission';
 
 import { GetFilesSubmissionDto, GetSubmissionFolderDto } from '../../libs/dtos/submission/process-submission.dto';
 import { AddQueueDto } from '../../libs/dtos/submission/add-queue.dto';
-import { ApiResponse, ApiTags } from '@nestjs/swagger';
+import { 
+  ApiTags, 
+  ApiOperation, 
+  ApiOkResponse, 
+  ApiNotFoundResponse, 
+  ApiBadRequestResponse,
+  ApiQuery,
+  ApiBody
+} from '@nestjs/swagger';
 import { SubmissionService } from '../assessment/submission.service';
+import {
+  ProcessSubmissionResponseDto,
+  FolderStructureResponseDto,
+  AddQueueResponseDto,
+} from '../../libs/dtos/evaluation/evaluation-response.dto';
 
-@ApiTags('evaluations')
-// @ApiBearerAuth('JWT-auth')
-// @UseGuards(JwtAuthGuard)
+@ApiTags('Evaluations')
 @Controller('evaluations')
 export class EvaluationController {
   constructor(private readonly evaluationService: EvaluationService,
     private readonly submissionService: SubmissionService) { }
 
+  // ==================== VIEW FILE CONTENT ====================
   @Get('submission')
-  @ApiResponse({
-    status: 200,
-    description: 'view file in submisison',
-    schema: {
-      example: {
-        success: true,
-        message: 'File processed',
-        file: {
-          type: 'file',
-          name: 'main.bat',
-          path: '1a502673e8870d73/main.bat',
-          content: [
-            '@echo off',
-            'REM This batch file compiles and runs the C++ Library Management System.',
-            'out\\library_app.exe'
-          ]
-        }
+  @ApiOperation({ 
+    summary: 'View file content in submission',
+    description: 'Retrieves the content of a specific file from a submission. Used by the code viewer to display source code with syntax highlighting.'
+  })
+  @ApiQuery({ name: 'submission_id', type: Number, description: 'Submission ID', example: 1 })
+  @ApiQuery({ name: 'file_path', type: String, description: 'Relative file path within submission', example: 'src/main.cpp' })
+  @ApiOkResponse({
+    description: 'File content retrieved successfully',
+    type: ProcessSubmissionResponseDto,
+    example: {
+      success: true,
+      message: 'File processed',
+      file: {
+        type: 'file',
+        name: 'main.cpp',
+        path: '1a502673e8870d73/main.cpp',
+        content: [
+          '#include <iostream>',
+          '#include "utils/helper.h"',
+          '',
+          'int main() {',
+          '    std::cout << "Hello World" << std::endl;',
+          '    return 0;',
+          '}'
+        ]
       }
+    }
+  })
+  @ApiNotFoundResponse({ 
+    description: 'File not found',
+    example: {
+      statusCode: 404,
+      message: 'File not found or empty: src/missing.cpp',
+      error: 'Not Found'
     }
   })
   async processSubmission(
     @Query(new ValidationPipe({ transform: true })) query: GetFilesSubmissionDto
-  ) {
+  ): Promise<ProcessSubmissionResponseDto> {
     const { submission_id, file_path } = query;
     return this.evaluationService.processSubmission(
       String(submission_id),
@@ -49,35 +77,58 @@ export class EvaluationController {
     );
   }
 
+  // ==================== GET FOLDER STRUCTURE ====================
   @Get('submission/folder-structure')
-  @ApiResponse({
-    status: 200,
-    description: 'Folder structure retrieved',
-    schema: {
-      example: {
-        success: true,
-        message: 'Folder structure fetched',
-        folder_structure: {
-          name: 'repo',
-          type: 'folder',
-          children: [
-            {
-              name: 'src',
-              type: 'folder',
-              children: [
-                { name: 'main.ts', type: 'file' },
-                { name: 'utils.ts', type: 'file' }
-              ]
-            }
-          ]
-        }
+  @ApiOperation({ 
+    summary: 'Get submission folder structure',
+    description: 'Retrieves the complete folder tree structure of a submission. Used to render the file explorer sidebar in the code viewer.'
+  })
+  @ApiQuery({ name: 'submission_id', type: Number, description: 'Submission ID', example: 1 })
+  @ApiOkResponse({
+    description: 'Folder structure retrieved successfully',
+    type: FolderStructureResponseDto,
+    example: {
+      success: true,
+      message: 'Folder structure fetched',
+      folder_structure: {
+        name: 'submission_root',
+        type: 'folder',
+        children: [
+          {
+            name: 'src',
+            type: 'folder',
+            children: [
+              { name: 'main.cpp', type: 'file' },
+              { name: 'utils.cpp', type: 'file' },
+              { name: 'utils.h', type: 'file' }
+            ]
+          },
+          {
+            name: 'models',
+            type: 'folder',
+            children: [
+              { name: 'book.cpp', type: 'file' },
+              { name: 'book.h', type: 'file' }
+            ]
+          },
+          { name: 'README.md', type: 'file' },
+          { name: 'main.bat', type: 'file' }
+        ]
       }
+    }
+  })
+  @ApiNotFoundResponse({ 
+    description: 'Submission not found',
+    example: {
+      statusCode: 404,
+      message: 'Submission structure not found for ID: 999',
+      error: 'Not Found'
     }
   })
   async getSubmissionFolderStructure(
     @Query(new ValidationPipe({ transform: true }))
     query: GetSubmissionFolderDto,
-  ) {
+  ): Promise<FolderStructureResponseDto> {
     const { submission_id } = query;
 
     return this.evaluationService.getSubmissionFolderStructure(
@@ -85,21 +136,85 @@ export class EvaluationController {
     );
   }
 
+  // ==================== ADD TO AI EVALUATION QUEUE ====================
   @Post('queue')
-  @ApiResponse({
-    status: 200,
-    description: 'Submission added to processing queue',
-    schema: {
-      example: {
-        success: true,
-        message: 'Task queued successfully',
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Queue submission for AI evaluation',
+    description: `Adds a submission to the AI evaluation processing queue. The submission will be evaluated asynchronously by the AI grading system.
+
+**Workflow:**
+1. Student submits assignment via \`PATCH /submissions/:assessmentId/submit\`
+2. Teacher triggers AI evaluation by calling this endpoint
+3. AI processes submission and creates evaluation with scores and feedback
+4. Teacher reviews and approves the AI evaluation
+
+**Requirements:**
+- Submission must exist and have status SUBMITTED
+- Assessment must have \`aiEvaluationEnable: true\`
+- Class owner must have sufficient wallet credits for AI usage
+
+**Future Enhancement:** This endpoint will support both AI and manual evaluation modes.`
+  })
+  @ApiBody({ 
+    type: AddQueueDto,
+    description: 'Submission to queue for AI evaluation',
+    examples: {
+      basic: {
+        summary: 'Queue single submission',
+        value: { submission_id: '123' }
+      }
+    }
+  })
+  @ApiOkResponse({
+    description: 'Submission queued successfully',
+    type: AddQueueResponseDto,
+    example: {
+      success: true,
+      message: 'Task queued successfully'
+    }
+  })
+  @ApiBadRequestResponse({
+    description: 'Invalid submission or queue error',
+    examples: {
+      notFound: {
+        summary: 'Submission not found',
+        value: {
+          statusCode: 400,
+          message: 'Submission not found',
+          error: 'Bad Request'
+        }
       },
-    },
+      alreadyGraded: {
+        summary: 'Already graded',
+        value: {
+          statusCode: 400,
+          message: 'Submission already has an evaluation',
+          error: 'Bad Request'
+        }
+      },
+      aiDisabled: {
+        summary: 'AI evaluation disabled',
+        value: {
+          statusCode: 400,
+          message: 'AI evaluation is not enabled for this assessment',
+          error: 'Bad Request'
+        }
+      },
+      insufficientCredits: {
+        summary: 'Insufficient credits',
+        value: {
+          statusCode: 400,
+          message: 'Insufficient wallet credits for AI evaluation',
+          error: 'Bad Request'
+        }
+      }
+    }
   })
   async addQueue(
     @Body(new ValidationPipe({ transform: true }))
     body: AddQueueDto,
-  ) {
+  ): Promise<AddQueueResponseDto> {
     const { submission_id } = body;
 
     return this.evaluationService.addTaskToQueue(

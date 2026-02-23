@@ -25,6 +25,21 @@ import { EvaluationService } from '../evaluation/evaluation.service';
 import { Encryption } from '../../libs/utils/Encryption';
 import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
 import { WalletService } from '../wallet/wallet.service';
+import { RubricCriterion } from '../../libs/interfaces/submission';
+import {
+    SubmitAssignmentResponseDto,
+    ApproveSubmissionResponseDto,
+    EvaluationResponseDto,
+    SubmissionViewerResponseDto,
+    MySubmissionResponseDto,
+    SubmissionStatusItemDto,
+    TeamRosterItemDto,
+    IndividualRosterItemDto,
+    AssessmentStatsResponseDto,
+    AddFeedbackResponseDto,
+    UpdateFeedbackResponseDto,
+    SubmissionResourceUrlResponseDto,
+} from '../../libs/dtos/submission/submission-response.dto';
 
 @Injectable()
 export class SubmissionService {
@@ -96,7 +111,7 @@ export class SubmissionService {
         }
     }
 
-    async submitAssignment(userId: number, assessmentId: number, dto: SubmitAssignmentDto) {
+    async submitAssignment(userId: number, assessmentId: number, dto: SubmitAssignmentDto): Promise<SubmitAssignmentResponseDto> {
         // Determine which relations to load
         const relations = [
             'class',
@@ -235,7 +250,7 @@ export class SubmissionService {
         return { message: 'Submitted successfully', submissionId: submission.id };
     }
 
-    async gradeSubmission(teacherId: number, submissionId: number, dto: GradeSubmissionDTO) {
+    async gradeSubmission(teacherId: number, submissionId: number, dto: GradeSubmissionDTO): Promise<EvaluationResponseDto> {
         const submission = await this.submissionRepo.findOne({
             where: { id: submissionId },
             relations: ['evaluation', 'assessment', 'assessment.class', 'assessment.class.owner'],
@@ -244,7 +259,7 @@ export class SubmissionService {
         if (!submission) throw new NotFoundException('Submission not found');
 
         if (submission.assessment?.class?.owner?.id !== teacherId) {
-            throw new BadRequestException('Unauthorized');
+            throw new ForbiddenException('You do not have permission to grade this submission');
         }
 
         let evaluation = submission.evaluation;
@@ -266,7 +281,7 @@ export class SubmissionService {
         return evaluation;
     }
 
-    async approveSubmission(teacherId: number, submissionId: number) {
+    async approveSubmission(teacherId: number, submissionId: number): Promise<ApproveSubmissionResponseDto> {
         const submission = await this.submissionRepo.findOne({
             where: { id: submissionId },
             relations: ['assessment', 'assessment.class', 'assessment.class.owner', 'evaluation'],
@@ -275,7 +290,7 @@ export class SubmissionService {
         if (!submission) throw new NotFoundException('Submission not found');
 
         if (submission.assessment.class.owner.id !== teacherId) {
-            throw new BadRequestException('Unauthorized');
+            throw new ForbiddenException('You do not have permission to approve this submission');
         }
 
         if (!submission.evaluation) {
@@ -293,7 +308,7 @@ export class SubmissionService {
         };
     }
 
-    async getSubmissionForViewer(userId: number, submissionId: number) {
+    async getSubmissionForViewer(userId: number, submissionId: number): Promise<SubmissionViewerResponseDto> {
         const submission = await this.submissionRepo.findOne({
             where: { id: submissionId },
             relations: [
@@ -308,7 +323,7 @@ export class SubmissionService {
         const isTeamMember = submission.team?.members?.some((m) => m.user?.id === userId) ?? false;
 
         if (!isTeacher && !isOwner && !isTeamMember) {
-            throw new BadRequestException('Unauthorized');
+            throw new ForbiddenException('You do not have permission to view this submission');
         }
 
         return {
@@ -342,7 +357,7 @@ export class SubmissionService {
         };
     }
 
-    async getMySubmission(userId: number, assessmentId: number) {
+    async getMySubmission(userId: number, assessmentId: number): Promise<MySubmissionResponseDto> {
         const assessmentWithTeams = await this.assessmentRepo.findOne({
             where: { id: assessmentId },
             relations: [
@@ -404,6 +419,7 @@ export class SubmissionService {
                     id: submission.evaluation.id,
                     score: submission.evaluation.score,
                     feedback: submission.evaluation.feedback || null,
+                    aiFeedback:submission.evaluation.aiOutput,
                     isApproved: true,
                 }
                 : null;
@@ -424,7 +440,7 @@ export class SubmissionService {
         };
     }
 
-    async getMySubmissionsStatus(userId: number, classId: number) {
+    async getMySubmissionsStatus(userId: number, classId: number): Promise<SubmissionStatusItemDto[]> {
         const assessments = await this.assessmentRepo.find({ where: { class: { id: classId } } });
         const submissions = await this.submissionRepo.find({
             where: { user: { id: userId }, assessment: { class: { id: classId } } },
@@ -449,7 +465,7 @@ export class SubmissionService {
         });
     }
 
-    async getAssignmentRoster(assessmentId: number) {
+    async getAssignmentRoster(assessmentId: number): Promise<TeamRosterItemDto[] | IndividualRosterItemDto[]> {
         const assessment = await this.assessmentRepo.findOne({
             where: { id: assessmentId },
             relations: ['class'],
@@ -509,7 +525,7 @@ export class SubmissionService {
         }
     }
 
-    async getAssessmentStats(assessmentId: number) {
+    async getAssessmentStats(assessmentId: number): Promise<AssessmentStatsResponseDto> {
         const roster = await this.getAssignmentRoster(assessmentId);
         const total = roster.length;
         const submitted = roster.filter((r) => r.status !== 'NOT_SUBMITTED').length;
@@ -543,7 +559,7 @@ export class SubmissionService {
         return evaluation;
     }
 
-    async addFeedbackLineByLine(userId: number, submissionId: number, dto: FeedbackItemDto) {
+    async addFeedbackLineByLine(userId: number, submissionId: number, dto: FeedbackItemDto): Promise<AddFeedbackResponseDto> {
         const submission = await this.checkOwnership(userId, submissionId);
         let evaluation = await this.evaluationRepo.findOne({ where: { submission: { id: submissionId } } });
 
@@ -572,7 +588,7 @@ export class SubmissionService {
         return { message: 'Feedback item added successfully', evaluationId: evaluation.id, addedItemsCount: dto ? 1 : 0 };
     }
 
-    async updateSingleFeedback(userId: number, feedbackId: string, dto: FeedbackItemDto) {
+    async updateSingleFeedback(userId: number, feedbackId: string, dto: FeedbackItemDto): Promise<UpdateFeedbackResponseDto> {
         const feedback = await this.evaluationFeedbackRepo.findOne({
             where: { id: feedbackId },
             relations: ['evaluation', 'evaluation.submission', 'evaluation.submission.assessment', 'evaluation.submission.assessment.class', 'evaluation.submission.assessment.class.owner'],
@@ -618,7 +634,7 @@ export class SubmissionService {
             resourceUrl = githubRes ? githubRes.resource.url : null;
         }
 
-        const rubric = assessment.rubrics.map((r) => ({ criterion: r.definition, weight: r.totalScore }));
+        const rubric = assessment.rubrics.map((r) => ({ criterion: r.definition, weight: r.totalScore })) as RubricCriterion[];
 
         if (assessment.aiModelSelectionMode === AIModelSelectionMode.SYSTEM) {
             const balance = await this.walletService.getBalance(submission.assessment.class.owner.id);
@@ -628,6 +644,8 @@ export class SubmissionService {
                 submission_id: submission.id.toString(),
                 instructions: assessment.instruction,
                 resource_url: resourceUrl,
+                user_exclude_files: assessment.user_exclude_files,
+                user_include_files: assessment.user_include_files,
                 rubric,
                 ai: { provider: 'domrov', api_key: 'nothing', api_endpoint: 'domrov.edu', model: 'domrov', label: 'domrov' },
             };
@@ -638,12 +656,15 @@ export class SubmissionService {
             });
 
             if (!userKey) throw new NotFoundException('Submission not found');
-
+            console.log(assessment.user_include_files.length)
+            console.log(assessment.user_exclude_files.length)
             const decryptedKey = Encryption.decryptKey(userKey.encryptedKey);
             return {
                 submission_id: submission.id.toString(),
                 instructions: assessment.instruction,
                 resource_url: resourceUrl,
+                user_exclude_files: assessment.user_exclude_files,
+                user_include_files: assessment.user_include_files,
                 rubric,
                 ai: {
                     provider: userKey.provider,
@@ -657,7 +678,7 @@ export class SubmissionService {
         throw new NotFoundException('Submission not found');
     }
 
-    async getSubmissionResoucrs(submissionId: number) {
+    async getSubmissionResoucrs(submissionId: number): Promise<SubmissionResourceUrlResponseDto> {
         const submission = await this.submissionRepo.findOne({
             where: { id: submissionId },
             relations: ['resources', 'resources.resource', 'assessment.class', 'assessment.class.owner'],

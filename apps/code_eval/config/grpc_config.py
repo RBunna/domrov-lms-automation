@@ -40,6 +40,8 @@ class EvaluateClient:
             return {
                 "submission_id": response.submission_id,
                 "instructions": response.instructions,
+                "user_include_files": response.user_include_files,
+                "user_exclude_files": response.user_exclude_files,
                 "resource_url": response.resource_url,
                 "rubric": [
                     {"criterion": r.criterion, "weight": r.weight}

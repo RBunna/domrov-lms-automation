@@ -1,5 +1,5 @@
 // payment-flow.service.ts (updated to use float numbers instead of string)
-import { Injectable, BadRequestException, OnModuleInit, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, OnModuleInit, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -15,6 +15,7 @@ import {
 } from '../../libs/entities/ai/wallet-transaction.entity';
 import { PaymentStatus } from '../../libs/enums/Status';
 import { Currency, PaymentMethod } from '../../libs/enums/Payment';
+import { StartPaymentResponseDto } from '../../libs/dtos/wallet/start-payment-response.dto';
 
 @Injectable()
 export class PaymentFlowService implements OnModuleInit {
@@ -38,9 +39,11 @@ export class PaymentFlowService implements OnModuleInit {
 
   onModuleInit() { }
 
-  async startPayment(userId: number, packageId: number) {
+  async startPayment(userId: number, packageId: number): Promise<StartPaymentResponseDto> {
     const pkg = await this.packageRepo.findOne({ where: { id: packageId } });
-    if (!pkg) throw new BadRequestException('Credit package not found');
+    if (!pkg) {
+      throw new NotFoundException('Credit package not found');
+    }
 
     const payment = await this.paymentRepo.save({
       user: { id: userId },

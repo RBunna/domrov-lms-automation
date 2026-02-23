@@ -3,26 +3,26 @@ import { IsString, IsNumber, IsOptional, IsEnum, Min, IsBoolean } from 'class-va
 import { Currency } from '../../enums/Payment';
 
 export class CreateTokenPackageDTO {
-    @ApiProperty()
+    @ApiProperty({ example: 'Starter Pack', description: 'Name of the token package' })
     @IsString()
     name: string;
 
-    @ApiProperty()
+    @ApiProperty({ example: 100, description: 'Number of tokens in the package' })
     @IsNumber()
     @Min(1)
     tokenAmount: number;
 
-    @ApiProperty()
+    @ApiProperty({ example: 9.99, description: 'Price of the package' })
     @IsNumber()
     @Min(0)
     price: number;
 
-    @ApiPropertyOptional({ default: 0 })
+    @ApiPropertyOptional({ example: 10, default: 0, description: 'Bonus tokens included' })
     @IsOptional()
     @IsNumber()
     bonusTokenAmount?: number;
 
-    @ApiProperty({ enum: Currency, default: Currency.USD })
+    @ApiProperty({ enum: Currency, example: 'USD', default: Currency.USD, description: 'Currency for the price' })
     @IsEnum(Currency)
     currency: Currency;
 }

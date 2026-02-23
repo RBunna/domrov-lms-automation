@@ -33,7 +33,7 @@ import { TeamAssessment } from '../libs/entities/classroom/team-assessment.entit
 export const dataSourceOptions: DataSourceOptions = {
   type: 'postgres',
   url: process.env.POSTGRES_URL,
-  synchronize: false,
+  synchronize: true,
   logging: false,
   entities: [
     User,

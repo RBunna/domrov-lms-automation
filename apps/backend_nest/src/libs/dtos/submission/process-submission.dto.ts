@@ -16,7 +16,7 @@ export class GetFilesSubmissionDto {
     file_path: string;
 }
 export class GetSubmissionFolderDto {
-    @ApiProperty({ example: 1 })
+    @ApiProperty({ example: 1, description: 'ID of the submission to get folder contents' })
     @Type(() => Number)
     @IsInt()
     submission_id: number;

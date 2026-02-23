@@ -3,6 +3,7 @@
 /node_modules
 /build
 /tmp
+/files_cache_data
 
 # Logs
 logs

@@ -20,6 +20,11 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { TeamMember } from '../../libs/entities/classroom/user-team.entity';
 import { ClassService } from '../class/class.service';
+import { TeamResponseDto } from '../../libs/dtos/team/team-response.dto';
+import { JoinTeamResponseDto } from '../../libs/dtos/team/join-team-response.dto';
+import { CreateManyTeamsResponseDto } from '../../libs/dtos/team/create-many-teams-response.dto';
+import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto';
+import { InviteLinkResponseDto } from '../../libs/dtos/team/invite-link-response.dto';
 
 @Injectable()
 export class TeamService {
@@ -42,7 +47,7 @@ export class TeamService {
     ) {
     }
 
-    async createTeam(createTeamDto: CreateTeamDto, leaderId: number) {
+    async createTeam(createTeamDto: CreateTeamDto, leaderId: number): Promise<TeamResponseDto> {
         const { classId, ...teamData } = createTeamDto;
 
         const { leader, enrollment } = await this.findUserAndVerifyEnrollment(
@@ -71,10 +76,10 @@ export class TeamService {
         });
         await this.teamMemberRepository.save(teamMember);
 
-        return savedTeam;
+        return TeamResponseDto.fromEntity(savedTeam);
     }
 
-    async joinTeamWithCode(joinCode: string, studentId: number) {
+    async joinTeamWithCode(joinCode: string, studentId: number): Promise<JoinTeamResponseDto> {
         const teamToJoin = await this.teamRepository.findOne({
             where: { joinCode },
             relations: ['class', 'leader'],
@@ -98,7 +103,7 @@ export class TeamService {
     async createManyTeams(
         createManyTeamsDto: CreateManyTeamsDto,
         teacherId: number,
-    ) {
+    ): Promise<CreateManyTeamsResponseDto> {
         const { classId, teams } = createManyTeamsDto;
 
         const teacherEnrollment = await this.enrollmentRepository.findOne({
@@ -181,17 +186,15 @@ export class TeamService {
             createdTeams.push(savedTeam);
         }
 
-        const teamsWithoutClass = createdTeams.map(({ class: _, ...team }) => team);
-
         return {
             message: `${createdTeams.length} teams created successfully.`,
-            teams: teamsWithoutClass,
+            teams: createdTeams.map(TeamResponseDto.fromEntity),
         };
     }
 
 
 
-    async getAllTeamsInClass(classId: number, userId: number) {
+    async getAllTeamsInClass(classId: number, userId: number): Promise<TeamResponseDto[]> {
         await this.findUserAndVerifyEnrollment(userId, classId);
 
         const teams = await this.teamRepository.find({
@@ -204,23 +207,10 @@ export class TeamService {
             },
         });
 
-        return teams.map((team) => ({
-            id: team.id,
-            name: team.name,
-            joinCode: team.joinCode,
-            maxMember: team.maxMember,
-            leader: team.leader
-                ? {
-                    id: team.leader.id,
-                    firstName: team.leader.firstName,
-                    lastName: team.leader.lastName,
-                    email: team.leader.email,
-                }
-                : null,
-        }));
+        return teams.map(TeamResponseDto.fromEntity);
     }
 
-    async getTeamDetails(teamId: number, userId: number) {
+    async getTeamDetails(teamId: number, userId: number): Promise<TeamResponseDto> {
         const team = await this.teamRepository.findOne({
             where: { id: teamId },
             relations: [
@@ -237,31 +227,31 @@ export class TeamService {
 
         await this.findUserAndVerifyEnrollment(userId, team.class.id);
 
-        const leader = team.leader
-            ? {
-                id: team.leader.id,
-                firstName: team.leader.firstName,
-                lastName: team.leader.lastName,
-                email: team.leader.email,
-            }
-            : null;
-
-        const members = team.members.map((member) => {
-            const { password, ...memberDetails } = member.user;
-            return memberDetails;
-        });
-
         return {
             id: team.id,
             name: team.name,
             joinCode: team.joinCode,
             maxMember: team.maxMember,
-            leader,
-            members,
+            leader: team.leader
+                ? {
+                    id: team.leader.id,
+                    firstName: team.leader.firstName,
+                    lastName: team.leader.lastName,
+                    email: team.leader.email,
+                    profilePictureUrl: team.leader.profilePictureUrl || null,
+                }
+                : null,
+            members: team.members.map((member) => ({
+                id: member.user.id,
+                firstName: member.user.firstName,
+                lastName: member.user.lastName,
+                email: member.user.email,
+                profilePictureUrl: member.user.profilePictureUrl || null,
+            })),
         };
     }
 
-    async getTeamsWithMembersInClass(classId: number, userId: number) {
+    async getTeamsWithMembersInClass(classId: number, userId: number): Promise<TeamResponseDto[]> {
         await this.classService.findClassAndVerifyMember(userId, classId);
 
         const teams = await this.teamRepository.find({
@@ -281,6 +271,7 @@ export class TeamService {
                     firstName: team.leader.firstName,
                     lastName: team.leader.lastName,
                     email: team.leader.email,
+                    profilePictureUrl: team.leader.profilePictureUrl || null,
                 }
                 : null,
             members: team.members.map((m) => ({
@@ -288,11 +279,12 @@ export class TeamService {
                 firstName: m.user.firstName,
                 lastName: m.user.lastName,
                 email: m.user.email,
+                profilePictureUrl: m.user.profilePictureUrl || null,
             })),
         }));
     }
 
-    async leaveTeam(teamId: number, userId: number) {
+    async leaveTeam(teamId: number, userId: number): Promise<MessageResponseDto> {
         const teamMember = await this.teamMemberRepository.findOne({
             where: { team: { id: teamId }, user: { id: userId } },
             relations: ['team', 'team.leader'],
@@ -314,7 +306,7 @@ export class TeamService {
         teamId: number,
         memberId: number,
         leaderId: number,
-    ) {
+    ): Promise<MessageResponseDto> {
         const { team } = await this.findTeamAndVerifyLeader(teamId, leaderId);
 
         if (memberId === leaderId) {
@@ -337,7 +329,7 @@ export class TeamService {
     }
 
 
-    private async addMemberToTeam(team: Team, studentId: number) {
+    private async addMemberToTeam(team: Team, studentId: number): Promise<JoinTeamResponseDto> {
         const { leader: student } = await this.findUserAndVerifyEnrollment(
             studentId,
             team.class.id,
@@ -412,7 +404,7 @@ export class TeamService {
         leaderId: number,
         memberId: number,
         internalCall: boolean = false,
-    ) {
+    ): Promise<InviteLinkResponseDto> {
         if (!internalCall) {
             await this.findTeamAndVerifyLeader(teamId, leaderId);
         }
@@ -432,7 +424,7 @@ export class TeamService {
         };
     }
 
-    async inviteByEmail(teamId: number, email: string, leaderId: number) {
+    async inviteByEmail(teamId: number, email: string, leaderId: number): Promise<MessageResponseDto> {
         const { team } = await this.findTeamAndVerifyLeader(teamId, leaderId);
 
         const userToInvite = await this.userRepository.findOneBy({ email });
@@ -462,7 +454,7 @@ export class TeamService {
         return { message: `Invite sent to ${email}` };
     }
 
-    async joinTeamWithLink(token: string, studentId: number) {
+    async joinTeamWithLink(token: string, studentId: number): Promise<JoinTeamResponseDto> {
         let payload: any;
 
         try {

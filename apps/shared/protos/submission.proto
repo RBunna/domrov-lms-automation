@@ -41,8 +41,10 @@
     string submission_id = 1;          // Submission ID
     string instructions = 2;           // Instructions for the assessment
     string resource_url = 3;           // URL of the repo / resource
-    repeated RubricCriterion rubric = 4; // List of rubric criteria
-    AIKeyInfo ai = 5;
+    repeated string user_exclude_files = 4; // List of rubric criteria
+    repeated string user_include_files = 5; // List of rubric criteria
+    repeated RubricCriterion rubric = 6; // List of rubric criteria
+    AIKeyInfo ai = 7;
   }
 
   // Rubric item

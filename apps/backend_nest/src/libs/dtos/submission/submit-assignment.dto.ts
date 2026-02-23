@@ -27,6 +27,7 @@ export class SubmitAssignmentDto {
 
   @ApiPropertyOptional({
     description: 'GitHub repository URL for code submissions',
+    example: 'https://github.com/username/repository',
   })
   @IsOptional()
   @IsUrl()
@@ -34,6 +35,7 @@ export class SubmitAssignmentDto {
 
   @ApiPropertyOptional({
     description: 'Optional comments for this submission',
+    example: 'This is my final submission for the assignment',
   })
   @IsOptional()
   @IsString()

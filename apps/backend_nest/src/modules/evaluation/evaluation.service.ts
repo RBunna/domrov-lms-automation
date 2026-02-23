@@ -17,6 +17,12 @@ import { WalletService } from '../wallet/wallet.service';
 import { calculateCost } from '../../libs/utils/costCalculator';
 import { GrokBaseRates } from '../../libs/const/token-cost';
 import { TransactionReason } from '../../libs/entities/ai/wallet-transaction.entity';
+import {
+    ProcessSubmissionResponseDto,
+    FolderStructureResponseDto,
+    AddQueueResponseDto,
+    AIEvaluationResponseDto,
+} from '../../libs/dtos/evaluation/evaluation-response.dto';
 
 // Service Interfaces
 interface SubmissionService {
@@ -56,7 +62,7 @@ export class EvaluationService implements OnModuleInit {
             this.client.getService<TasksQueueService>('TasksQueue');
     }
 
-    async processSubmission(submission_id: string, file_path: string) {
+    async processSubmission(submission_id: string, file_path: string): Promise<ProcessSubmissionResponseDto> {
         try {
             // Convert Observable to Promise
             const result = await lastValueFrom(
@@ -75,7 +81,7 @@ export class EvaluationService implements OnModuleInit {
         }
     }
 
-    async getSubmissionFolderStructure(submissionId: string) {
+    async getSubmissionFolderStructure(submissionId: string): Promise<FolderStructureResponseDto> {
         try {
             // 1. Convert Observable to Promise to match processSubmission style
             const result = await lastValueFrom(
@@ -105,7 +111,7 @@ export class EvaluationService implements OnModuleInit {
         }
     }
 
-    async addTaskToQueue(submission_id: string) {
+    async addTaskToQueue(submission_id: string): Promise<AddQueueResponseDto> {
         try {
             const res = await lastValueFrom<TasksResponse>(
                 this.tasksQueueService
@@ -134,7 +140,7 @@ export class EvaluationService implements OnModuleInit {
         scores: number[],
         input_token: number,
         output_token: number,
-    ) {
+    ): Promise<AIEvaluationResponseDto> {
         // 1. Fetch submission to ensure it exists
         const submission = await this.submissionRepo.findOne({
             where: { id: Number(submission_id) },
