@@ -3,83 +3,293 @@ import {
   Patch,
   Param,
   Body,
-  NotFoundException,
   UseGuards,
   Get,
-  Query
+  Query,
+  Post,
+  HttpCode,
+  HttpStatus
 } from '@nestjs/common';
-import { ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
+import { 
+  ApiOperation, 
+  ApiTags,
+  ApiBearerAuth,
+  ApiOkResponse,
+  ApiNotFoundResponse,
+  ApiBadRequestResponse,
+  ApiUnauthorizedResponse,
+  ApiForbiddenResponse,
+  ApiQuery,
+  ApiBody
+} from '@nestjs/swagger';
 import { UserService } from './user.service';
-import { UpdateUserDTO } from '../../libs/dtos/update.user.dto';
-import { User } from '../../libs/entities/user/user.entity';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UserId } from '../../common/decorators/user.decorator';
+import {
+  UpdateProfileDto,
+  ChangePasswordDto,
+  UserProfileResponseDto,
+  UpdateProfileResponseDto,
+  ChangePasswordResponseDto,
+  UserListItemDto,
+} from '../../libs/dtos/user/user.dto';
 
 @ApiTags('Users')
 @Controller('users')
 export class UserController {
   constructor(private readonly userService: UserService) { }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Update an existing user' })
-  @ApiParam({
-    name: 'id',
-    type: String,
-    description: 'User ID to update',
-    example: '1',
+  // ==================== GET MY PROFILE ====================
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Get my profile',
+    description: 'Returns the authenticated user\'s profile information including personal details and account status.'
   })
-  @ApiResponse({
-    status: 200,
-    description: 'User updated successfully',
-    schema: {
-      example: {
-        message: 'User updated successfully',
-        affectedRows: 1,
-      },
-    },
+  @ApiOkResponse({ 
+    description: 'Profile retrieved successfully',
+    type: UserProfileResponseDto,
+    example: {
+      id: 1,
+      firstName: 'John',
+      lastName: 'Doe',
+      email: 'john@example.com',
+      gender: 'M',
+      dob: '2000-01-15',
+      phoneNumber: '0123456789',
+      profilePictureUrl: 'https://example.com/avatar.jpg',
+      isVerified: true,
+      isTwoFactorEnable: false,
+      status: 'ACTIVE',
+      created_at: '2024-01-01T00:00:00Z',
+      updated_at: '2024-01-05T00:00:00Z'
+    }
   })
-  @ApiResponse({
-    status: 404,
+  @ApiUnauthorizedResponse({ 
+    description: 'User not authenticated',
+    example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
+  })
+  @ApiNotFoundResponse({ 
     description: 'User not found',
-    schema: {
-      example: { statusCode: 404, message: 'User not found', error: 'Not Found' },
-    },
+    example: { statusCode: 404, message: 'User not found', error: 'Not Found' }
   })
-  async updateUser(@Param('id') id: string, @Body() updateUserDto: UpdateUserDTO) {
-    const result = await this.userService.update(id, updateUserDto);
-    if (!result) throw new NotFoundException('User not found');
-    return result;
+  async getMyProfile(@UserId() userId: number): Promise<UserProfileResponseDto> {
+    return this.userService.getMyProfile(userId);
   }
 
-  // @UseGuards(JwtAuthGuard)  open after development
-  @Get('find')
-  @ApiOperation({ summary: 'Find user(s) by query parameters ' })
-  @ApiQuery({ name: 'id', required: false, type: String, example: '1' })
-  @ApiQuery({ name: 'email', required: false, type: String, example: 'panha@gmail.com' })
-  @ApiQuery({ name: 'firstName', required: false, type: String, example: 'Panha' })
-  @ApiQuery({ name: 'lastName', required: false, type: String, example: 'Chan' })
-  @ApiQuery({ name: 'phoneNumber', required: false, type: String, example: '0123456789' })
-  @ApiResponse({
-    status: 200,
-    description: 'User(s) found successfully',
-    schema: {
-      example: [
-        {
-          id: 1,
-          firstName: 'Panha',
-          lastName: 'Chan',
-          email: 'panha@gmail.com',
-          phoneNumber: '0123456789',
-          profilePictureUrl: 'https://example.com/panha.jpg',
-        },
-      ],
-    },
+  // ==================== UPDATE MY PROFILE ====================
+  @Patch('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Update my profile',
+    description: 'Updates the authenticated user\'s profile. All fields are optional - only provided fields will be updated. Does not allow password change (use /change-password instead).'
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Unauthorized – JWT token required',
-    schema: { example: { statusCode: 401, message: 'Unauthorized' } },
+  @ApiBody({ 
+    type: UpdateProfileDto,
+    description: 'Profile fields to update',
+    examples: {
+      basicInfo: {
+        summary: 'Update name and phone',
+        value: {
+          firstName: 'John',
+          lastName: 'Smith',
+          phoneNumber: '0987654321'
+        }
+      },
+      fullUpdate: {
+        summary: 'Full profile update',
+        value: {
+          firstName: 'John',
+          lastName: 'Smith',
+          gender: 'M',
+          dob: '1995-06-15',
+          phoneNumber: '0987654321',
+          profilePictureUrl: 'https://example.com/new-avatar.jpg'
+        }
+      },
+      avatarOnly: {
+        summary: 'Update avatar only',
+        value: {
+          profilePictureUrl: 'https://example.com/new-avatar.jpg'
+        }
+      }
+    }
   })
-  async findUsers(@Query() query: Record<string, any>): Promise<User[] | User> {
+  @ApiOkResponse({ 
+    description: 'Profile updated successfully',
+    type: UpdateProfileResponseDto,
+    example: {
+      message: 'Profile updated successfully',
+      user: {
+        id: 1,
+        firstName: 'John',
+        lastName: 'Smith',
+        email: 'john@example.com',
+        gender: 'M',
+        dob: '1995-06-15',
+        phoneNumber: '0987654321',
+        profilePictureUrl: 'https://example.com/new-avatar.jpg',
+        isVerified: true,
+        isTwoFactorEnable: false,
+        status: 'ACTIVE'
+      }
+    }
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Validation error or phone number in use',
+    examples: {
+      phoneInUse: {
+        summary: 'Phone number already taken',
+        value: { statusCode: 400, message: 'Phone number already in use', error: 'Bad Request' }
+      },
+      invalidPhone: {
+        summary: 'Invalid phone format',
+        value: { statusCode: 400, message: 'Phone number must start with 0 and be 9-10 digits', error: 'Bad Request' }
+      }
+    }
+  })
+  @ApiUnauthorizedResponse({ 
+    description: 'User not authenticated',
+    example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
+  })
+  async updateMyProfile(
+    @UserId() userId: number,
+    @Body() dto: UpdateProfileDto
+  ): Promise<UpdateProfileResponseDto> {
+    return this.userService.updateMyProfile(userId, dto);
+  }
+
+  // ==================== CHANGE PASSWORD ====================
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ 
+    summary: 'Change password',
+    description: 'Changes the authenticated user\'s password. Requires current password verification.'
+  })
+  @ApiBody({ 
+    type: ChangePasswordDto,
+    description: 'Password change data',
+    examples: {
+      changePassword: {
+        summary: 'Change password',
+        value: {
+          currentPassword: 'OldP@ssw0rd',
+          newPassword: 'NewP@ssw0rd123',
+          confirmPassword: 'NewP@ssw0rd123'
+        }
+      }
+    }
+  })
+  @ApiOkResponse({ 
+    description: 'Password changed successfully',
+    type: ChangePasswordResponseDto,
+    example: { message: 'Password changed successfully' }
+  })
+  @ApiBadRequestResponse({ 
+    description: 'Validation error',
+    examples: {
+      mismatch: {
+        summary: 'Password confirmation mismatch',
+        value: { statusCode: 400, message: 'New password and confirmation do not match', error: 'Bad Request' }
+      },
+      samePassword: {
+        summary: 'Same as current password',
+        value: { statusCode: 400, message: 'New password must be different from current password', error: 'Bad Request' }
+      }
+    }
+  })
+  @ApiForbiddenResponse({ 
+    description: 'Current password incorrect',
+    example: { statusCode: 403, message: 'Current password is incorrect', error: 'Forbidden' }
+  })
+  @ApiUnauthorizedResponse({ 
+    description: 'User not authenticated',
+    example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
+  })
+  async changePassword(
+    @UserId() userId: number,
+    @Body() dto: ChangePasswordDto
+  ): Promise<ChangePasswordResponseDto> {
+    return this.userService.changePassword(userId, dto);
+  }
+
+  // ==================== GET ALL USERS (Admin) ====================
+  @Get()
+  @ApiOperation({ 
+    summary: 'Get all users',
+    description: 'Returns a list of all users in the system. Intended for admin use.'
+  })
+  @ApiOkResponse({ 
+    description: 'Users retrieved successfully',
+    type: [UserListItemDto],
+    example: [
+      {
+        id: 1,
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phoneNumber: '0123456789',
+        profilePictureUrl: 'https://example.com/avatar.jpg',
+        status: 'ACTIVE',
+        isVerified: true
+      },
+      {
+        id: 2,
+        firstName: 'Jane',
+        lastName: 'Smith',
+        email: 'jane@example.com',
+        phoneNumber: '0987654321',
+        profilePictureUrl: null,
+        status: 'ACTIVE',
+        isVerified: false
+      }
+    ]
+  })
+  @ApiUnauthorizedResponse({ 
+    description: 'User not authenticated',
+    example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
+  })
+  async getAllUsers(): Promise<UserListItemDto[]> {
+    return this.userService.getAllUsers();
+  }
+
+  // ==================== SEARCH USERS ====================
+  @Get('search')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth('JWT-auth')
+  @ApiOperation({ 
+    summary: 'Search users by query',
+    description: 'Search for users by various criteria. All parameters are optional and support partial matching.'
+  })
+  @ApiQuery({ name: 'id', required: false, type: Number, description: 'User ID', example: 1 })
+  @ApiQuery({ name: 'email', required: false, type: String, description: 'Email (partial match)', example: 'john@' })
+  @ApiQuery({ name: 'firstName', required: false, type: String, description: 'First name (partial match)', example: 'John' })
+  @ApiQuery({ name: 'lastName', required: false, type: String, description: 'Last name (partial match)', example: 'Doe' })
+  @ApiQuery({ name: 'phoneNumber', required: false, type: String, description: 'Phone number (partial match)', example: '012' })
+  @ApiOkResponse({ 
+    description: 'Search results',
+    type: [UserListItemDto],
+    example: [
+      {
+        id: 1,
+        firstName: 'John',
+        lastName: 'Doe',
+        email: 'john@example.com',
+        phoneNumber: '0123456789',
+        profilePictureUrl: 'https://example.com/avatar.jpg'
+      }
+    ]
+  })
+  @ApiUnauthorizedResponse({ 
+    description: 'User not authenticated',
+    example: { statusCode: 401, message: 'Unauthorized', error: 'Unauthorized' }
+  })
+  async searchUsers(@Query() query: Record<string, any>) {
     return this.userService.findByQuery(query);
   }
 }

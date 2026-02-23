@@ -3,7 +3,6 @@ import {
   PrimaryGeneratedColumn,
   Column,
   OneToMany,
-  BaseEntity,
   OneToOne,
 } from 'typeorm';
 import { UserStatus } from '../../enums/Status';
@@ -20,6 +19,7 @@ import { Submission } from '../assessment/submission.entity';
 import { UserRefreshToken } from './user-refresh-token.entity';
 import { UserEmailOtp } from './user-email-otp.entity';
 import { UserAIKey } from '../ai/user-ai-key.entity';
+import { BaseEntity } from '../base.entity';
 
 @Entity({ name: 'users' })
 export class User extends BaseEntity {
