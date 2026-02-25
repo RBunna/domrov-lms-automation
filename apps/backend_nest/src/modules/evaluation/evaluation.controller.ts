@@ -7,11 +7,11 @@ import * as submission from '../../libs/interfaces/submission';
 
 import { GetFilesSubmissionDto, GetSubmissionFolderDto } from '../../libs/dtos/submission/process-submission.dto';
 import { AddQueueDto } from '../../libs/dtos/submission/add-queue.dto';
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiOkResponse, 
-  ApiNotFoundResponse, 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiOkResponse,
+  ApiNotFoundResponse,
   ApiBadRequestResponse,
   ApiQuery,
   ApiBody
@@ -22,16 +22,20 @@ import {
   FolderStructureResponseDto,
   AddQueueResponseDto,
 } from '../../libs/dtos/evaluation/evaluation-response.dto';
+import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { SubmissionMemberGuard, SubmissionInstructorGuard } from '../../common/security';
 
 @ApiTags('Evaluations')
 @Controller('evaluations')
+@UseGuards(JwtAuthGuard)
 export class EvaluationController {
   constructor(private readonly evaluationService: EvaluationService,
     private readonly submissionService: SubmissionService) { }
 
   // ==================== VIEW FILE CONTENT ====================
   @Get('submission')
-  @ApiOperation({ 
+  @UseGuards(SubmissionMemberGuard)
+  @ApiOperation({
     summary: 'View file content in submission',
     description: 'Retrieves the content of a specific file from a submission. Used by the code viewer to display source code with syntax highlighting.'
   })
@@ -59,7 +63,7 @@ export class EvaluationController {
       }
     }
   })
-  @ApiNotFoundResponse({ 
+  @ApiNotFoundResponse({
     description: 'File not found',
     example: {
       statusCode: 404,
@@ -71,6 +75,7 @@ export class EvaluationController {
     @Query(new ValidationPipe({ transform: true })) query: GetFilesSubmissionDto
   ): Promise<ProcessSubmissionResponseDto> {
     const { submission_id, file_path } = query;
+    // TODO: Add ownership check here if needed
     return this.evaluationService.processSubmission(
       String(submission_id),
       String(file_path),
@@ -79,7 +84,8 @@ export class EvaluationController {
 
   // ==================== GET FOLDER STRUCTURE ====================
   @Get('submission/folder-structure')
-  @ApiOperation({ 
+  @UseGuards(SubmissionMemberGuard)
+  @ApiOperation({
     summary: 'Get submission folder structure',
     description: 'Retrieves the complete folder tree structure of a submission. Used to render the file explorer sidebar in the code viewer.'
   })
@@ -117,7 +123,7 @@ export class EvaluationController {
       }
     }
   })
-  @ApiNotFoundResponse({ 
+  @ApiNotFoundResponse({
     description: 'Submission not found',
     example: {
       statusCode: 404,
@@ -130,7 +136,7 @@ export class EvaluationController {
     query: GetSubmissionFolderDto,
   ): Promise<FolderStructureResponseDto> {
     const { submission_id } = query;
-
+    // TODO: Add ownership check here if needed
     return this.evaluationService.getSubmissionFolderStructure(
       String(submission_id),
     );
@@ -138,8 +144,9 @@ export class EvaluationController {
 
   // ==================== ADD TO AI EVALUATION QUEUE ====================
   @Post('queue')
+  @UseGuards(SubmissionInstructorGuard)
   @HttpCode(HttpStatus.OK)
-  @ApiOperation({ 
+  @ApiOperation({
     summary: 'Queue submission for AI evaluation',
     description: `Adds a submission to the AI evaluation processing queue. The submission will be evaluated asynchronously by the AI grading system.
 
@@ -156,7 +163,7 @@ export class EvaluationController {
 
 **Future Enhancement:** This endpoint will support both AI and manual evaluation modes.`
   })
-  @ApiBody({ 
+  @ApiBody({
     type: AddQueueDto,
     description: 'Submission to queue for AI evaluation',
     examples: {
@@ -216,26 +223,23 @@ export class EvaluationController {
     body: AddQueueDto,
   ): Promise<AddQueueResponseDto> {
     const { submission_id } = body;
-
+    // TODO: Add instructor/owner check here if needed
     return this.evaluationService.addTaskToQueue(
       String(submission_id),
     );
   }
 
-
-
+  // ==================== EVALUATE SUBMISSION ====================
   @GrpcMethod('EvaluateWithAI', 'EvaluateSubmission')
-  evaluateSubmission(
+  async evaluateSubmission(
     data: evaluation.EvaluateRequest,
     metadata: grpcJs.Metadata,
     call: grpcJs.ServerUnaryCall<any, any>,
-  ): evaluation.EvaluateResponse {
-
+  ): Promise<evaluation.EvaluateResponse> {
     const logger = new Logger('EvaluateSubmission');
     logger.log(`Received EvaluateSubmission request: ${JSON.stringify(data)}`);
     try {
-      const { submission_id, score, feedback, input_token, output_token } = data;
-
+      const { submission_id, score, feedback, input_token, output_token, ai_model } = data;
       if (!submission_id || !score?.value?.length) {
         logger.log(`Invalid submission or empty score criteria: submission_id=${submission_id}, score=${JSON.stringify(score)}, feedback=${feedback}, input_token=${input_token}, output_token=${output_token}`);
         return {
@@ -243,32 +247,26 @@ export class EvaluationController {
           message: 'Invalid submission or empty score criteria',
         };
       }
-
-      // Optionally send metadata back
       const serverMetadata = new grpcJs.Metadata();
       serverMetadata.add('evaluated-by', 'nestjs-grpc');
       call.sendMetadata(serverMetadata);
-
-      this.evaluationService.aiEvaluate(
-        Number(submission_id), feedback, score.value, input_token, output_token
-      )
+      await this.evaluationService.aiEvaluate(
+        Number(submission_id), feedback, score.value, input_token, output_token, ai_model
+      );
       return {
         success: true,
         message: `Submission ${submission_id} evaluated successfully`,
       };
     } catch (err: unknown) {
       let message = 'Unknown error occurred';
-
       if (err instanceof Error) {
         message = err.message;
       }
-
       return {
         success: false,
         message,
       };
     }
-
   }
 
   @GrpcMethod('SubmissionService', 'GetSubmission')
@@ -279,15 +277,12 @@ export class EvaluationController {
   ): Promise<submission.SubmissionContentResponse> {
     const { submission_id } = data;
     console.log('getSubmission called with:', data);
-
     const serverMetadata = new grpcJs.Metadata();
     serverMetadata.add('served-by', 'nestjs-grpc');
     call.sendMetadata(serverMetadata);
-
     try {
       const result = await this.submissionService.getSubmissionDetails(Number(submission_id));
       console.log('Submission found:', result);
-
       return result;
     } catch (err) {
       console.log('Error fetching submission:', (err as Error).message || err);
@@ -300,16 +295,14 @@ export class EvaluationController {
 
   @GrpcMethod('SubmissionService', 'GetSubmissionResource')
   async getSubmissionResource(
-    data: submission.SubmissionContentRequest, // reduce for resource
+    data: submission.SubmissionContentRequest,
     metadata: grpcJs.Metadata,
     call: grpcJs.ServerUnaryCall<any, any>,
   ): Promise<submission.SubmissionContentResource> {
     const { submission_id } = data;
-
     const serverMetadata = new grpcJs.Metadata();
     serverMetadata.add('served-by', 'nestjs-grpc');
     call.sendMetadata(serverMetadata);
-
     try {
       const result = await this.submissionService.getSubmissionResoucrs(Number(submission_id));
       console.log('Submission found:', result);

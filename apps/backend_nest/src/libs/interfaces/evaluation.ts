@@ -8,6 +8,7 @@ export interface EvaluateRequest {
     feedback: string;
     input_token: number;
     output_token: number;
+    ai_model: string;
 }
 
 export interface EvaluateResponse {

@@ -40,115 +40,113 @@ export class PaymentFlowService implements OnModuleInit {
   onModuleInit() { }
 
   async startPayment(userId: number, packageId: number): Promise<StartPaymentResponseDto> {
-    const pkg = await this.packageRepo.findOne({ where: { id: packageId } });
-    if (!pkg) {
-      throw new NotFoundException('Credit package not found');
+    try {
+      if (!userId) throw new BadRequestException('User ID is required');
+      if (!packageId) throw new BadRequestException('Package ID is required');
+      const pkg = await this.packageRepo.findOne({ where: { id: packageId } });
+      if (!pkg) {
+        throw new NotFoundException('Credit package not found');
+      }
+      const payment = await this.paymentRepo.save({
+        user: { id: userId },
+        creditPackage: { id: packageId },
+        amount: pkg.price,
+        currency: pkg.currency || Currency.USD,
+        paymentMethod: PaymentMethod.BAKOGN,
+        status: PaymentStatus.PENDING,
+      });
+      this.handlePaymentWorkflow(payment.id, pkg.price, userId);
+      return { paymentId: payment.id, message: 'Payment initiated' };
+    } catch (err) {
+      throw err instanceof NotFoundException || err instanceof BadRequestException ? err : new BadRequestException('Failed to start payment');
     }
-
-    const payment = await this.paymentRepo.save({
-      user: { id: userId },
-      creditPackage: { id: packageId },
-      amount: pkg.price,
-      currency: pkg.currency || Currency.USD,
-      paymentMethod: PaymentMethod.BAKOGN,
-      status: PaymentStatus.PENDING,
-    });
-
-    this.handlePaymentWorkflow(payment.id, pkg.price, userId);
-
-    return { paymentId: payment.id, message: 'Payment initiated' };
   }
 
   private async handlePaymentWorkflow(paymentId: number, amount: number, userId: number) {
-    this.logger.log(amount);
-
-    const qr = this.paymentService.createQR({ currency: 'USD', amount });
-    const md5 = this.paymentService.generateMD5(qr);
-
-    this.logger.log(qr);
-    this.logger.log(md5);
-
-    this.gateway.sendQr(userId, qr);
-
-    void this.startPaymentPolling(paymentId, md5, userId);
+    try {
+      if (!paymentId || !userId || typeof amount !== 'number' || amount <= 0) throw new BadRequestException('Invalid payment workflow parameters');
+      this.logger.log(amount);
+      const qr = this.paymentService.createQR({ currency: 'USD', amount });
+      const md5 = this.paymentService.generateMD5(qr);
+      this.logger.log(qr);
+      this.logger.log(md5);
+      this.gateway.sendQr(userId, qr);
+      void this.startPaymentPolling(paymentId, md5, userId);
+    } catch (err) {
+      this.logger.error('Failed to handle payment workflow', err);
+    }
   }
 
   async startPaymentPolling(paymentId: number, md5: string, userId: number) {
-    // wait initial delay (15s)
-    await this.sleep(15000);
-
-    const timeoutMs = 3 * 60 * 1000; // 3 minutes
-    const intervalMs = 5000;
-    const startTime = Date.now();
-
-    while (Date.now() - startTime < timeoutMs) {
-      try {
-        const status = await this.paymentService.checkPayment(md5);
-        this.gateway.sendStatus(userId, status);
-
-        if (status === 'PAID') {
-          await this.handleSuccess(paymentId);
-          return; 
+    try {
+      if (!paymentId || !md5 || !userId) throw new BadRequestException('Invalid polling parameters');
+      await this.sleep(15000);
+      const timeoutMs = 3 * 60 * 1000; // 3 minutes
+      const intervalMs = 5000;
+      const startTime = Date.now();
+      while (Date.now() - startTime < timeoutMs) {
+        try {
+          const status = await this.paymentService.checkPayment(md5);
+          this.gateway.sendStatus(userId, status);
+          if (status === 'PAID') {
+            await this.handleSuccess(paymentId);
+            return;
+          }
+        } catch (err) {
+          this.logger.error(`Polling error for payment ${paymentId}:`, err);
         }
-      } catch (err) {
-        this.logger.error(`Polling error for payment ${paymentId}:`, err);
+        await this.sleep(intervalMs);
       }
-
-      await this.sleep(intervalMs);
+      this.gateway.sendStatus(userId, 'EXPIRED');
+    } catch (err) {
+      this.logger.error('Failed to start payment polling', err);
     }
-
-    // expired
-    this.gateway.sendStatus(userId, 'EXPIRED');
   }
 
   private async handleSuccess(paymentId: number) {
-    const payment = await this.paymentRepo.findOne({
-      where: { id: paymentId },
-      relations: ['creditPackage', 'user'],
-    });
-
-    if (!payment || payment.status === PaymentStatus.COMPLETED) return;
-
-    const { creditPackage, user } = payment;
-
-    const totalCredits = creditPackage.credits + (creditPackage.bonusCredits || 0);
-
-    let userWallet = await this.balanceRepo.findOne({
-      where: { user: { id: user.id } },
-      relations: ['user'],
-    });
-
-    if (!userWallet) {
-      userWallet = this.balanceRepo.create({
-        user,
-        creditBalance: 0,
+    try {
+      if (!paymentId) throw new BadRequestException('Payment ID is required');
+      const payment = await this.paymentRepo.findOne({
+        where: { id: paymentId },
+        relations: ['creditPackage', 'user'],
       });
-      userWallet = await this.balanceRepo.save(userWallet);
+      if (!payment || payment.status === PaymentStatus.COMPLETED) return;
+      const { creditPackage, user } = payment;
+      if (!creditPackage || !user) throw new BadRequestException('Invalid payment data');
+      const totalCredits = creditPackage.credits + (creditPackage.bonusCredits || 0);
+      let userWallet = await this.balanceRepo.findOne({
+        where: { user: { id: user.id } },
+        relations: ['user'],
+      });
+      if (!userWallet) {
+        userWallet = this.balanceRepo.create({
+          user,
+          creditBalance: 0,
+        });
+        userWallet = await this.balanceRepo.save(userWallet);
+      }
+      const balanceBefore = userWallet.creditBalance;
+      const balanceAfter = balanceBefore + totalCredits;
+      userWallet.creditBalance = balanceAfter;
+      await this.balanceRepo.save(userWallet);
+      await this.walletRepo.save({
+        wallet: userWallet,
+        type: TransactionType.CREDIT,
+        reason: TransactionReason.PURCHASE,
+        amount: totalCredits,
+        balanceBefore,
+        balanceAfter,
+        description: `Purchased credit package: ${creditPackage.name}`,
+        metadata: { paymentId: payment.id, packageId: creditPackage.id },
+      });
+      payment.status = PaymentStatus.COMPLETED;
+      await this.paymentRepo.save(payment);
+      this.logger.log(
+        `Payment ${paymentId} completed. Credited ${totalCredits} credits to user ${user.id}.`,
+      );
+    } catch (err) {
+      this.logger.error('Failed to handle payment success', err);
     }
-
-    const balanceBefore = userWallet.creditBalance;
-    const balanceAfter = balanceBefore + totalCredits;
-
-    userWallet.creditBalance = balanceAfter;
-    await this.balanceRepo.save(userWallet);
-
-    await this.walletRepo.save({
-      wallet: userWallet,
-      type: TransactionType.CREDIT,
-      reason: TransactionReason.PURCHASE,
-      amount: totalCredits,
-      balanceBefore,
-      balanceAfter,
-      description: `Purchased credit package: ${creditPackage.name}`,
-      metadata: { paymentId: payment.id, packageId: creditPackage.id },
-    });
-
-    payment.status = PaymentStatus.COMPLETED;
-    await this.paymentRepo.save(payment);
-
-    this.logger.log(
-      `Payment ${paymentId} completed. Credited ${totalCredits} credits to user ${user.id}.`,
-    );
   }
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));

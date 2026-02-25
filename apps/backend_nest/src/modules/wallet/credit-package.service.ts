@@ -18,30 +18,44 @@ export class CreditPackageService {
   ) { }
 
   async create(dto: CreateCreditPackageDto): Promise<CreditPackageResponseDto> {
-    const creditPackage = this.packageRepository.create({
-      ...dto,
-      currency: dto.currency,
-      bonusCredits: dto.bonusCredits || 0,
-      credits: dto.credits,
-      price: dto.price,
-    });
-    return this.packageRepository.save(creditPackage);
+    try {
+      if (!dto || typeof dto !== 'object') throw new NotFoundException('Invalid credit package data');
+      const creditPackage = this.packageRepository.create({
+        ...dto,
+        currency: dto.currency,
+        bonusCredits: dto.bonusCredits || 0,
+        credits: dto.credits,
+        price: dto.price,
+      });
+      return await this.packageRepository.save(creditPackage);
+    } catch (err) {
+      throw new NotFoundException('Failed to create credit package');
+    }
   }
 
   async findAll(): Promise<CreditPackageResponseDto[]> {
-    return this.packageRepository.find({
-      order: { sortOrder: 'ASC', price: 'ASC' },
-    });
+    try {
+      return await this.packageRepository.find({
+        order: { sortOrder: 'ASC', price: 'ASC' },
+      });
+    } catch (err) {
+      throw new NotFoundException('Failed to get credit packages');
+    }
   }
 
   async findAllActive(): Promise<CreditPackageResponseDto[]> {
-    return this.packageRepository.find({
-      where: { isActive: true },
-      order: { sortOrder: 'ASC', price: 'ASC' },
-    });
+    try {
+      return await this.packageRepository.find({
+        where: { isActive: true },
+        order: { sortOrder: 'ASC', price: 'ASC' },
+      });
+    } catch (err) {
+      throw new NotFoundException('Failed to get active credit packages');
+    }
   }
 
   private async findOneEntity(id: number): Promise<CreditPackage> {
+    if (!id) throw new NotFoundException('Credit package ID is required');
     const pkg = await this.packageRepository.findOne({ where: { id } });
     if (!pkg) {
       throw new NotFoundException(`Credit package with ID ${id} not found`);
@@ -50,24 +64,44 @@ export class CreditPackageService {
   }
 
   async findOne(id: number): Promise<CreditPackageResponseDto> {
-    return this.findOneEntity(id);
+    try {
+      return await this.findOneEntity(id);
+    } catch (err) {
+      throw new NotFoundException('Failed to get credit package');
+    }
   }
 
   async update(id: number, dto: UpdateCreditPackageDto): Promise<CreditPackageResponseDto> {
-    const pkg = await this.findOneEntity(id);
-    Object.assign(pkg, dto);
-    return this.packageRepository.save(pkg);
+    try {
+      if (!id) throw new NotFoundException('Credit package ID is required');
+      if (!dto || typeof dto !== 'object') throw new NotFoundException('Invalid update data');
+      const pkg = await this.findOneEntity(id);
+      Object.assign(pkg, dto);
+      return await this.packageRepository.save(pkg);
+    } catch (err) {
+      throw new NotFoundException('Failed to update credit package');
+    }
   }
 
   async remove(id: number): Promise<MessageResponseDto> {
-    const pkg = await this.findOneEntity(id);
-    await this.packageRepository.remove(pkg);
-    return { message: `Credit package with ID ${id} deleted successfully` };
+    try {
+      if (!id) throw new NotFoundException('Credit package ID is required');
+      const pkg = await this.findOneEntity(id);
+      await this.packageRepository.remove(pkg);
+      return { message: `Credit package with ID ${id} deleted successfully` };
+    } catch (err) {
+      throw new NotFoundException('Failed to delete credit package');
+    }
   }
 
   async toggleActive(id: number): Promise<CreditPackageResponseDto> {
-    const pkg = await this.findOneEntity(id);
-    pkg.isActive = !pkg.isActive;
-    return this.packageRepository.save(pkg);
+    try {
+      if (!id) throw new NotFoundException('Credit package ID is required');
+      const pkg = await this.findOneEntity(id);
+      pkg.isActive = !pkg.isActive;
+      return await this.packageRepository.save(pkg);
+    } catch (err) {
+      throw new NotFoundException('Failed to toggle credit package active state');
+    }
   }
 }

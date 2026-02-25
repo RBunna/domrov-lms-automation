@@ -43,7 +43,7 @@ def process_submission(submission_id: str):
         provider_raw = (ai_info.get("provider") or "").lower()
 
         if provider_raw == "domrov":
-            print("⚙️ SYSTEM mode detected")
+            print("SYSTEM mode detected")
 
             api_key = None
             api_endpoint = None
@@ -59,7 +59,7 @@ def process_submission(submission_id: str):
             provider = provider_raw or None
             ai_model = ai_info.get("model")
 
-            print(f"🔑 USER AI detected: {provider}, model={ai_model}")
+            print(f"USER AI detected: {provider}, model={ai_model}")
 
         # ---- Evaluation ----
         raw_response = evaluate(

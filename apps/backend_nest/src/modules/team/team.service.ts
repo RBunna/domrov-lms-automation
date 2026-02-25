@@ -48,33 +48,35 @@ export class TeamService {
 
     async createTeam(createTeamDto: CreateTeamDto, leaderId: number): Promise<TeamResponseDto> {
         const { classId, ...teamData } = createTeamDto;
-
         const { leader, enrollment } = await this.findUserAndVerifyEnrollment(
             leaderId,
             classId,
         );
-
         let joinCode: string;
         let codeExists: boolean;
         do {
             joinCode = generateJoinCode();
             codeExists = !!(await this.teamRepository.findOneBy({ joinCode }));
         } while (codeExists);
-
         const newTeam = this.teamRepository.create({
             ...teamData,
             joinCode,
             leader,
             class: enrollment.class,
         });
-        const savedTeam = await this.teamRepository.save(newTeam);
-
-        const teamMember = this.teamMemberRepository.create({
-            user: leader,
-            team: savedTeam,
-        });
-        await this.teamMemberRepository.save(teamMember);
-
+        let savedTeam;
+        try {
+            savedTeam = await this.teamRepository.save(newTeam);
+        } catch (err) {
+            throw new Error('Failed to create team');
+        }
+        let teamMember;
+        try {
+            teamMember = this.teamMemberRepository.create({ user: leader, team: savedTeam });
+            await this.teamMemberRepository.save(teamMember);
+        } catch (err) {
+            throw new Error('Failed to add leader to team');
+        }
         return TeamResponseDto.fromEntity(savedTeam);
     }
 
@@ -104,7 +106,6 @@ export class TeamService {
         teacherId: number,
     ): Promise<CreateManyTeamsResponseDto> {
         const { classId, teams } = createManyTeamsDto;
-
         const teacherEnrollment = await this.enrollmentRepository.findOne({
             where: {
                 user: { id: teacherId },
@@ -113,16 +114,13 @@ export class TeamService {
             },
             relations: ['class'],
         });
-
         if (!teacherEnrollment) {
             throw new ForbiddenException(
                 'You are not a teacher of this class or class does not exist',
             );
         }
-
         const classToUpdate = teacherEnrollment.class;
         const createdTeams: Team[] = [];
-
         for (const teamDto of teams) {
             if (teamDto.memberIds && teamDto.memberIds.length > 0 && !teamDto.leaderId) {
                 throw new BadRequestException(
@@ -135,25 +133,25 @@ export class TeamService {
                 joinCode = generateJoinCode();
                 codeExists = !!(await this.teamRepository.findOneBy({ joinCode }));
             } while (codeExists);
-
             const newTeam = this.teamRepository.create({
                 name: teamDto.name,
                 maxMember: teamDto.maxMember,
                 joinCode,
                 class: classToUpdate,
             });
-
             if (teamDto.leaderId) {
                 const leader = await this.userRepository.findOneBy({ id: teamDto.leaderId });
                 if (!leader) throw new NotFoundException(`Leader user ${teamDto.leaderId} not found`);
                 newTeam.leader = leader;
             }
-
-            const savedTeam = await this.teamRepository.save(newTeam);
-
+            let savedTeam;
+            try {
+                savedTeam = await this.teamRepository.save(newTeam);
+            } catch (err) {
+                throw new Error('Failed to create team');
+            }
             if (teamDto.memberIds && teamDto.memberIds.length > 0) {
                 const members = await this.userRepository.findByIds(teamDto.memberIds);
-
                 for (const member of members) {
                     const enrollment = await this.enrollmentRepository.findOne({
                         where: {
@@ -162,29 +160,32 @@ export class TeamService {
                             role: UserRole.Student,
                         },
                     });
-
                     if (!enrollment) continue;
-
                     const teamMember = this.teamMemberRepository.create({
                         user: member,
                         team: savedTeam,
                     });
-                    await this.teamMemberRepository.save(teamMember);
+                    try {
+                        await this.teamMemberRepository.save(teamMember);
+                    } catch (err) {
+                        throw new Error('Failed to add member to team');
+                    }
                 }
-
                 if (teamDto.leaderId && !teamDto.memberIds.includes(teamDto.leaderId)) {
                     const leader = await this.userRepository.findOneBy({ id: teamDto.leaderId });
                     const leaderMember = this.teamMemberRepository.create({
                         user: leader ?? undefined,
                         team: savedTeam,
                     });
-                    await this.teamMemberRepository.save(leaderMember);
+                    try {
+                        await this.teamMemberRepository.save(leaderMember);
+                    } catch (err) {
+                        throw new Error('Failed to add leader to team');
+                    }
                 }
             }
-
             createdTeams.push(savedTeam);
         }
-
         return {
             message: `${createdTeams.length} teams created successfully.`,
             teams: createdTeams.map(TeamResponseDto.fromEntity),
@@ -281,14 +282,15 @@ export class TeamService {
     }
 
     async leaveTeam(context: TeamContext): Promise<MessageResponseDto> {
+        if (!context?.teamEntity) {
+            throw new NotFoundException('Team context not available');
+        }
         if (context.isLeader) {
             throw new ForbiddenException('Leader cannot leave the team. Transfer leadership first.');
         }
-
         if (!context.membership) {
             throw new NotFoundException('You are not in this team');
         }
-
         await this.teamMemberRepository.remove(context.membership);
         return { message: 'You have successfully left the team' };
     }
@@ -297,21 +299,21 @@ export class TeamService {
         memberId: number,
         context: TeamContext,
     ): Promise<MessageResponseDto> {
+        if (!context?.teamEntity) {
+            throw new NotFoundException('Team context not available');
+        }
         if (memberId === context.userId) {
             throw new BadRequestException('The leader cannot be removed');
         }
-
         const member = await this.teamMemberRepository.findOne({
             where: {
                 team: { id: context.teamId },
                 user: { id: memberId },
             },
         });
-
         if (!member) {
             throw new NotFoundException('Team member not found');
         }
-
         await this.teamMemberRepository.remove(member);
         return { message: 'Team member removed successfully' };
     }
@@ -322,24 +324,24 @@ export class TeamService {
             studentId,
             team.class.id,
         );
-
         if (await this.isUserInTeam(team.id, studentId)) {
             throw new ConflictException('You are already in this team');
         }
-
         const memberCount = await this.teamMemberRepository.count({
             where: { team: { id: team.id } },
         });
         if (memberCount >= team.maxMember) {
             throw new ConflictException('This team is already full');
         }
-
         const newMember = this.teamMemberRepository.create({
             user: student,
             team: team,
         });
-
-        await this.teamMemberRepository.save(newMember);
+        try {
+            await this.teamMemberRepository.save(newMember);
+        } catch (err) {
+            throw new Error('Failed to add member to team');
+        }
         return { message: 'Successfully joined team', teamId: team.id };
     }
 
@@ -390,32 +392,33 @@ export class TeamService {
     }
 
     async inviteByEmail(email: string, context: TeamContext): Promise<MessageResponseDto> {
+        if (!context?.teamEntity) {
+            throw new NotFoundException('Team context not available');
+        }
         const team = context.teamEntity;
-
         const userToInvite = await this.userRepository.findOneBy({ email });
         if (!userToInvite) {
             throw new NotFoundException('User with this email not found');
         }
-
         await this.findUserAndVerifyEnrollment(userToInvite.id, team.class.id);
-
         if (await this.isUserInTeam(team.id, userToInvite.id)) {
             throw new ConflictException('User is already in this team');
         }
-
         const { link } = await this.generateInviteLink(userToInvite.id, context);
-
-        await this.mailerService.sendMail({
-            to: userToInvite.email,
-            subject: `You're invited to join ${team.name}!`,
-            text: `Hello ${userToInvite.firstName},\n\nYou are invited to join the team "${team.name}".\nClick this link: ${link}`,
-            html: `
-            <p>Hello ${userToInvite.firstName},</p>
-            <p>You have been invited to join the team <b>${team.name}</b> in class <b>${team.class.name}</b>.</p>
-            <a href="${link}">Join Team</a>
-        `,
-        });
-
+        try {
+            await this.mailerService.sendMail({
+                to: userToInvite.email,
+                subject: `You're invited to join ${team.name}!`,
+                text: `Hello ${userToInvite.firstName},\n\nYou are invited to join the team "${team.name}".\nClick this link: ${link}`,
+                html: `
+                <p>Hello ${userToInvite.firstName},</p>
+                <p>You have been invited to join the team <b>${team.name}</b> in class <b>${team.class.name}</b>.</p>
+                <a href=\"${link}\">Join Team</a>
+            `,
+            });
+        } catch (emailErr) {
+            throw new BadRequestException('Failed to send invitation email');
+        }
         return { message: `Invite sent to ${email}` };
     }
 

@@ -73,7 +73,7 @@ class AIClient:
         self,
         prompt: str,
         model: str,
-        temperature: float = 0.7,
+        temperature: float = 0.1,
         max_tokens: Optional[int] = None,
         **kwargs,
     ) -> str:

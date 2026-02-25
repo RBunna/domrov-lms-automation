@@ -22,23 +22,31 @@ export class R2Service {
   }
 
   async getUploadUrl(key: string, contentType: string) {
-    const bucket = this.configService.get<string>('R2_BUCKET')!;
-    const command = new PutObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      ContentType: contentType,
-      // ContentLength: MAX_FILE_SIZE
-    });
-
-    const uploadUrl = await getSignedUrl(this.s3, command, { expiresIn: 300 });
-    return { uploadUrl, key };
+    try {
+      if (!key || !contentType) throw new NotFoundException('Key and content type are required');
+      const bucket = this.configService.get<string>('R2_BUCKET');
+      if (!bucket) throw new NotFoundException('R2 bucket not configured');
+      const command = new PutObjectCommand({
+        Bucket: bucket,
+        Key: key,
+        ContentType: contentType,
+        // ContentLength: MAX_FILE_SIZE
+      });
+      const uploadUrl = await getSignedUrl(this.s3, command, { expiresIn: 300 });
+      return { uploadUrl, key };
+    } catch (err) {
+      throw new NotFoundException('Failed to get upload URL');
+    }
   }
 
   async objectExists(key: string): Promise<boolean> {
     try {
+      if (!key) return false;
+      const bucket = this.configService.get<string>('R2_BUCKET');
+      if (!bucket) return false;
       await this.s3.send(
         new HeadObjectCommand({
-          Bucket: this.configService.get<string>('R2_BUCKET'),
+          Bucket: bucket,
           Key: key,
         }),
       );
@@ -49,32 +57,33 @@ export class R2Service {
   }
 
   async streamFile(key: string): Promise<{ stream: Readable; contentType: string }> {
-    const command = new GetObjectCommand({
-      Bucket: process.env.R2_BUCKET!,
-      Key: key,
-    });
-
-    const r2Object = await this.s3.send(command);
-
-    if (!r2Object.Body) throw new NotFoundException('File not found');
-
-    // Ensure NodeJS Readable
-    let stream: Readable;
-    if (r2Object.Body instanceof Readable) {
-      stream = r2Object.Body;
-    } else {
-      // Convert Web stream or async iterable to NodeJS Readable
-      const chunks: Buffer[] = [];
-      for await (const chunk of r2Object.Body as any) {
-        chunks.push(Buffer.from(chunk));
+    try {
+      if (!key) throw new NotFoundException('Key is required');
+      const bucket = this.configService.get<string>('R2_BUCKET') || process.env.R2_BUCKET;
+      if (!bucket) throw new NotFoundException('R2 bucket not configured');
+      const command = new GetObjectCommand({
+        Bucket: bucket,
+        Key: key,
+      });
+      const r2Object = await this.s3.send(command);
+      if (!r2Object.Body) throw new NotFoundException('File not found');
+      let stream: Readable;
+      if (r2Object.Body instanceof Readable) {
+        stream = r2Object.Body;
+      } else {
+        const chunks: Buffer[] = [];
+        for await (const chunk of r2Object.Body as any) {
+          chunks.push(Buffer.from(chunk));
+        }
+        stream = Readable.from(Buffer.concat(chunks));
       }
-      stream = Readable.from(Buffer.concat(chunks));
+      return {
+        stream,
+        contentType: r2Object.ContentType || 'application/octet-stream',
+      };
+    } catch (err) {
+      throw new NotFoundException('Failed to stream file');
     }
-
-    return {
-      stream,
-      contentType: r2Object.ContentType || 'application/octet-stream',
-    };
   }
 
 

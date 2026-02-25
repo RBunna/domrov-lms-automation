@@ -46,29 +46,29 @@ export class ClassService {
     async createClass(createClassDto: CreateClassDto, ownerId: number): Promise<ClassResponseDto> {
         const owner = await this.userRepository.findOneBy({ id: ownerId });
         if (!owner) throw new NotFoundException('User not found');
-
         let joinCode: string;
         let codeExists: boolean;
+        let attempts = 0;
         do {
             joinCode = generateJoinCode();
             codeExists = !!(await this.classRepository.findOneBy({ joinCode }));
+            attempts++;
+            if (attempts > 10) {
+                throw new BadRequestException('Failed to generate unique join code');
+            }
         } while (codeExists);
-
         const newClass = this.classRepository.create({
             ...createClassDto,
             owner,
             joinCode,
         });
-
         const savedClass = await this.classRepository.save(newClass);
-
         const enrollment = this.enrollmentRepository.create({
             user: owner,
             class: savedClass,
             role: UserRole.Teacher,
         });
         await this.enrollmentRepository.save(enrollment);
-
         return ClassResponseDto.fromEntity(savedClass, UserRole.Teacher);
     }
 
@@ -88,19 +88,21 @@ export class ClassService {
         if (studentId === context.userId) {
             throw new BadRequestException('You cannot remove yourself');
         }
-
+        if (!studentId || studentId <= 0) {
+            throw new BadRequestException('Invalid student ID');
+        }
         const enrollment = await this.enrollmentRepository.findOne({
             where: { class: { id: context.classId }, user: { id: studentId } },
         });
-
         if (!enrollment) {
             throw new NotFoundException('Student not found in this class');
         }
-
         if (enrollment.role === UserRole.Teacher) {
             throw new ForbiddenException('Cannot remove another teacher');
         }
-
+        if (context.classEntity.owner.id === studentId) {
+            throw new ForbiddenException('Cannot remove the class owner');
+        }
         await this.enrollmentRepository.remove(enrollment);
         return { message: 'Student removed successfully' };
     }
@@ -124,14 +126,26 @@ export class ClassService {
     async deleteClass(
         context: ClassContext,
     ): Promise<MessageResponseDto> {
+        if (!context?.classEntity) {
+            throw new NotFoundException('Class context not available');
+        }
+        // Proactive check for dependencies (assessments, submissions, enrollments)
+        const assessmentCount = await this.classRepository.manager.count('Assessment', { where: { class: { id: context.classId } } }).catch(() => 0);
+        const submissionCount = await this.classRepository.manager.count('Submission', { where: { assessment: { class: { id: context.classId } } } }).catch(() => 0);
+        const enrollmentCount = await this.enrollmentRepository.count({ where: { class: { id: context.classId } } });
+        if (assessmentCount > 0 || submissionCount > 0 || enrollmentCount > 1) {
+            throw new BadRequestException('Class cannot be deleted due to existing dependencies (assessments, submissions, enrollments, etc.)');
+        }
         try {
             await this.classRepository.remove(context.classEntity);
-        } catch {
-            throw new BadRequestException(
-                'Class cannot be deleted due to existing dependencies',
-            );
+        } catch (error) {
+            // TypeORM QueryFailedError: 23503 = foreign key violation
+            const err: any = error;
+            if (err?.code === '23503' || (err?.message && err.message.includes('foreign key'))) {
+                throw new BadRequestException('Class cannot be deleted due to existing dependencies (assessments, submissions, etc.)');
+            }
+            throw error;
         }
-
         return { message: 'Class deleted successfully' };
     }
 
@@ -211,8 +225,13 @@ export class ClassService {
         newOwnerId: number,
         context: ClassContext,
     ): Promise<MessageResponseDto> {
+        if (!context?.classEntity || !context?.enrollment) {
+            throw new NotFoundException('Class context not available');
+        }
+        if (newOwnerId === context.userId) {
+            throw new BadRequestException('Cannot transfer ownership to yourself');
+        }
         const classToTransfer = context.classEntity;
-
         const newOwnerEnrollment = await this.enrollmentRepository.findOne({
             where: {
                 class: { id: context.classId },
@@ -223,21 +242,17 @@ export class ClassService {
         if (!newOwnerEnrollment) {
             throw new NotFoundException('New owner must be enrolled in this class');
         }
-
-        // Use enrollment from context
         const currentOwnerEnrollment = context.enrollment;
         if (!currentOwnerEnrollment) {
             throw new NotFoundException('Current owner enrollment not found');
         }
-
-        newOwnerEnrollment.role = UserRole.Teacher;
-        currentOwnerEnrollment.role = UserRole.TeacherAssistant;
-
-        await this.enrollmentRepository.save([newOwnerEnrollment, currentOwnerEnrollment]);
-
-        classToTransfer.owner = newOwnerEnrollment.user;
-        await this.classRepository.save(classToTransfer);
-
+        await this.classRepository.manager.transaction(async (transactionalEntityManager) => {
+            newOwnerEnrollment.role = UserRole.Teacher;
+            currentOwnerEnrollment.role = UserRole.TeacherAssistant;
+            await transactionalEntityManager.save([newOwnerEnrollment, currentOwnerEnrollment]);
+            classToTransfer.owner = newOwnerEnrollment.user;
+            await transactionalEntityManager.save(classToTransfer);
+        });
         return { message: 'Ownership transferred successfully' };
     }
 
@@ -245,65 +260,69 @@ export class ClassService {
         taId: number,
         context: ClassContext,
     ): Promise<MessageResponseDto> {
+        if (!context?.classEntity) {
+            throw new NotFoundException('Class context not available');
+        }
         const taUser = await this.userRepository.findOneBy({ id: taId });
         if (!taUser) throw new NotFoundException('TA user not found.');
-
+        // Only allow assigning TA if user is already enrolled (no silent auto-enroll)
         const existingEnrollment = await this.enrollmentRepository.findOne({
             where: { user: { id: taId }, class: { id: context.classId } },
         });
-
-        if (existingEnrollment) {
-            existingEnrollment.role = UserRole.TeacherAssistant;
-            await this.enrollmentRepository.save(existingEnrollment);
-        } else {
-            const newTAEnrollment = this.enrollmentRepository.create({
-                user: taUser,
-                class: context.classEntity,
-                role: UserRole.TeacherAssistant,
-            });
-            await this.enrollmentRepository.save(newTAEnrollment);
+        if (!existingEnrollment) {
+            throw new NotFoundException('User must be enrolled in the class before being assigned as TA');
         }
-
+        if (existingEnrollment.role === UserRole.Teacher) {
+            throw new ForbiddenException('Cannot demote a teacher to TA');
+        }
+        existingEnrollment.role = UserRole.TeacherAssistant;
+        await this.enrollmentRepository.save(existingEnrollment);
         return { message: `User ${taId} assigned as TA for class ${context.classId}.` };
     }
 
     async markClassComplete(context: ClassContext): Promise<MessageResponseDto> {
+        if (!context?.classEntity) {
+            throw new NotFoundException('Class context not available');
+        }
         const classEntity = context.classEntity;
         classEntity.status = ClassStatus.END;
         await this.classRepository.save(classEntity);
-
         return { message: `Class "${classEntity.name}" marked as completed.` };
     }
 
     async getLeaderboard(context: ClassContext): Promise<LeaderboardItemDto[]> {
+        if (!context?.classEntity) {
+            throw new NotFoundException('Class context not available');
+        }
         const students = await this.enrollmentRepository.find({
             where: { class: { id: context.classId }, role: UserRole.Student },
             relations: ['user'],
         });
-
-        const rawScores = await this.submissionRepository
-            .createQueryBuilder('submission')
-            .leftJoin('submission.evaluation', 'evaluation')
-            .leftJoin('submission.assessment', 'assessment')
-            .where('assessment.classId = :classId', { classId: context.classId })
-            .andWhere('submission.userId IS NOT NULL')
-            .select('submission.userId', 'userId')
-            .addSelect('SUM(COALESCE(evaluation.score, 0))', 'totalScore')
-            .groupBy('submission.userId')
-            .getRawMany();
-
+        let rawScores: any[] = [];
+        try {
+            rawScores = await this.submissionRepository
+                .createQueryBuilder('submission')
+                .leftJoin('submission.evaluation', 'evaluation')
+                .leftJoin('submission.assessment', 'assessment')
+                .where('assessment.classId = :classId', { classId: context.classId })
+                .andWhere('submission.userId IS NOT NULL')
+                .select('submission.userId', 'userId')
+                .addSelect('SUM(COALESCE(evaluation.score, 0))', 'totalScore')
+                .groupBy('submission.userId')
+                .getRawMany();
+        } catch (err) {
+            throw new BadRequestException('Failed to calculate leaderboard. Please check class assessment/submission schema.');
+        }
         const scoreMap = new Map<number, number>();
         rawScores.forEach((r: any) => {
             scoreMap.set(Number(r.userId), Number(r.totalScore || 0));
         });
-
         const leaderboard = students
             .map((en) => ({
                 user: UserResponseDto.toDto(en.user),
                 totalScore: scoreMap.get(en.user.id) || 0,
             }))
             .sort((a, b) => b.totalScore - a.totalScore);
-
         return leaderboard;
     }
 
@@ -311,30 +330,32 @@ export class ClassService {
         email: string,
         context: ClassContext,
     ): Promise<MessageResponseDto> {
+        if (!context?.classEntity) {
+            throw new NotFoundException('Class context not available');
+        }
         const classToJoin = context.classEntity;
-
         const userToInvite = await this.userRepository.findOneBy({ email });
         if (!userToInvite) {
             throw new NotFoundException('User with this email not found. They must register first.');
         }
-
         const existingEnrollment = await this.isUserEnrolled(context.classId, userToInvite.id);
         if (existingEnrollment) {
             throw new ConflictException('User is already in this class');
         }
-
         const { link } = await this.generateInviteLink(context.classId, userToInvite.id);
-
-        await this.mailerService.sendMail({
-            to: userToInvite.email,
-            subject: `You're invited to join ${classToJoin.name}!`,
-            text: `Hello ${userToInvite.firstName + ' ' + userToInvite.lastName},\n\nYou have been invited to join the class "${classToJoin.name}".\nClick this link to join: ${link}\n\n.`,
-            html: `<p>Hello ${userToInvite.firstName},</p>
-             <p>You have been invited to join the class <b>${classToJoin.name}</b>.</p>
-             <p>Click the link below to join:</p>
-             <a href="${link}">${link}</a>`,
-        });
-
+        try {
+            await this.mailerService.sendMail({
+                to: userToInvite.email,
+                subject: `You're invited to join ${classToJoin.name}!`,
+                text: `Hello ${userToInvite.firstName + ' ' + userToInvite.lastName},\n\nYou have been invited to join the class "${classToJoin.name}".\nClick this link to join: ${link}\n\n.`,
+                html: `<p>Hello ${userToInvite.firstName},</p>
+                 <p>You have been invited to join the class <b>${classToJoin.name}</b>.</p>
+                 <p>Click the link below to join:</p>
+                 <a href=\"${link}\">${link}</a>`,
+            });
+        } catch (emailErr) {
+            throw new BadRequestException('Failed to send invitation email');
+        }
         return { message: `Invite sent to ${email}` };
     }
 
@@ -343,7 +364,6 @@ export class ClassService {
         userId: number,
     ): Promise<JoinClassResponseDto> {
         let payload: any;
-
         try {
             payload = await this.jwtService.verifyAsync(token, {
                 secret: this.config.get<string>('JWT_INVITE_SECRET'),
@@ -353,49 +373,39 @@ export class ClassService {
                 'Invalid or expired invite link',
             );
         }
-
-        if (payload.userId == userId) {
+        if (payload.userId != userId) {
             throw new UnauthorizedException(
-                'You are not Invited to this class',
+                'You are not invited to this class',
             );
         }
-
         const classId = payload.classId;
-
         const classToJoin = await this.classRepository.findOne({
             where: { id: classId },
             relations: ['owner'],
         });
-
         if (!classToJoin) {
             throw new NotFoundException('Class not found');
         }
-
         if (userId == classToJoin.owner.id) {
             throw new UnauthorizedException(
                 'You are already the teacher in this class.',
             );
         }
-
         const existingEnrollment =
             await this.enrollmentRepository.findOne({
                 where: { class: { id: classId }, user: { id: userId } },
             });
-
         if (existingEnrollment) {
             throw new ConflictException(
                 'You are already enrolled in this class',
             );
         }
-
         const enrollment = this.enrollmentRepository.create({
             class: { id: classId },
             user: { id: userId },
             role: UserRole.Student,
         });
-
         await this.enrollmentRepository.save(enrollment);
-
         return {
             message: 'Successfully joined the class',
             classId,

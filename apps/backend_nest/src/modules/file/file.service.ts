@@ -22,11 +22,16 @@ export class FileService {
     filename: string,
     contentType: string,
   ) {
-
-    const key = `${userId}/${parentType}/${parentId}/${filename}`;
-    const { uploadUrl } = await this.r2Service.getUploadUrl(key, contentType);
-
-    return { uploadUrl, key };
+    try {
+      if (!userId) throw new NotFoundException('User ID is required');
+      if (!parentType || !parentId) throw new NotFoundException('Parent type and ID are required');
+      if (!filename || !contentType) throw new NotFoundException('Filename and content type are required');
+      const key = `${userId}/${parentType}/${parentId}/${filename}`;
+      const { uploadUrl } = await this.r2Service.getUploadUrl(key, contentType);
+      return { uploadUrl, key };
+    } catch (err) {
+      throw new NotFoundException('Failed to generate presigned URL');
+    }
   }
 
   async notifyUploadSuccess(
@@ -34,21 +39,22 @@ export class FileService {
     key: string,
     filename: string,
   ) {
-    // Check if file exists in R2
-    const exists = await this.r2Service.objectExists(key);
-    if (!exists) throw new NotFoundException('File not found in storage');
-
-    // Map extension to ResourceType
-    const type = getResourceTypeFromFilename(filename);
-
-    // Save to DB
-    const resource = this.resourceRepo.create({
-      title: filename,
-      type, // mapped file type
-      url: key,
-      owner: `${userId}`,
-    });
-    return this.resourceRepo.save(resource);
+    try {
+      if (!userId) throw new NotFoundException('User ID is required');
+      if (!key || !filename) throw new NotFoundException('Key and filename are required');
+      const exists = await this.r2Service.objectExists(key);
+      if (!exists) throw new NotFoundException('File not found in storage');
+      const type = getResourceTypeFromFilename(filename);
+      const resource = this.resourceRepo.create({
+        title: filename,
+        type,
+        url: key,
+        owner: `${userId}`,
+      });
+      return await this.resourceRepo.save(resource);
+    } catch (err) {
+      throw new NotFoundException('Failed to notify upload success');
+    }
   }
 
   async getResourceStream(userId: number, resourceId: number): Promise<{
@@ -56,21 +62,23 @@ export class FileService {
     filename: string;
     contentType: string;
   }> {
-    const resource = await this.resourceRepo.findOne({ where: { id: resourceId } });
-    if (!resource) throw new NotFoundException('Resource not found');
-
-    if (resource.owner !== `${userId}` && !this.canAccess(userId, resource)) {
-      throw new ForbiddenException('Unauthorized');
+    try {
+      if (!userId || !resourceId) throw new NotFoundException('User ID and resource ID are required');
+      const resource = await this.resourceRepo.findOne({ where: { id: resourceId } });
+      if (!resource) throw new NotFoundException('Resource not found');
+      if (resource.owner !== `${userId}` && !this.canAccess(userId, resource)) {
+        throw new ForbiddenException('Unauthorized');
+      }
+      const { stream, contentType } = await this.r2Service.streamFile(resource.url);
+      return {
+        stream,
+        filename: resource.title.trim(),
+        contentType,
+      };
+    } catch (err) {
+      if (err instanceof ForbiddenException || err instanceof NotFoundException) throw err;
+      throw new NotFoundException('Failed to get resource stream');
     }
-
-    // Get the object from R2
-    const { stream, contentType } = await this.r2Service.streamFile(resource.url);
-
-    return {
-      stream,
-      filename: resource.title.trim(),
-      contentType,
-    };
   }
 
   // Dummy permission check — implement your logic

@@ -283,12 +283,13 @@ export class ClassController {
 
   // ==================== TEACHER MANAGEMENT ====================
 
-  @Post('transfer-ownership')
+  @Post(':classId/transfer-ownership')
   @UseGuards(ClassOwnerGuard)
   @ApiOperation({
     summary: 'Transfer class ownership',
     description: 'Transfers ownership to another enrolled user. The current owner becomes a TA.',
   })
+  @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class' })
   @ApiBody({ type: TransferOwnershipDto })
   @ApiOkResponse({
     description: 'Ownership transferred successfully',
@@ -298,18 +299,20 @@ export class ClassController {
   @ApiNotFoundResponse({ description: 'Class not found or new owner not enrolled' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async transferOwnership(
+    @Param('classId', ParseIntPipe) classId: number,
     @Body() dto: TransferOwnershipDto,
     @GetClassContext() context: ClassContext,
   ): Promise<MessageResponseDto> {
     return this.classService.transferOwnership(dto.newOwnerId, context);
   }
 
-  @Post('assign-ta')
+  @Post(':classId/assign-ta')
   @UseGuards(ClassInstructorGuard)
   @ApiOperation({
     summary: 'Assign a Teaching Assistant',
     description: 'Assigns or promotes a user to Teaching Assistant role. Only teachers can assign TAs.',
   })
+  @ApiParam({ name: 'classId', type: Number, example: 1, description: 'The ID of the class' })
   @ApiBody({ type: AssignTADto })
   @ApiOkResponse({
     description: 'TA assigned successfully',
@@ -319,6 +322,7 @@ export class ClassController {
   @ApiNotFoundResponse({ description: 'Class or user not found' })
   @ApiUnauthorizedResponse({ description: 'Unauthorized - Invalid or missing JWT token' })
   async assignTA(
+    @Param('classId', ParseIntPipe) classId: number,
     @Body() dto: AssignTADto,
     @GetClassContext() context: ClassContext,
   ): Promise<MessageResponseDto> {

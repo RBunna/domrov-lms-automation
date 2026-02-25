@@ -1,8 +1,9 @@
-import { Injectable, OnModuleInit, Inject, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject, NotFoundException, BadRequestException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import * as microservices from '@nestjs/microservices';
 import { catchError, lastValueFrom, Observable } from 'rxjs';
 import { Repository } from 'typeorm';
 import { InjectRepository } from '@nestjs/typeorm';
+import { DataSource } from 'typeorm';
 
 // Entities
 import { Submission } from '../../libs/entities/assessment/submission.entity';
@@ -27,7 +28,7 @@ import {
 // Service Interfaces
 interface SubmissionService {
     processSubmission(request: { submission_id: string; file_path: string }): Observable<any>;
-    GetSubmissionFolderStructure(request: { submission_id: string}): Observable<any>;
+    GetSubmissionFolderStructure(request: { submission_id: string }): Observable<any>;
 
 }
 
@@ -41,17 +42,18 @@ interface TasksQueueService {
 export class EvaluationService implements OnModuleInit {
     private submissionService: SubmissionService;
     private tasksQueueService: TasksQueueService;
-    
+
     constructor(
         @Inject('CODE_EVAL_GRPC')
         private readonly client: microservices.ClientGrpc,
-        
+
         @InjectRepository(Submission)
         private submissionRepo: Repository<Submission>,
-        
+
         @InjectRepository(Evaluation)
         private evaluationRepo: Repository<Evaluation>,
-        private walletService: WalletService
+        private walletService: WalletService,
+        @Inject('DATA_SOURCE') private readonly dataSource: DataSource
     ) { }
 
     onModuleInit() {
@@ -85,9 +87,8 @@ export class EvaluationService implements OnModuleInit {
         try {
             // 1. Convert Observable to Promise to match processSubmission style
             const result = await lastValueFrom(
-                this.submissionService.GetSubmissionFolderStructure({ submission_id:submissionId }),
+                this.submissionService.GetSubmissionFolderStructure({ submission_id: submissionId }),
             );
-
 
             // 2. Return consistent success structure
             return {
@@ -118,19 +119,18 @@ export class EvaluationService implements OnModuleInit {
                     .AddQueue({ submission_id })
                     .pipe(
                         catchError(err => {
-                            throw new microservices.RpcException({
-                                message: err.details || 'Queue service error',
-                                code: err.code,
-                            });
+                            throw new BadRequestException(err.details || 'Queue service error');
                         }),
                     ),
             );
             if (!res.success) {
-                throw new Error(res.message);
+                throw new BadRequestException(res.message);
             }
             return res;
         } catch (err) {
-            throw err;
+            if (err instanceof BadRequestException) throw err;
+            const errorMsg = (err && typeof err === 'object' && 'message' in err) ? (err as any).message : String(err);
+            throw new InternalServerErrorException('Queue error: ' + errorMsg);
         }
     }
 
@@ -140,55 +140,98 @@ export class EvaluationService implements OnModuleInit {
         scores: number[],
         input_token: number,
         output_token: number,
+        ai_model: string, // Added ai_model parameter
     ): Promise<AIEvaluationResponseDto> {
-        // 1. Fetch submission to ensure it exists
-        const submission = await this.submissionRepo.findOne({
-            where: { id: Number(submission_id) },
-            relations: [
-                'assessment',
-                'assessment.class',
-                'assessment.class.owner', // <--- this joins the teacher/owner
-            ],
-        });
-
-        if (!submission) {
-            throw new NotFoundException('Submission not found');
+        // 1. Validate scores
+        if (!Array.isArray(scores) || scores.length === 0 || scores.some(s => typeof s !== 'number' || s < 0)) {
+            throw new BadRequestException(`[Submission: ${submission_id}] [Model: ${ai_model}] Invalid scores array`);
         }
 
-        // 2. Create evaluation entity
-        let totalScore = 0;
+        try {
+            // Transaction for atomicity
+            return await this.dataSource.transaction(async manager => {
+                // 2. Fetch submission to ensure it exists
+                const submission = await manager.findOne(Submission, {
+                    where: { id: Number(submission_id) },
+                    relations: [
+                        'assessment',
+                        'assessment.class',
+                        'assessment.class.owner',
+                    ],
+                });
 
-        if (scores.length > 0) {
-            totalScore = scores.reduce((sum, current) => sum + current, 0);
-        }
+                if (!submission) {
+                    throw new NotFoundException(`[Submission: ${submission_id}] [Model: ${ai_model}] Submission not found`);
+                }
 
-        // 2. Create evaluation entity with the calculated total
-        const evaluation = this.evaluationRepo.create({
-            score: totalScore,
-            aiOutput: feedback,
-            evaluationType: EvaluationType.AI,
-            submission,
-        });
-        
-        if (submission.assessment.aiModelSelectionMode === AIModelSelectionMode.SYSTEM) {
-            const cost = calculateCost({ inputTokens: input_token, outputTokens: output_token }, { inputRate: GrokBaseRates.input, outputRate: GrokBaseRates.output })
-            await this.walletService.deductCredits(
-                submission.assessment.class.owner.id,
-                cost,
+                // 3. Check for existing evaluation
+                const existingEval = await manager.findOne(Evaluation, {
+                    where: { submission: { id: submission.id } },
+                });
+                if (existingEval) {
+                    throw new ConflictException(`[Submission: ${submission_id}] [Model: ${ai_model}] Submission already has an evaluation`);
+                }
 
-                TransactionReason.AI_USAGE,
-                `Evaluate submission ${submission.id}`
+                // 4. Create evaluation entity
+                const totalScore = scores.reduce((sum, current) => sum + current, 0);
+                const evaluation = manager.create(Evaluation, {
+                    score: totalScore,
+                    aiOutput: feedback,
+                    evaluationType: EvaluationType.AI,
+                    submission,
+                });
+
+                // 5. Handle Credit Deduction (System Mode)
+                if (submission.assessment.aiModelSelectionMode === AIModelSelectionMode.SYSTEM) {
+                    const cost = calculateCost(
+                        { inputTokens: input_token, outputTokens: output_token },
+                        { inputRate: GrokBaseRates.input, outputRate: GrokBaseRates.output }
+                    );
+
+                    try {
+                        await this.walletService.deductCredits(
+                            submission.assessment.class.owner.id,
+                            cost,
+                            TransactionReason.AI_USAGE,
+                            `Evaluate submission ${submission.id} using ${ai_model}`
+                        );
+                    } catch (err) {
+                        const errorMsg = err instanceof Error ? err.message : String(err);
+                        throw new BadRequestException(`[Submission: ${submission_id}] [Model: ${ai_model}] Wallet deduction failed: ${errorMsg}`);
+                    }
+                }
+
+                // 6. Save and Update Status
+                await manager.save(Evaluation, evaluation);
+                submission.status = SubmissionStatus.GRADED;
+                await manager.save(Submission, submission);
+
+                return {
+                    message: 'Evaluation created successfully',
+                    evaluationId: evaluation.id,
+                };
+            });
+        } catch (error) {
+            // Re-wrap generic errors to include the required context
+            if (error instanceof NotFoundException || error instanceof ConflictException || error instanceof BadRequestException) {
+                throw error;
+            }
+
+            // Log the unexpected error internally
+            console.error(`Unexpected AI Evaluation Error - SubID: ${submission_id}, Model: ${ai_model}`, error);
+
+            // Extract error message safely
+            let errorMsg: string;
+            if (error && typeof error === 'object' && 'message' in error && typeof (error as any).message === 'string') {
+                errorMsg = (error as any).message;
+            } else {
+                errorMsg = String(error);
+            }
+
+            // Throw standardized error with the required context
+            throw new InternalServerErrorException(
+                `[Submission: ${submission_id}] [Model: ${ai_model}] Internal Error: ${errorMsg}`
             );
         }
-
-        await this.evaluationRepo.save(evaluation);
-
-        submission.status = SubmissionStatus.GRADED;
-        await this.submissionRepo.save(submission);
-
-        return {
-            message: 'Evaluation created successfully',
-            evaluationId: evaluation.id,
-        };
     }
 }

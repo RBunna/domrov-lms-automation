@@ -48,7 +48,7 @@ def evaluate(
     # SYSTEM AI
     # =========================================================
     if api_key is None:
-        print("⚙️ Using SYSTEM AI")
+        print("Using SYSTEM AI")
 
         evaluator = get_evaluator(ai_model)
         result = evaluator.evaluate(final_prompt)
@@ -62,7 +62,7 @@ def evaluate(
             raise ValueError("User AI requires provider")
 
         provider_lower = provider.lower().strip()
-        print(f"🔌 Using USER AI provider={provider_lower}")
+        print(f"Using USER AI provider={provider_lower}")
 
         try:
             provider_enum = AIProvider(provider_lower)
@@ -72,17 +72,16 @@ def evaluate(
                 api_key=api_key,
             )
 
-            # ✅ ALWAYS RETURNS TEXT
             result = client.generate(
                 prompt=final_prompt,
                 model=model_name,
-                temperature=0.7,
+                temperature=0.1,
             )
 
         except Exception as e:
-            print(f"❌ AIClient failed: {e}")
+            print(f"AIClient failed: {e}")
 
-            # 🚨 NEVER fallback Gemini
+            # NEVER fallback Gemini
             if provider_lower == "gemini":
                 raise RuntimeError(f"Gemini SDK failed (no HTTP fallback allowed): {e}")
 
