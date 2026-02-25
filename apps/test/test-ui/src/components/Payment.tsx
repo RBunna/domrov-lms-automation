@@ -30,6 +30,9 @@ export default function PaymentComponent({
     const newSocket: Socket = io("http://localhost:3000", {
       query: { userId },
       transports: ["websocket"],
+      auth: {
+        token: localStorage.getItem("jwtToken") ?? "",
+      }
     });
 
     setSocket(newSocket);

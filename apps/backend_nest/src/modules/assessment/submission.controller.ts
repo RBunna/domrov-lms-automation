@@ -34,7 +34,7 @@ import {
     AddFeedbackResponseDto,
     UpdateFeedbackResponseDto,
 } from '../../libs/dtos/submission/submission-response.dto';
-import { ClassMemberGuard, AssessmentMemberGuard, AssessmentStudentGuard, AssessmentInstructorGuard, AssessmentIdParam, SubmissionMemberGuard, SubmissionInstructorGuard, SubmissionIdParam, GetSubmissionContext } from '../../common/security';
+import { ClassMemberGuard, AssessmentMemberGuard, AssessmentStudentGuard, AssessmentInstructorGuard, AssessmentIdParam, SubmissionMemberGuard, SubmissionInstructorGuard, SubmissionIdParam, GetSubmissionContext, ClassInstructorGuard } from '../../common/security';
 import type { SubmissionContext } from '../../common/security/dtos/guard.dto';
 
 @ApiTags('Submissions')
@@ -107,106 +107,55 @@ export class SubmissionController {
     @UseGuards(AssessmentStudentGuard)
     @AssessmentIdParam('assessmentId')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ 
-        summary: 'Submit assignment (Student/Team)',
-        description: 'Submit an assignment for grading. Works for both individual and team submissions. For team submissions, any team member can submit on behalf of the team.'
+    @ApiOperation({
+        summary: 'Save or update draft assignment',
+        description: 'Save or update a draft submission. Allows students or teams to add or change their submission before final submit.'
     })
     @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
-    @ApiBody({ 
+    @ApiBody({
         type: SubmitAssignmentDto,
-        description: 'Submission details',
-        examples: {
-            withResources: {
-                summary: 'Submit with uploaded resources',
-                value: {
-                    resources: [{ resourceId: 12 }],
-                    comments: 'This is my final submission'
-                }
-            },
-            withGithub: {
-                summary: 'Submit with GitHub URL',
-                value: {
-                    githubUrl: 'https://github.com/username/repository',
-                    comments: 'My code repository'
-                }
-            },
-            combined: {
-                summary: 'Submit with both',
-                value: {
-                    resources: [{ resourceId: 12 }, { resourceId: 13 }],
-                    githubUrl: 'https://github.com/username/repository',
-                    comments: 'Complete submission with files and GitHub'
-                }
-            }
-        }
+        description: 'Draft submission details',
     })
-    @ApiOkResponse({ 
-        description: 'Assignment submitted successfully',
-        type: SubmitAssignmentResponseDto,
-        example: {
-            message: 'Submitted successfully',
-            submissionId: 1
-        }
-    })
-    @ApiNotFoundResponse({ 
-        description: 'Assessment or resource not found',
-        example: {
-            statusCode: 404,
-            message: 'Assessment not found',
-            error: 'Not Found'
-        }
-    })
-    @ApiForbiddenResponse({ 
-        description: 'Not enrolled in class',
-        example: {
-            statusCode: 403,
-            message: 'Not enrolled in class',
-            error: 'Forbidden'
-        }
-    })
-    @ApiBadRequestResponse({ 
-        description: 'Validation error or team constraint violation',
-        examples: {
-            notInTeam: {
-                summary: 'Not in a team',
-                value: {
-                    statusCode: 400,
-                    message: 'Team assignment but you are not in an allowed team for this assessment',
-                    error: 'Bad Request'
-                }
-            },
-            teamExceeds: {
-                summary: 'Team exceeds limit',
-                value: {
-                    statusCode: 400,
-                    message: 'Team exceeds maximum members',
-                    error: 'Bad Request'
-                }
-            },
-            resourceNotFound: {
-                summary: 'Resource not found',
-                value: {
-                    statusCode: 400,
-                    message: 'Resource 12 not found',
-                    error: 'Bad Request'
-                }
-            }
-        }
-    })
-    @ApiUnauthorizedResponse({ 
-        description: 'User not authenticated',
-        example: {
-            statusCode: 401,
-            message: 'Unauthorized',
-            error: 'Unauthorized'
-        }
-    })
-    async submit(
+    async saveDraft(
         @UserId() userId: number,
         @Param('assessmentId', ParseIntPipe) assessmentId: number,
         @Body() submitAssignmentDto: SubmitAssignmentDto,
     ): Promise<SubmitAssignmentResponseDto> {
-        return this.submissionService.submitAssignment(userId, assessmentId, submitAssignmentDto);
+        return this.submissionService.saveDraftAssignment(userId, assessmentId, submitAssignmentDto);
+    }
+
+    // POST: Final submit (change state only, handle queue, prevent duplicate)
+    @Post(':assessmentId/submit')
+    @UseGuards(AssessmentStudentGuard)
+    @AssessmentIdParam('assessmentId')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Submit assignment (final)',
+        description: 'Final submit of assignment. Changes state, triggers async queue, prevents duplicate submissions.'
+    })
+    @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
+    async submit(
+        @UserId() userId: number,
+        @Param('assessmentId', ParseIntPipe) assessmentId: number,
+    ): Promise<SubmitAssignmentResponseDto> {
+        return this.submissionService.submitAssignment(userId, assessmentId);
+    }
+
+    // POST: Unsubmit (revert to draft, if allowed)
+    @Post(':assessmentId/unsubmit')
+    @UseGuards(AssessmentStudentGuard)
+    @AssessmentIdParam('assessmentId')
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
+        summary: 'Unsubmit assignment',
+        description: 'Revert a submitted assignment back to draft (if allowed).'
+    })
+    @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
+    async unsubmit(
+        @UserId() userId: number,
+        @Param('assessmentId', ParseIntPipe) assessmentId: number,
+    ): Promise<SubmitAssignmentResponseDto> {
+        return this.submissionService.unsubmitAssignment(userId, assessmentId);
     }
 
     // ==================== GET MY SUBMISSIONS STATUS IN CLASS ====================
@@ -561,10 +510,10 @@ export class SubmissionController {
 
     // ==================== GET SUBMISSION DETAILS ====================
     @Get(':id')
-    @UseGuards(SubmissionMemberGuard)
+    @UseGuards(ClassInstructorGuard)
     @SubmissionIdParam('id')
     @ApiOperation({ 
-        summary: 'Get submission details',
+        summary: 'Get submission details (Teacher)',
         description: 'Returns detailed information about a submission including files, evaluation, team/user info. Accessible by the submission owner, team members, or the class teacher.'
     })
     @ApiParam({ name: 'id', type: Number, description: 'Submission ID', example: 1 })

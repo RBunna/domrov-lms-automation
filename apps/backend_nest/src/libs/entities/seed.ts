@@ -76,31 +76,48 @@ async function seed() {
         console.log('👤 Seeding Users...');
         const users: User[] = [];
 
+        // Fixed list of Khmer names
+        const khmerFirstNames = [
+            'Sophea', 'Vannak', 'Sokha', 'Chanda', 'Ratha', 'Sreymom', 'Borey', 'Sophal', 'Rithy', 'Sokunthea'
+        ];
+        const khmerLastNames = [
+            'Heng', 'Chhun', 'Meas', 'Ngin', 'Keo', 'Sok', 'Rith', 'Ouk', 'Touch', 'Ly'
+        ];
+
         for (let i = 0; i < 15; i++) {
             const user = new User();
 
-            // 1. Generate names first
-            const firstName = faker.person.firstName();
-            const lastName = faker.person.lastName();
+            // Pick a fixed name based on index so it's consistent
+            const firstName = khmerFirstNames[i % khmerFirstNames.length];
+            const lastName = khmerLastNames[i % khmerLastNames.length];
 
             user.firstName = firstName;
             user.lastName = lastName;
-            user.gender = faker.person.sexType();
-            user.dob = faker.date.birthdate({ min: 18, max: 60, mode: 'age' });
-            user.phoneNumber = faker.string.numeric(10);
+
+            // Optionally, fix gender based on firstName or just random seed
+            user.gender = i % 2 === 0 ? 'male' : 'female';
+
+            // Fixed DOB pattern (so it won't change each run)
+            const year = 1985 + (i % 20); // 1985–2004
+            const month = (i % 12) + 1;
+            const day = (i % 28) + 1;
+            user.dob = new Date(year, month - 1, day);
+
+            // Fixed phone number pattern
+            user.phoneNumber = `0123456${(100 + i).toString().slice(-4)}`;
+
             user.status = UserStatus.ACTIVE;
             user.isVerified = true;
 
-            // 2. Create the email MANUALLY using the names
-            // We lowercase them and remove spaces/special characters to ensure a valid email format
             const cleanFirstName = firstName.toLowerCase().replace(/[^a-z0-9]/g, '');
             const cleanLastName = lastName.toLowerCase().replace(/[^a-z0-9]/g, '');
-            user.email = `${cleanFirstName}.${cleanLastName}@example.com`;
-
+            user.email = `${cleanFirstName}.${cleanLastName}${i}@example.com`;
             user.password = await Encryption.hashPassword('password123');
 
             users.push(await queryRunner.manager.save(user));
         }
+
+        console.log('Fixed Khmer mock users created!');
 
         // --- 2. SEED AI MODELS ---
         console.log('🤖 Seeding AI Models...');

@@ -19,6 +19,7 @@ import { User } from '../../libs/entities/user/user.entity';
 import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
 import { CreditPackage } from '../../libs/entities/ai/credit-package.entity';
 import { PaymentController } from './payment.controller';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { PaymentController } from './payment.controller';
       CreditPackage,
     ]),
     HttpModule,
+    AuthModule,
   ],
   controllers: [WalletController, AdminWalletController, PaymentController],
   providers: [

@@ -70,30 +70,35 @@ export class PaymentFlowService implements OnModuleInit {
 
     this.gateway.sendQr(userId, qr);
 
-    setTimeout(() => {
-      this.startPolling(paymentId, md5, userId);
-    }, 15000);
+    void this.startPaymentPolling(paymentId, md5, userId);
   }
 
-  private startPolling(paymentId: number, md5: string, userId: number) {
-    const interval = setInterval(async () => {
+  async startPaymentPolling(paymentId: number, md5: string, userId: number) {
+    // wait initial delay (15s)
+    await this.sleep(15000);
+
+    const timeoutMs = 3 * 60 * 1000; // 3 minutes
+    const intervalMs = 5000;
+    const startTime = Date.now();
+
+    while (Date.now() - startTime < timeoutMs) {
       try {
         const status = await this.paymentService.checkPayment(md5);
         this.gateway.sendStatus(userId, status);
 
         if (status === 'PAID') {
-          clearInterval(interval);
           await this.handleSuccess(paymentId);
+          return; 
         }
       } catch (err) {
         this.logger.error(`Polling error for payment ${paymentId}:`, err);
       }
-    }, 5000);
 
-    setTimeout(() => {
-      clearInterval(interval);
-      this.gateway.sendStatus(userId, 'EXPIRED');
-    }, 3 * 60 * 1000);
+      await this.sleep(intervalMs);
+    }
+
+    // expired
+    this.gateway.sendStatus(userId, 'EXPIRED');
   }
 
   private async handleSuccess(paymentId: number) {
@@ -144,5 +149,8 @@ export class PaymentFlowService implements OnModuleInit {
     this.logger.log(
       `Payment ${paymentId} completed. Credited ${totalCredits} credits to user ${user.id}.`,
     );
+  }
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }
