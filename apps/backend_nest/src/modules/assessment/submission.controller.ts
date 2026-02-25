@@ -34,7 +34,7 @@ import {
     AddFeedbackResponseDto,
     UpdateFeedbackResponseDto,
 } from '../../libs/dtos/submission/submission-response.dto';
-import { ClassMemberGuard, AssessmentMemberGuard, AssessmentStudentGuard, AssessmentInstructorGuard, AssessmentIdParam, SubmissionMemberGuard, SubmissionInstructorGuard, SubmissionIdParam, GetSubmissionContext, ClassInstructorGuard } from '../../common/security';
+import { ClassMemberGuard, AssessmentMemberGuard, AssessmentStudentGuard, AssessmentInstructorGuard, AssessmentIdParam, SubmissionMemberGuard, SubmissionInstructorGuard, SubmissionIdParam, GetSubmissionContext, ClassInstructorGuard, SubmissionOwnerGuard } from '../../common/security';
 import type { SubmissionContext } from '../../common/security/dtos/guard.dto';
 
 @ApiTags('Submissions')
@@ -45,9 +45,9 @@ export class SubmissionController {
     constructor(private readonly submissionService: SubmissionService) { }
 
     // ==================== APPROVE SUBMISSION ====================
-    @Patch('approve/:id')
-    @UseGuards(SubmissionInstructorGuard)
-    @SubmissionIdParam('id')
+        @Patch('approve/:id')
+        @UseGuards(SubmissionOwnerGuard)
+        @SubmissionIdParam('id')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
         summary: 'Approve submission evaluation',
@@ -431,9 +431,9 @@ export class SubmissionController {
     }
 
     // ==================== GRADE SUBMISSION ====================
-    @Post(':id/grade')
-    @UseGuards(SubmissionInstructorGuard)
-    @SubmissionIdParam('id')
+        @Post(':id/grade')
+        @UseGuards(SubmissionInstructorGuard)
+        @SubmissionIdParam('id')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
         summary: 'Grade a submission (Teacher)',
@@ -509,9 +509,9 @@ export class SubmissionController {
     }
 
     // ==================== GET SUBMISSION DETAILS ====================
-    @Get(':id')
-    @UseGuards(ClassInstructorGuard)
-    @SubmissionIdParam('id')
+        @Get(':id')
+        @UseGuards(SubmissionMemberGuard)
+        @SubmissionIdParam('id')
     @ApiOperation({ 
         summary: 'Get submission details (Teacher)',
         description: 'Returns detailed information about a submission including files, evaluation, team/user info. Accessible by the submission owner, team members, or the class teacher.'
@@ -588,9 +588,9 @@ export class SubmissionController {
     }
 
     // ==================== ADD LINE-BY-LINE FEEDBACK ====================
-    @Post(':id/feedback')
-    @UseGuards(SubmissionInstructorGuard)
-    @SubmissionIdParam('id')
+        @Post(':id/feedback')
+        @UseGuards(SubmissionInstructorGuard)
+        @SubmissionIdParam('id')
     @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
         summary: 'Add line-by-line feedback (Teacher)',
@@ -674,8 +674,9 @@ export class SubmissionController {
     }
 
     // ==================== UPDATE SINGLE FEEDBACK ====================
-    @Patch('feedback/:feedbackId')
-    @HttpCode(HttpStatus.OK)
+        @Patch('feedback/:feedbackId')
+        @UseGuards(SubmissionOwnerGuard)
+        @HttpCode(HttpStatus.OK)
     @ApiOperation({ 
         summary: 'Update a feedback item (Teacher)',
         description: 'Updates an existing code review feedback item. Only the class owner can update feedback.'
