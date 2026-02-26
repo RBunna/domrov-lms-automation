@@ -41,6 +41,7 @@ import {
     UpdateFeedbackResponseDto,
     SubmissionResourceUrlResponseDto,
 } from '../../libs/dtos/submission/submission-response.dto';
+import { TeamAssessment } from '../../libs/entities/classroom/team-assessment.entity';
 
 @Injectable()
 export class SubmissionService {
@@ -59,56 +60,85 @@ export class SubmissionService {
         private teamRepo: Repository<Team>,
         @InjectRepository(Enrollment)
         private enrollmentRepo: Repository<Enrollment>,
+
+        @InjectRepository(TeamAssessment)
+        private teamAssessmentRepo: Repository<TeamAssessment>,
+
+
         @InjectRepository(EvaluationFeedback)
         private readonly evaluationFeedbackRepo: Repository<EvaluationFeedback>,
+
         @InjectRepository(UserAIKey)
         private readonly userAIKeyRepo: Repository<UserAIKey>,
-        private walletService:WalletService,
+
+        private walletService: WalletService,
         private readonly aiEvaluationService: EvaluationService
     ) { }
 
     async createSubmissionsForAssessment(assessment: Assessment) {
         try {
-            const assessmentWithTeams = await this.assessmentRepo.findOne({
+            const assessmentData = await this.assessmentRepo.findOne({
+                select: ['id'],
                 where: { id: assessment.id },
-                relations: [
-                    'teamAssessments',
-                    'teamAssessments.team',
-                    'teamAssessments.team.members',
-                    'teamAssessments.team.members.user',
-                    'class',
-                    'class.enrollments',
-                    'class.enrollments.user',
-                ],
+                relations: ['class'], // only class to get class.id
             });
-            if (!assessmentWithTeams) throw new NotFoundException('Assessment not found');
+            if (!assessmentData) throw new NotFoundException('Assessment not found');
+
             if (assessment.submissionType === SubmissionType.INDIVIDUAL) {
-                for (const enrollment of assessmentWithTeams.class.enrollments) {
-                    if (!enrollment.user) continue;
-                    await this.submissionRepo.save({
-                        assessment,
-                        user: enrollment.user,
-                        status: SubmissionStatus.PENDING,
-                        attemptNumber: 0,
+                const enrollments = await this.enrollmentRepo
+                    .createQueryBuilder('enrollment')
+                    .leftJoinAndSelect('enrollment.user', 'user')
+                    .where('enrollment.classId = :classId', { classId: assessmentData.class.id })
+                    .getMany();
+                const submissions: Submission[] = enrollments
+                    .filter((e): e is Enrollment & { user: any } => !!e.user)
+                    .map(e => {
+                        const submission: Submission = {
+                            assessment,
+                            user: e.user,
+                            status: SubmissionStatus.PENDING,
+                            attemptNumber: 0,
+                        } as any; 
+                        return submission;
                     });
+
+                if (submissions.length > 0) {
+                    await this.submissionRepo.save(submissions);
+                } else {
+                    throw new BadRequestException('No submissions to save for individual assessment');
                 }
+
             } else if (assessment.submissionType === SubmissionType.TEAM) {
-                for (const teamAssessment of assessmentWithTeams.teamAssessments) {
-                    const team = teamAssessment.team;
-                    if (!team) continue;
-                    await this.submissionRepo.save({
-                        assessment,
-                        team,
-                        status: SubmissionStatus.PENDING,
-                        attemptNumber: 0,
+                const teamAssessments = await this.teamAssessmentRepo
+                    .createQueryBuilder('ta')
+                    .leftJoinAndSelect('ta.team', 'team')
+                    .where('ta.assessmentId = :assessmentId', { assessmentId: assessment.id })
+                    .getMany();
+                const submissions: Submission[] = teamAssessments
+                    .filter((ta): ta is TeamAssessment & { team: any } => !!ta.team)
+                    .map(ta => {
+                        const submission: Submission = {
+                            assessment,
+                            team: ta.team,
+                            status: SubmissionStatus.PENDING,
+                            attemptNumber: 0,
+                        } as any; 
+                        return submission;
                     });
+
+                if (submissions.length > 0) {
+                    await this.submissionRepo.save(submissions);
+                } else {
                 }
             }
+
         } catch (err) {
-            throw new BadRequestException('Failed to create submissions for assessment');
+            throw new BadRequestException(
+                'Failed to create submissions for assessment',
+                err instanceof Error ? err.message : String(err)
+            );
         }
     }
-
     // Save or update draft assignment (PATCH)
     async saveDraftAssignment(userId: number, assessmentId: number, dto: SubmitAssignmentDto): Promise<SubmitAssignmentResponseDto> {
         try {
@@ -124,11 +154,17 @@ export class SubmissionService {
                     'teamAssessments.team.members.user',
                 ],
             });
+
             if (!assessmentMeta) throw new NotFoundException('Assessment not found');
+
             const isEnrolled = assessmentMeta.class.enrollments.some(e => e.user.id === userId);
+
             if (!isEnrolled) throw new ForbiddenException('Not enrolled in class');
+
             let submission: Submission;
+
             let team: Team | undefined;
+
             if (assessmentMeta.submissionType === SubmissionType.TEAM) {
                 const teamAssessment = assessmentMeta.teamAssessments.find(ta =>
                     ta.team.members.some(m => m.user.id === userId)
@@ -192,10 +228,18 @@ export class SubmissionService {
                 });
                 await this.subResourceRepo.save({ submission, resource });
             }
+
+            if (this.evaluationRepo.findOne({ where: { submission: { id: submission.id } } })) {
+                throw new BadRequestException('Cannot edit after evaluation');
+            }
+
             submission.status = SubmissionStatus.PENDING;
             await this.submissionRepo.save(submission);
             return { message: 'Draft saved', submissionId: submission.id };
         } catch (err) {
+            if (err instanceof NotFoundException || err instanceof BadRequestException || err instanceof ForbiddenException) {
+                throw err; // let test-expected errors bubble
+            }
             throw new BadRequestException('Failed to save draft assignment');
         }
     }
@@ -442,7 +486,7 @@ export class SubmissionService {
                     id: submission.evaluation.id,
                     score: submission.evaluation.score,
                     feedback: submission.evaluation.feedback || null,
-                    aiFeedback:submission.evaluation.aiOutput,
+                    aiFeedback: submission.evaluation.aiOutput,
                     isApproved: true,
                 }
                 : null;
@@ -471,11 +515,11 @@ export class SubmissionService {
         });
 
         if (submissions.length == 0) return [];
-        
+
         return assessments.map((assessment) => {
             if (!assessment.isPublic) throw new BadRequestException('Assessment not found');
 
-            const submission = submissions.find((s) => s.assessment.id === assessment.id && (s?.evaluation?.isApproved??false));
+            const submission = submissions.find((s) => s.assessment.id === assessment.id && (s?.evaluation?.isApproved ?? false));
 
             return {
                 assessmentId: assessment.id,
