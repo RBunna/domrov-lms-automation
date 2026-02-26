@@ -1,0 +1,1173 @@
+
+I have a NestJS service that I want to unit test with Jest. The service may have:
+- TypeORM repositories injected via @InjectRepository
+- Other services injected via the constructor
+- Methods that take input objects or parameters
+- Methods that may throw exceptions like NotFoundException or BadRequestException
+- Some internal utility or helper functions that should NOT be mocked; only mock repositories, external services, or dependencies
+
+Generate a complete Jest unit test suite for this service following these rules:
+
+**Test Case Writing Guidelines:**
+1. **Structure:** Each test should include a unique Test Case ID, descriptive title.
+2. **Inputs and Data:** Include all required test data explicitly. Cover valid, invalid, boundary, and edge cases.
+3. **Coverage:** Test all functional paths (happy path, error conditions, edge cases). Ensure independent execution. Include traceability to requirements or user stories.
+4. **Clarity & Maintainability:** Use simple, unambiguous language. Avoid combining multiple scenarios in one test. Document assumptions and dependencies. Keep test cases updated with requirements changes.
+5. **Automation Ready:** Write steps suitable for manual or automated execution. Define preconditions, inputs, and expected results clearly. Avoid ambiguity.
+6. **Assertions:** When using Jest `expect()` statements, **do not use TypeScript generics** like `expect(result).toEqual<Dto>(...)`. Always use plain objects: `expect(result).toEqual({...})`.
+7. **Review & Quality:** Organize tests logically by module/feature. Ensure peer-reviewable clarity and completeness.
+8. **Naming:** Test case IDs should indicate module, feature, and scenario type. Example: `AUTH_LOGIN_VALID_001`.
+
+**Logic Verification Instructions:**
+1. For each public method, generate tests that **assert the method returns correct outputs** for given inputs.
+2. Include **edge case and boundary value checks** to validate internal calculations and branching logic.
+3. Include **error handling tests** to ensure exceptions are thrown as expected (NotFoundException, BadRequestException, invalid inputs).
+4. For methods with calculations, transformations, or conditional logic, explicitly check that **output matches expected logic**, not just that the method executes.
+5. Ensure tests are **automated and reproducible**, so running `jest` actually verifies the method behavior.
+
+**Jest Unit Test Requirements:**
+1. Automatically mock all TypeORM repositories using `getRepositoryToken()`.
+2. Automatically mock all injected services using `jest.fn()`.
+3. Do not mock internal utility or helper functions; only mock repositories and external dependencies.
+4. For all method parameters, create minimal mock objects so the method executes without errors.
+5. Include tests for:
+   - Successful execution of each public method
+   - Exception and error cases (NotFoundException, BadRequestException, invalid inputs)
+   - Verification of **logical correctness** of outputs
+6. Do not connect to a real database or external service; all dependencies must be mocked.
+7. Use NestJS testing best practices: `Test.createTestingModule()`, `beforeEach()`, Jest `describe/it` blocks.
+8. Output a **ready-to-run TypeScript Jest test file** with each test having a unique Test Case ID.
+
+Here is the service code:
+
+import {
+    Injectable,
+    NotFoundException,
+    ForbiddenException,
+    ConflictException,
+    BadRequestException,
+    UnauthorizedException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Team } from '../../libs/entities/classroom/team.entity';
+import { Enrollment } from '../../libs/entities/classroom/enrollment.entity';
+import { User } from '../../libs/entities/user/user.entity';
+import { generateJoinCode } from '../../libs/utils/GenerateRandom';
+import { CreateTeamDto } from '../../libs/dtos/team/create-team.dto';
+import { UserRole } from '../../libs/enums/Role';
+import { CreateManyTeamsDto } from '../../libs/dtos/team/create-many-teams.dto';
+import { MailerService } from '@nestjs-modules/mailer';
+import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { TeamMember } from '../../libs/entities/classroom/user-team.entity';
+import { TeamResponseDto } from '../../libs/dtos/team/team-response.dto';
+import { JoinTeamResponseDto } from '../../libs/dtos/team/join-team-response.dto';
+import { CreateManyTeamsResponseDto } from '../../libs/dtos/team/create-many-teams-response.dto';
+import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto';
+import { InviteLinkResponseDto } from '../../libs/dtos/team/invite-link-response.dto';
+import { ClassContext, TeamContext } from '../../common/security/dtos/guard.dto';
+
+@Injectable()
+export class TeamService {
+
+    constructor(
+        @InjectRepository(Team)
+        private readonly teamRepository: Repository<Team>,
+        @InjectRepository(User)
+        private readonly userRepository: Repository<User>,
+        @InjectRepository(Enrollment)
+        private readonly enrollmentRepository: Repository<Enrollment>,
+        @InjectRepository(TeamMember)
+        private readonly teamMemberRepository: Repository<TeamMember>,
+
+        private readonly mailerService: MailerService,
+        private config: ConfigService,
+        private jwtService: JwtService
+
+    ) {
+    }
+
+    async createTeam(createTeamDto: CreateTeamDto, leaderId: number): Promise<TeamResponseDto> {
+        const { classId, ...teamData } = createTeamDto;
+        const { leader, enrollment } = await this.findUserAndVerifyEnrollment(
+            leaderId,
+            classId,
+        );
+        let joinCode: string;
+        let codeExists: boolean;
+        do {
+            joinCode = generateJoinCode();
+            codeExists = !!(await this.teamRepository.findOneBy({ joinCode }));
+        } while (codeExists);
+        const newTeam = this.teamRepository.create({
+            ...teamData,
+            joinCode,
+            leader,
+            class: enrollment.class,
+        });
+        let savedTeam;
+        try {
+            savedTeam = await this.teamRepository.save(newTeam);
+        } catch (err) {
+            throw new Error('Failed to create team');
+        }
+        let teamMember;
+        try {
+            teamMember = this.teamMemberRepository.create({ user: leader, team: savedTeam });
+            await this.teamMemberRepository.save(teamMember);
+        } catch (err) {
+            throw new Error('Failed to add leader to team');
+        }
+        return TeamResponseDto.fromEntity(savedTeam);
+    }
+
+    async joinTeamWithCode(joinCode: string, studentId: number): Promise<JoinTeamResponseDto> {
+        const teamToJoin = await this.teamRepository.findOne({
+            where: { joinCode },
+            relations: ['class', 'leader'],
+        });
+
+        if (!teamToJoin) {
+            throw new NotFoundException('Team not found with this code');
+        }
+
+        if (!teamToJoin.leader) {
+            const student = await this.userRepository.findOneBy({ id: studentId });
+            if (!student) throw new NotFoundException('User not found');
+            teamToJoin.leader = student;
+            await this.teamRepository.save(teamToJoin);
+        }
+
+        return this.addMemberToTeam(teamToJoin, studentId);
+    }
+
+
+    async createManyTeams(
+        createManyTeamsDto: CreateManyTeamsDto,
+        teacherId: number,
+    ): Promise<CreateManyTeamsResponseDto> {
+        const { classId, teams } = createManyTeamsDto;
+        const teacherEnrollment = await this.enrollmentRepository.findOne({
+            where: {
+                user: { id: teacherId },
+                class: { id: classId },
+                role: UserRole.Teacher,
+            },
+            relations: ['class'],
+        });
+        if (!teacherEnrollment) {
+            throw new ForbiddenException(
+                'You are not a teacher of this class or class does not exist',
+            );
+        }
+        const classToUpdate = teacherEnrollment.class;
+        const createdTeams: Team[] = [];
+        for (const teamDto of teams) {
+            if (teamDto.memberIds && teamDto.memberIds.length > 0 && !teamDto.leaderId) {
+                throw new BadRequestException(
+                    `leaderId is required for team "${teamDto.name}" because members are provided.`,
+                );
+            }
+            let joinCode: string;
+            let codeExists: boolean;
+            do {
+                joinCode = generateJoinCode();
+                codeExists = !!(await this.teamRepository.findOneBy({ joinCode }));
+            } while (codeExists);
+            const newTeam = this.teamRepository.create({
+                name: teamDto.name,
+                maxMember: teamDto.maxMember,
+                joinCode,
+                class: classToUpdate,
+            });
+            if (teamDto.leaderId) {
+                const leader = await this.userRepository.findOneBy({ id: teamDto.leaderId });
+                if (!leader) throw new NotFoundException(`Leader user ${teamDto.leaderId} not found`);
+                newTeam.leader = leader;
+            }
+            let savedTeam;
+            try {
+                savedTeam = await this.teamRepository.save(newTeam);
+            } catch (err) {
+                throw new Error('Failed to create team');
+            }
+            if (teamDto.memberIds && teamDto.memberIds.length > 0) {
+                const members = await this.userRepository.findByIds(teamDto.memberIds);
+                for (const member of members) {
+                    const enrollment = await this.enrollmentRepository.findOne({
+                        where: {
+                            user: { id: member.id },
+                            class: { id: classId },
+                            role: UserRole.Student,
+                        },
+                    });
+                    if (!enrollment) continue;
+                    const teamMember = this.teamMemberRepository.create({
+                        user: member,
+                        team: savedTeam,
+                    });
+                    try {
+                        await this.teamMemberRepository.save(teamMember);
+                    } catch (err) {
+                        throw new Error('Failed to add member to team');
+                    }
+                }
+                if (teamDto.leaderId && !teamDto.memberIds.includes(teamDto.leaderId)) {
+                    const leader = await this.userRepository.findOneBy({ id: teamDto.leaderId });
+                    const leaderMember = this.teamMemberRepository.create({
+                        user: leader ?? undefined,
+                        team: savedTeam,
+                    });
+                    try {
+                        await this.teamMemberRepository.save(leaderMember);
+                    } catch (err) {
+                        throw new Error('Failed to add leader to team');
+                    }
+                }
+            }
+            createdTeams.push(savedTeam);
+        }
+        return {
+            message: `${createdTeams.length} teams created successfully.`,
+            teams: createdTeams.map(TeamResponseDto.fromEntity),
+        };
+    }
+
+
+
+    async getAllTeamsInClass(classId: number, userId: number): Promise<TeamResponseDto[]> {
+        await this.findUserAndVerifyEnrollment(userId, classId);
+
+        const teams = await this.teamRepository.find({
+            where: {
+                class: { id: classId },
+            },
+            relations: ['leader'],
+            order: {
+                name: 'ASC',
+            },
+        });
+
+        return teams.map(TeamResponseDto.fromEntity);
+    }
+
+    async getTeamDetails(context: TeamContext): Promise<TeamResponseDto> {
+        // Fetch team with full relations for response (guard only loads leader and class)
+        const team = await this.teamRepository.findOne({
+            where: { id: context.teamId },
+            relations: [
+                'leader',
+                'members',
+                'members.user',
+                'class',
+            ],
+        });
+
+        if (!team) {
+            throw new NotFoundException('Team not found');
+        }
+
+        return {
+            id: team.id,
+            name: team.name,
+            joinCode: team.joinCode,
+            maxMember: team.maxMember,
+            leader: team.leader
+                ? {
+                    id: team.leader.id,
+                    firstName: team.leader.firstName,
+                    lastName: team.leader.lastName,
+                    email: team.leader.email,
+                    profilePictureUrl: team.leader.profilePictureUrl || null,
+                }
+                : null,
+            members: team.members.map((member) => ({
+                id: member.user.id,
+                firstName: member.user.firstName,
+                lastName: member.user.lastName,
+                email: member.user.email,
+                profilePictureUrl: member.user.profilePictureUrl || null,
+            })),
+        };
+    }
+
+    async getTeamsWithMembersInClass(context: ClassContext): Promise<TeamResponseDto[]> {
+        const teams = await this.teamRepository.find({
+            where: { class: { id: context.classId } },
+            relations: ['leader', 'members', 'members.user'],
+            order: { name: 'ASC' },
+        });
+
+        return teams.map((team) => ({
+            id: team.id,
+            name: team.name,
+            joinCode: team.joinCode,
+            maxMember: team.maxMember,
+            leader: team.leader
+                ? {
+                    id: team.leader.id,
+                    firstName: team.leader.firstName,
+                    lastName: team.leader.lastName,
+                    email: team.leader.email,
+                    profilePictureUrl: team.leader.profilePictureUrl || null,
+                }
+                : null,
+            members: team.members.map((m) => ({
+                id: m.user.id,
+                firstName: m.user.firstName,
+                lastName: m.user.lastName,
+                email: m.user.email,
+                profilePictureUrl: m.user.profilePictureUrl || null,
+            })),
+        }));
+    }
+
+    async leaveTeam(context: TeamContext): Promise<MessageResponseDto> {
+        if (!context?.teamEntity) {
+            throw new NotFoundException('Team context not available');
+        }
+        if (context.isLeader) {
+            throw new ForbiddenException('Leader cannot leave the team. Transfer leadership first.');
+        }
+        if (!context.membership) {
+            throw new NotFoundException('You are not in this team');
+        }
+        await this.teamMemberRepository.remove(context.membership);
+        return { message: 'You have successfully left the team' };
+    }
+
+    async removeMember(
+        memberId: number,
+        context: TeamContext,
+    ): Promise<MessageResponseDto> {
+        if (!context?.teamEntity) {
+            throw new NotFoundException('Team context not available');
+        }
+        if (memberId === context.userId) {
+            throw new BadRequestException('The leader cannot be removed');
+        }
+        const member = await this.teamMemberRepository.findOne({
+            where: {
+                team: { id: context.teamId },
+                user: { id: memberId },
+            },
+        });
+        if (!member) {
+            throw new NotFoundException('Team member not found');
+        }
+        await this.teamMemberRepository.remove(member);
+        return { message: 'Team member removed successfully' };
+    }
+
+
+    private async addMemberToTeam(team: Team, studentId: number): Promise<JoinTeamResponseDto> {
+        const { leader: student } = await this.findUserAndVerifyEnrollment(
+            studentId,
+            team.class.id,
+        );
+        if (await this.isUserInTeam(team.id, studentId)) {
+            throw new ConflictException('You are already in this team');
+        }
+        const memberCount = await this.teamMemberRepository.count({
+            where: { team: { id: team.id } },
+        });
+        if (memberCount >= team.maxMember) {
+            throw new ConflictException('This team is already full');
+        }
+        const newMember = this.teamMemberRepository.create({
+            user: student,
+            team: team,
+        });
+        try {
+            await this.teamMemberRepository.save(newMember);
+        } catch (err) {
+            throw new Error('Failed to add member to team');
+        }
+        return { message: 'Successfully joined team', teamId: team.id };
+    }
+
+    private async findUserAndVerifyEnrollment(userId: number, classId: number) {
+        const leader = await this.userRepository.findOneBy({ id: userId });
+        if (!leader) throw new NotFoundException('User not found');
+
+        const enrollment = await this.enrollmentRepository.findOne({
+            where: { user: { id: userId }, class: { id: classId } },
+            relations: ['class'],
+        });
+        if (!enrollment) {
+            throw new ForbiddenException('You must be enrolled in this class to join a team');
+        }
+
+        return { leader, enrollment };
+    }
+
+    private async isUserInTeam(
+        teamId: number,
+        userId: number,
+    ): Promise<TeamMember | null> {
+        return this.teamMemberRepository.findOne({
+            where: {
+                team: { id: teamId },
+                user: { id: userId },
+            },
+        });
+    }
+
+    async generateInviteLink(
+        memberId: number,
+        context: TeamContext,
+    ): Promise<InviteLinkResponseDto> {
+        const token = await this.jwtService.signAsync(
+            { teamId: context.teamId, memberId },
+            {
+                secret: this.config.get<string>('TEAM_INVITE_SECRET'),
+                expiresIn: '7d',
+            },
+        );
+
+        const baseUrl = this.config.get<string>('BASE_URL');
+
+        return {
+            link: `${baseUrl}/team/join/link?token=${token}`,
+        };
+    }
+
+    async inviteByEmail(email: string, context: TeamContext): Promise<MessageResponseDto> {
+        if (!context?.teamEntity) {
+            throw new NotFoundException('Team context not available');
+        }
+        const team = context.teamEntity;
+        const userToInvite = await this.userRepository.findOneBy({ email });
+        if (!userToInvite) {
+            throw new NotFoundException('User with this email not found');
+        }
+        await this.findUserAndVerifyEnrollment(userToInvite.id, team.class.id);
+        if (await this.isUserInTeam(team.id, userToInvite.id)) {
+            throw new ConflictException('User is already in this team');
+        }
+        const { link } = await this.generateInviteLink(userToInvite.id, context);
+        try {
+            await this.mailerService.sendMail({
+                to: userToInvite.email,
+                subject: `You're invited to join ${team.name}!`,
+                text: `Hello ${userToInvite.firstName},\n\nYou are invited to join the team "${team.name}".\nClick this link: ${link}`,
+                html: `
+                <p>Hello ${userToInvite.firstName},</p>
+                <p>You have been invited to join the team <b>${team.name}</b> in class <b>${team.class.name}</b>.</p>
+                <a href=\"${link}\">Join Team</a>
+            `,
+            });
+        } catch (emailErr) {
+            throw new BadRequestException('Failed to send invitation email');
+        }
+        return { message: `Invite sent to ${email}` };
+    }
+
+    async joinTeamWithLink(token: string, studentId: number): Promise<JoinTeamResponseDto> {
+        let payload: any;
+
+        try {
+            payload = await this.jwtService.verifyAsync(token, {
+                secret: this.config.get<string>('TEAM_INVITE_SECRET'),
+            });
+        } catch {
+            throw new BadRequestException('Invalid or expired invite link');
+        }
+
+        const { teamId, memberId } = payload;
+        if (memberId != studentId) {
+            throw new UnauthorizedException('You Are not invited.')
+        }
+        const team = await this.teamRepository.findOne({
+            where: { id: teamId },
+            relations: ['class'],
+        });
+
+        if (!team) {
+            throw new NotFoundException('Team not found');
+        }
+
+
+        await this.findUserAndVerifyEnrollment(studentId, team.class.id);
+
+        if (await this.isUserInTeam(team.id, studentId)) {
+            throw new ConflictException('You are already in this team');
+        }
+
+        if (team.leader.id === studentId) {
+            throw new ConflictException('Leader is already part of the team');
+        }
+
+        return this.addMemberToTeam(team, studentId);
+    }
+
+
+}
+================================================================================
+FILE: .\create-many-teams-response.dto.ts
+================================================================================
+
+import { ApiProperty } from '@nestjs/swagger';
+import { TeamResponseDto } from './team-response.dto';
+
+export class CreateManyTeamsResponseDto {
+    @ApiProperty({ example: '3 teams created successfully.', description: 'Success message with count' })
+    message: string;
+
+    @ApiProperty({ type: () => [TeamResponseDto], description: 'List of created teams' })
+    teams: TeamResponseDto[];
+}
+
+
+================================================================================
+FILE: .\create-many-teams.dto.ts
+================================================================================
+
+import { ApiProperty } from '@nestjs/swagger';
+import { IsInt, IsArray, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { CreateTeamItemDto } from './create-team-item.dto';
+
+export class CreateManyTeamsDto {
+    @ApiProperty({
+        description: 'The ID of the class these teams will belong to',
+        example: 1,
+    })
+    @IsInt()
+    classId: number;
+
+    @ApiProperty({
+        description: 'A list of teams to create',
+        type: [CreateTeamItemDto],
+    })
+    @IsArray()
+    @ValidateNested({ each: true })
+    @Type(() => CreateTeamItemDto)
+    teams: CreateTeamItemDto[];
+}
+
+================================================================================
+FILE: .\create-team-item.dto.ts
+================================================================================
+
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import {
+    IsString,
+    MinLength,
+    MaxLength,
+    IsInt,
+    Min,
+    Max,
+    IsOptional,
+    IsArray,
+    ArrayNotEmpty,
+    ValidateIf,
+} from 'class-validator';
+
+export class CreateTeamItemDto {
+    @ApiProperty({ description: 'The name of the team', example: 'Team Alpha' })
+    @IsString()
+    @MinLength(3)
+    @MaxLength(300)
+    name: string;
+
+    @ApiProperty({
+        description: 'Maximum number of members in the team',
+        example: 4,
+    })
+    @IsInt()
+    @Min(2)
+    @Max(20)
+    maxMember: number;
+
+    @ApiPropertyOptional({
+        description: 'User ID of the leader (required if memberIds exist)',
+        example: 5,
+    })
+    @ValidateIf((o) => o.memberIds && o.memberIds.length > 0)
+    @IsInt({ message: 'leaderId must be an integer when memberIds are provided' })
+    leaderId?: number;
+
+    @ApiPropertyOptional({
+        description: 'List of member user IDs (optional)',
+        example: [2, 3, 4],
+    })
+    @IsOptional()
+    @IsArray()
+    @ArrayNotEmpty()
+    memberIds?: number[];
+}
+
+
+================================================================================
+FILE: .\create-team.dto.ts
+================================================================================
+
+import { ApiProperty } from '@nestjs/swagger';
+import {
+    IsString,
+    MinLength,
+    MaxLength,
+    IsInt,
+    Min,
+    Max,
+} from 'class-validator';
+
+export class CreateTeamDto {
+    @ApiProperty({ description: 'The name of the team', example: 'The A-Team' })
+    @IsString()
+    @MinLength(3)
+    @MaxLength(300)
+    name: string;
+
+    @ApiProperty({
+        description: 'Maximum number of members in the team',
+        example: 5,
+    })
+    @IsInt()
+    @Min(2)
+    @Max(20)
+    maxMember: number;
+
+    @ApiProperty({
+        description: 'The ID of the class this team belongs to',
+        example: 1,
+    })
+    @IsInt()
+    classId: number;
+}
+
+================================================================================
+FILE: .\invite-link-response.dto.ts
+================================================================================
+
+import { ApiProperty } from '@nestjs/swagger';
+
+export class InviteLinkResponseDto {
+    @ApiProperty({ 
+        example: 'https://example.com/team/join/link?token=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...', 
+        description: 'Invite link URL with token for joining the team' 
+    })
+    link: string;
+}
+
+
+================================================================================
+FILE: .\invite-team.dto.ts
+================================================================================
+
+import { ApiProperty } from '@nestjs/swagger';
+import { IsEmail, IsString } from 'class-validator';
+
+export class InviteTeamDto {
+    @ApiProperty({
+        description: "The email of the user to invite",
+        example: 'teammate@example.com',
+    })
+    @IsString()
+    @IsEmail()
+    email: string;
+}
+
+================================================================================
+FILE: .\join-team-response.dto.ts
+================================================================================
+
+import { ApiProperty } from '@nestjs/swagger';
+
+export class JoinTeamResponseDto {
+    @ApiProperty({ example: 'Successfully joined team', description: 'Response message' })
+    message: string;
+
+    @ApiProperty({ example: 1, description: 'The ID of the team that was joined' })
+    teamId: number;
+}
+
+
+================================================================================
+FILE: .\join-team.dto.ts
+================================================================================
+
+
+import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsAlphanumeric, Length, IsEmail } from 'class-validator';
+
+export class JoinTeamDto {
+    @ApiProperty({
+        description: 'The 6-character team join code',
+        example: 'T1E2A3',
+    })
+    @IsString()
+    @IsAlphanumeric()
+    @Length(6, 6)
+    joinCode: string;
+}
+
+export class InviteTeamByEmailDto {
+    @ApiProperty({
+        description: 'Email of the user to invite to the team',
+        example: 'member@gmail.com',
+    })
+    @IsString()
+    @IsEmail()
+    email: string;
+}
+
+export class JoinTeamByTokenDto {
+    @ApiProperty({
+        description: 'Team invite token from the invite link',
+        example: '91eb3fc3-2544-42d0-8a1a-0fcd60f66e93',
+    })
+    @IsString()
+    token: string;
+}
+
+
+================================================================================
+FILE: .\team-list-response.dto.ts
+================================================================================
+
+// libs/dtos/team/team-list-response.dto.ts
+import { ApiProperty } from '@nestjs/swagger';
+import { TeamResponseDto } from './team-response.dto';
+
+export class TeamListResponseDto {
+    @ApiProperty({ type: () => [TeamResponseDto], description: 'List of teams' })
+    teams: TeamResponseDto[];
+
+    static fromEntities(teams: any[]): TeamListResponseDto {
+        return { teams: teams.map(TeamResponseDto.fromEntity) };
+    }
+}
+
+================================================================================
+FILE: .\team-response.dto.ts
+================================================================================
+
+// libs/dtos/team/team-response.dto.ts
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { UserResponseDto } from '../user/user-response.dto';
+
+export class TeamResponseDto {
+    @ApiProperty({ example: 1, description: 'Team unique identifier' })
+    id: number;
+
+    @ApiProperty({ example: 'The A-Team', description: 'Name of the team' })
+    name: string;
+
+    @ApiProperty({ example: 'T1E2A3', description: '6-character team join code' })
+    joinCode: string;
+
+    @ApiProperty({ example: 5, description: 'Maximum number of members allowed' })
+    maxMember: number;
+
+    @ApiProperty({ type: () => UserResponseDto, nullable: true, description: 'Team leader information' })
+    leader: UserResponseDto | null;
+
+    @ApiPropertyOptional({ type: () => [UserResponseDto], description: 'List of team members' })
+    members?: UserResponseDto[];
+
+    static fromEntity(team: any): TeamResponseDto {
+        return {
+            id: team.id,
+            name: team.name,
+            joinCode: team.joinCode,
+            maxMember: team.maxMember,
+            leader: team.leader ? UserResponseDto.fromEntity(team.leader) : null,
+            members: team.members?.map(UserResponseDto.fromEntity),
+        };
+    }
+}
+
+import {
+    Injectable,
+    NotFoundException,
+    ForbiddenException,
+} from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { Team } from '../../../libs/entities/classroom/team.entity';
+import { TeamMember } from '../../../libs/entities/classroom/user-team.entity';
+import { TeamContext } from '../dtos/guard.dto';
+import { ClassPermissionService } from './class-permission.service';
+
+@Injectable()
+export class TeamPermissionService {
+    constructor(
+        @InjectRepository(Team)
+        private readonly teamRepo: Repository<Team>,
+        @InjectRepository(TeamMember)
+        private readonly teamMemberRepo: Repository<TeamMember>,
+        private readonly classPermissionService: ClassPermissionService,
+    ) { }
+
+    async getTeamContext(
+        userId: number,
+        teamId: number,
+    ): Promise<TeamContext | null> {
+        const team = await this.teamRepo.findOne({
+            where: { id: teamId },
+            relations: ['leader', 'class'],
+        });
+
+        if (!team) {
+            return null;
+        }
+
+        const isLeader = team.leader?.id === userId;
+
+        const membership = await this.teamMemberRepo.findOne({
+            where: {
+                team: { id: teamId },
+                user: { id: userId },
+            },
+        });
+
+        // User must be leader or have membership
+        if (!isLeader && !membership) {
+            return null;
+        }
+
+        return {
+            teamId,
+            userId,
+            isLeader,
+            isMember: !!membership || isLeader,
+            isApproved: membership?.isApproved ?? isLeader, // Leaders are always approved
+            teamEntity: team,
+            membership: membership || undefined,
+        };
+    }
+
+    async isMemberOfTeam(userId: number, teamId: number): Promise<boolean> {
+        const context = await this.getTeamContext(userId, teamId);
+        return context?.isMember === true;
+    }
+
+    async isApprovedMemberOfTeam(
+        userId: number,
+        teamId: number,
+    ): Promise<boolean> {
+        const context = await this.getTeamContext(userId, teamId);
+        return context?.isApproved === true;
+    }
+
+    async isLeaderOfTeam(userId: number, teamId: number): Promise<boolean> {
+        const context = await this.getTeamContext(userId, teamId);
+        return context?.isLeader === true;
+    }
+
+    async canManageTeam(userId: number, teamId: number): Promise<boolean> {
+        const team = await this.teamRepo.findOne({
+            where: { id: teamId },
+            relations: ['leader', 'class'],
+        });
+
+        if (!team) return false;
+
+        // Team leader can manage
+        if (team.leader?.id === userId) return true;
+
+        // Class instructors can manage
+        if (team.class) {
+            return this.classPermissionService.isInstructorOfClass(userId, team.class.id);
+        }
+
+        return false;
+    }
+
+    // TEAM VERIFICATION (throws exception)
+
+    async verifyIsTeamMember(
+        userId: number,
+        teamId: number,
+    ): Promise<TeamContext> {
+        const team = await this.teamRepo.findOne({ where: { id: teamId } });
+        if (!team) {
+            throw new NotFoundException(`Team with ID ${teamId} not found`);
+        }
+
+        const context = await this.getTeamContext(userId, teamId);
+        if (!context || !context.isMember) {
+            throw new ForbiddenException('You are not a member of this team');
+        }
+
+        return context;
+    }
+
+    async verifyIsApprovedTeamMember(
+        userId: number,
+        teamId: number,
+    ): Promise<TeamContext> {
+        const context = await this.verifyIsTeamMember(userId, teamId);
+
+        if (!context.isApproved) {
+            throw new ForbiddenException('Your team membership is pending approval');
+        }
+
+        return context;
+    }
+
+    async verifyIsTeamLeader(
+        userId: number,
+        teamId: number,
+    ): Promise<TeamContext> {
+        const team = await this.teamRepo.findOne({
+            where: { id: teamId },
+            relations: ['leader'],
+        });
+
+        if (!team) {
+            throw new NotFoundException(`Team with ID ${teamId} not found`);
+        }
+
+        if (team.leader?.id !== userId) {
+            throw new ForbiddenException(
+                'Only the team leader can perform this action',
+            );
+        }
+
+        const context = await this.getTeamContext(userId, teamId);
+        return context!;
+    }
+
+    async verifyCanManageTeam(
+        userId: number,
+        teamId: number,
+    ): Promise<TeamContext> {
+        const team = await this.teamRepo.findOne({
+            where: { id: teamId },
+            relations: ['leader', 'class'],
+        });
+
+        if (!team) {
+            throw new NotFoundException(`Team with ID ${teamId} not found`);
+        }
+
+        const canManage = await this.canManageTeam(userId, teamId);
+        if (!canManage) {
+            throw new ForbiddenException(
+                'You do not have permission to manage this team',
+            );
+        }
+
+        const context = await this.getTeamContext(userId, teamId);
+        return (
+            context || {
+                teamId,
+                userId,
+                isLeader: false,
+                isMember: false,
+                isApproved: false,
+                teamEntity: team,
+            }
+        );
+    }
+}
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  ForbiddenException,
+  NotFoundException,
+} from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
+import { PermissionGuardService } from '../services/permission-guard.service';
+import { TEAM_ID_KEY } from '../decorators/class.decorator';
+import {
+  AuthenticatedRequest,
+  TeamContext,
+  TeamIdParams,
+  TeamIdQuery,
+  TeamIdBody,
+} from '../dtos/guard.dto';
+
+@Injectable()
+abstract class BaseTeamGuard implements CanActivate {
+  constructor(
+    protected readonly reflector: Reflector,
+    protected readonly permissionService: PermissionGuardService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
+    const user = request.user;
+
+    if (!user) {
+      throw new ForbiddenException('User not authenticated');
+    }
+
+    // Get team ID param name from decorator or default to 'teamId'
+    const teamIdParam = this.reflector.getAllAndOverride<string>(TEAM_ID_KEY, [
+      context.getHandler(),
+      context.getClass(),
+    ]) || 'teamId';
+
+    // Extract teamId from params, query, or body
+    const teamId = this.extractTeamId(request, teamIdParam);
+
+    if (!teamId) {
+      throw new NotFoundException('Team ID not provided');
+    }
+
+    // Get team context and attach to request
+    const teamContext = await this.permissionService.getTeamContext(user.id, teamId);
+    request.teamContext = teamContext ?? undefined;
+
+    // Call subclass implementation
+    return this.checkPermission(context, user.id, teamId, teamContext);
+  }
+
+  protected extractTeamId(
+    request: AuthenticatedRequest,
+    paramName: string,
+  ): number | undefined {
+    const params = request.params as TeamIdParams;
+    const query = request.query as TeamIdQuery;
+    const body = request.body as TeamIdBody;
+
+    // Try route params
+    if (params?.[paramName as keyof TeamIdParams]) {
+      return parseInt(params[paramName as keyof TeamIdParams] as string, 10);
+    }
+    // Try query params
+    if (query?.[paramName as keyof TeamIdQuery]) {
+      return parseInt(query[paramName as keyof TeamIdQuery] as string, 10);
+    }
+    // Try body
+    if (body?.[paramName as keyof TeamIdBody]) {
+      return parseInt(String(body[paramName as keyof TeamIdBody]), 10);
+    }
+    // Try 'id' as fallback
+    if (paramName === 'teamId' && params?.id) {
+      return parseInt(params.id, 10);
+    }
+    return undefined;
+  }
+
+  protected abstract checkPermission(
+    context: ExecutionContext,
+    userId: number,
+    teamId: number,
+    teamContext: TeamContext | null,
+  ): Promise<boolean>;
+}
+
+// Checks if user is a team member (approved or pending)
+@Injectable()
+export class TeamMemberGuard extends BaseTeamGuard {
+  protected async checkPermission(
+    context: ExecutionContext,
+    userId: number,
+    teamId: number,
+    teamContext: TeamContext | null,
+  ): Promise<boolean> {
+    if (!teamContext || !teamContext.isMember) {
+      throw new ForbiddenException('You are not a member of this team');
+    }
+    return true;
+  }
+}
+
+// Checks if user is an approved team member
+@Injectable()
+export class TeamApprovedMemberGuard extends BaseTeamGuard {
+  protected async checkPermission(
+    context: ExecutionContext,
+    userId: number,
+    teamId: number,
+    teamContext: TeamContext | null,
+  ): Promise<boolean> {
+    if (!teamContext || !teamContext.isMember) {
+      throw new ForbiddenException('You are not a member of this team');
+    }
+    if (!teamContext.isApproved) {
+      throw new ForbiddenException('Your team membership is pending approval');
+    }
+    return true;
+  }
+}
+
+// Checks if user is the team leader
+@Injectable()
+export class TeamLeaderGuard extends BaseTeamGuard {
+  protected async checkPermission(
+    context: ExecutionContext,
+    userId: number,
+    teamId: number,
+    teamContext: TeamContext | null,
+  ): Promise<boolean> {
+    if (!teamContext || !teamContext.isLeader) {
+      throw new ForbiddenException('Only the team leader can perform this action');
+    }
+    return true;
+  }
+}
+
+// Checks if user can manage team (leader or class instructor)
+@Injectable()
+export class TeamManagerGuard extends BaseTeamGuard {
+  protected async checkPermission(
+    context: ExecutionContext,
+    userId: number,
+    teamId: number,
+    teamContext: TeamContext | null,
+  ): Promise<boolean> {
+    const canManage = await this.permissionService.canManageTeam(userId, teamId);
+    if (!canManage) {
+      throw new ForbiddenException('You do not have permission to manage this team');
+    }
+    return true;
+  }
+}
+import { createParamDecorator, ExecutionContext } from '@nestjs/common';
+import { ClassContext, TeamContext, AssessmentContext, SubmissionContext, AuthenticatedRequest } from '../dtos/guard.dto';
+
+// Get ClassContext from request (set by class guards)
+export const GetClassContext = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext): ClassContext | undefined => {
+    const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
+    return request.classContext;
+  },
+);
+
+// Get TeamContext from request (set by team guards)
+export const GetTeamContext = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext): TeamContext | undefined => {
+    const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
+    return request.teamContext;
+  },
+);
+
+// Get AssessmentContext from request (set by assessment guards)
+export const GetAssessmentContext = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext): AssessmentContext | undefined => {
+    const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
+    return request.assessmentContext;
+  },
+);
+
+// Get SubmissionContext from request (set by submission guards)
+export const GetSubmissionContext = createParamDecorator(
+  (data: unknown, ctx: ExecutionContext): SubmissionContext | undefined => {
+    const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
+    return request.submissionContext;
+  },
+);
+
+// Get specific field from ClassContext
+export const ClassContextField = createParamDecorator(
+  (field: keyof ClassContext, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
+    return request.classContext?.[field];
+  },
+);
+
+// Get specific field from TeamContext
+export const TeamContextField = createParamDecorator(
+  (field: keyof TeamContext, ctx: ExecutionContext) => {
+    const request = ctx.switchToHttp().getRequest<AuthenticatedRequest>();
+    return request.teamContext?.[field];
+  },
+);

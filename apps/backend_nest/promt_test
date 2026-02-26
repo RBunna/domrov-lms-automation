@@ -1,0 +1,34 @@
+I have a NestJS service that I want to unit test with Jest. The service may have:
+- TypeORM repositories injected via @InjectRepository
+- Other services injected via the constructor
+- Methods that take input objects or parameters
+- Methods that may throw exceptions like NotFoundException or BadRequestException
+- Some internal utility or helper functions that should NOT be mocked; only mock repositories, external services, or dependencies
+
+Generate a complete Jest unit test suite for this service following these rules:
+
+**Test Case Writing Guidelines:**
+1. **Structure:** Each test should include a unique Test Case ID, descriptive title.
+2. **Inputs and Data:** Include all required test data explicitly. Cover valid, invalid, boundary, and edge cases.
+3. **Coverage:** Test all functional paths (happy path, error conditions, edge cases). Ensure independent execution. Include traceability to requirements or user stories.
+4. **Clarity & Maintainability:** Use simple, unambiguous language. Avoid combining multiple scenarios in one test. Document assumptions and dependencies. Keep test cases updated with requirements changes.
+5. **Automation Ready:** Write steps suitable for manual or automated execution. Define preconditions, inputs, and expected results clearly. Avoid ambiguity.
+6. **Assertions:** When using Jest `expect()` statements, **do not use TypeScript generics** like `expect(result).toEqual<Dto>(...)`. Always use plain objects: `expect(result).toEqual({...})`.
+7. **Review & Quality:** Organize tests logically by module/feature. Ensure peer-reviewable clarity and completeness.
+8. **Naming:** Test case IDs should indicate module, feature, and scenario type. Example: `AUTH_LOGIN_VALID_001`.
+
+**Jest Unit Test Requirements:**
+1. Automatically mock all TypeORM repositories using `getRepositoryToken()`.
+2. Automatically mock all injected services using `jest.fn()`.
+3. Do not mock internal utility or helper functions; only mock repositories and external dependencies.
+4. For all method parameters, create minimal mock objects so the method executes without errors.
+5. Include tests for:
+   - Successful execution of each public method
+   - Exception and error cases (NotFoundException, BadRequestException, invalid inputs)
+6. Do not connect to a real database or external service; all dependencies must be mocked.
+7. Use NestJS testing best practices: `Test.createTestingModule()`, `beforeEach()`, Jest `describe/it` blocks.
+8. Output a **ready-to-run TypeScript Jest test file** with each test having a unique Test Case ID.
+
+Here is the service code:
+
+<PASTE YOUR SERVICE CODE HERE>

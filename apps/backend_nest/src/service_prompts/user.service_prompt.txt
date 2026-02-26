@@ -1,8 +1,50 @@
+
+I have a NestJS service that I want to unit test with Jest. The service may have:
+- TypeORM repositories injected via @InjectRepository
+- Other services injected via the constructor
+- Methods that take input objects or parameters
+- Methods that may throw exceptions like NotFoundException or BadRequestException
+- Some internal utility or helper functions that should NOT be mocked; only mock repositories, external services, or dependencies
+
+Generate a complete Jest unit test suite for this service following these rules:
+
+**Test Case Writing Guidelines:**
+1. **Structure:** Each test should include a unique Test Case ID, descriptive title.
+2. **Inputs and Data:** Include all required test data explicitly. Cover valid, invalid, boundary, and edge cases.
+3. **Coverage:** Test all functional paths (happy path, error conditions, edge cases). Ensure independent execution. Include traceability to requirements or user stories.
+4. **Clarity & Maintainability:** Use simple, unambiguous language. Avoid combining multiple scenarios in one test. Document assumptions and dependencies. Keep test cases updated with requirements changes.
+5. **Automation Ready:** Write steps suitable for manual or automated execution. Define preconditions, inputs, and expected results clearly. Avoid ambiguity.
+6. **Assertions:** When using Jest `expect()` statements, **do not use TypeScript generics** like `expect(result).toEqual<Dto>(...)`. Always use plain objects: `expect(result).toEqual({...})`.
+7. **Review & Quality:** Organize tests logically by module/feature. Ensure peer-reviewable clarity and completeness.
+8. **Naming:** Test case IDs should indicate module, feature, and scenario type. Example: `AUTH_LOGIN_VALID_001`.
+
+**Logic Verification Instructions:**
+1. For each public method, generate tests that **assert the method returns correct outputs** for given inputs.
+2. Include **edge case and boundary value checks** to validate internal calculations and branching logic.
+3. Include **error handling tests** to ensure exceptions are thrown as expected (NotFoundException, BadRequestException, invalid inputs).
+4. For methods with calculations, transformations, or conditional logic, explicitly check that **output matches expected logic**, not just that the method executes.
+5. Ensure tests are **automated and reproducible**, so running `jest` actually verifies the method behavior.
+
+**Jest Unit Test Requirements:**
+1. Automatically mock all TypeORM repositories using `getRepositoryToken()`.
+2. Automatically mock all injected services using `jest.fn()`.
+3. Do not mock internal utility or helper functions; only mock repositories and external dependencies.
+4. For all method parameters, create minimal mock objects so the method executes without errors.
+5. Include tests for:
+   - Successful execution of each public method
+   - Exception and error cases (NotFoundException, BadRequestException, invalid inputs)
+   - Verification of **logical correctness** of outputs
+6. Do not connect to a real database or external service; all dependencies must be mocked.
+7. Use NestJS testing best practices: `Test.createTestingModule()`, `beforeEach()`, Jest `describe/it` blocks.
+8. Output a **ready-to-run TypeScript Jest test file** with each test having a unique Test Case ID.
+
+Here is the service code:
+
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ILike, Repository } from 'typeorm';
 import { User } from '../../libs/entities/user/user.entity';
-import { Encryption } from '../../libs/utils/Encryption';
+import * as bcrypt from 'bcrypt';
 import { UpdateUserDTO } from '../../libs/dtos/update.user.dto';
 import {
   UpdateProfileDto,
@@ -12,7 +54,6 @@ import {
   ChangePasswordResponseDto,
   UserListItemDto,
 } from '../../libs/dtos/user/user.dto';
-import { UserStatus } from '../../libs/enums/Status';
 
 @Injectable()
 export class UserService {
@@ -25,9 +66,8 @@ export class UserService {
    * Get current user's profile
    */
   async getMyProfile(userId: number): Promise<UserProfileResponseDto> {
-    if (!userId) throw new BadRequestException('User ID is required');
-
     try {
+      if (!userId) throw new BadRequestException('User ID is required');
       const user = await this.userRepository.findOne({
         where: { id: userId },
         select: [
@@ -36,16 +76,12 @@ export class UserService {
           'status', 'created_at', 'updated_at'
         ],
       });
-
-      if (!user) throw new NotFoundException('User not found');
-
-      return this.mapToUserProfileDto(user);
-    } catch (err) {
-      // Only wrap unexpected errors
-      if (err instanceof BadRequestException || err instanceof NotFoundException) {
-        throw err; // preserve intended exceptions
+      if (!user) {
+        throw new NotFoundException('User not found');
       }
-      throw new BadRequestException('Failed to get user profile');
+      return user;
+    } catch (err) {
+      throw err instanceof BadRequestException || err instanceof NotFoundException ? err : new BadRequestException('Failed to get user profile');
     }
   }
 
@@ -53,44 +89,33 @@ export class UserService {
    * Update current user's profile (no password change here)
    */
   async updateMyProfile(userId: number, dto: UpdateProfileDto): Promise<UpdateProfileResponseDto> {
-    if (!userId) throw new BadRequestException('User ID is required');
-    if (!dto || typeof dto !== 'object') throw new BadRequestException('Invalid update data');
-
     try {
+      if (!userId) throw new BadRequestException('User ID is required');
+      if (!dto || typeof dto !== 'object') throw new BadRequestException('Invalid update data');
       const user = await this.userRepository.findOne({ where: { id: userId } });
-      if (!user) throw new NotFoundException('User not found');
-
-      // Phone conflict check
+      if (!user) {
+        throw new NotFoundException('User not found');
+      }
       if (dto.phoneNumber && dto.phoneNumber !== user.phoneNumber) {
         const existingPhone = await this.userRepository.findOne({
           where: { phoneNumber: dto.phoneNumber },
         });
-
-        // Only conflict if another user has this phone
-        if (existingPhone && existingPhone.id !== userId) {
+        if (existingPhone) {
           throw new BadRequestException('Phone number already in use');
         }
       }
-
-      // Update user fields
       Object.assign(user, dto);
       await this.userRepository.save(user);
-
       const updatedUser = await this.getMyProfile(userId);
       return {
         message: 'Profile updated successfully',
         user: updatedUser,
       };
     } catch (err) {
-      if (
-        err instanceof BadRequestException ||
-        err instanceof NotFoundException
-      ) {
-        throw err;
-      }
-      throw new BadRequestException('Failed to update profile');
+      throw err instanceof BadRequestException || err instanceof NotFoundException ? err : new BadRequestException('Failed to update profile');
     }
   }
+
   /**
    * Change password - requires current password verification
    */
@@ -105,15 +130,15 @@ export class UserService {
       if (!user) {
         throw new NotFoundException('User not found');
       }
-      const isPasswordValid = await Encryption.verifyPassword(user.password, dto.currentPassword);
+      const isPasswordValid = await bcrypt.compare(dto.currentPassword, user.password);
       if (!isPasswordValid) {
         throw new ForbiddenException('Current password is incorrect');
       }
-      const isSamePassword = await Encryption.verifyPassword(user.password, dto.newPassword);
+      const isSamePassword = await bcrypt.compare(dto.newPassword, user.password);
       if (isSamePassword) {
         throw new BadRequestException('New password must be different from current password');
       }
-      user.password = await Encryption.hashPassword(dto.newPassword);
+      user.password = await bcrypt.hash(dto.newPassword, 10);
       await this.userRepository.save(user);
       return { message: 'Password changed successfully' };
     } catch (err) {
@@ -143,7 +168,7 @@ export class UserService {
       if (!id) throw new BadRequestException('User ID is required');
       if (!updateUserDto || typeof updateUserDto !== 'object') throw new BadRequestException('Invalid update data');
       if (updateUserDto.password) {
-        updateUserDto.password = await Encryption.hashPassword(updateUserDto.password);
+        updateUserDto.password = await bcrypt.hash(updateUserDto.password, 10);
       }
       const result = await this.userRepository.update(id, updateUserDto);
       if (result.affected === 0) {
@@ -177,21 +202,5 @@ export class UserService {
       throw new BadRequestException('Failed to search users');
     }
   }
-  private mapToUserProfileDto(user: Partial<User>): UserProfileResponseDto {
-    return Object.assign(new UserProfileResponseDto(), {
-      id: user.id,
-      firstName: user.firstName,
-      lastName: user.lastName ?? undefined,
-      email: user.email,
-      gender: user.gender ?? undefined,
-      dob: user.dob ? new Date(user.dob) : undefined,
-      phoneNumber: user.phoneNumber ?? undefined,
-      profilePictureUrl: user.profilePictureUrl ?? undefined,
-      isVerified: user.isVerified,
-      isTwoFactorEnable: user.isTwoFactorEnable,
-      status: user.status as UserStatus,
-      created_at: user.created_at ? new Date(user.created_at) : undefined,
-      updated_at: user.updated_at ? new Date(user.updated_at) : undefined,
-    }) as UserProfileResponseDto;
-  }
 }
+

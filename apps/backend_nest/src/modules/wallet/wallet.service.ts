@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, DataSource } from 'typeorm';
 import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
 import { WalletTransaction, TransactionType, TransactionReason } from '../../libs/entities/ai/wallet-transaction.entity';
-import { WalletBalanceResponseDto, TransactionHistoryResponseDto, WalletTransactionDto } from '../../libs/dtos/wallet/wallet.dto';
+import { TransactionHistoryResponseDto, WalletTransactionDto } from '../../libs/dtos/wallet/wallet.dto';
 @Injectable()
 export class WalletService {
     constructor(
@@ -16,13 +16,16 @@ export class WalletService {
 
     ) { }
 
+    // Corrected getOrCreateWallet
     async getOrCreateWallet(userId: number): Promise<UserCreditBalance> {
+        if (!userId) throw new BadRequestException('User ID is required');
+
         try {
-            if (!userId) throw new BadRequestException('User ID is required');
             let wallet = await this.walletRepository.findOne({
                 where: { user: { id: userId } },
                 relations: ['user'],
             });
+
             if (!wallet) {
                 wallet = this.walletRepository.create({
                     user: { id: userId },
@@ -30,15 +33,20 @@ export class WalletService {
                 });
                 await this.walletRepository.save(wallet);
             }
+
             return wallet;
         } catch (err) {
+            // Only wrap unexpected DB errors
+            if (err instanceof BadRequestException) throw err;
             throw new BadRequestException('Failed to get or create wallet');
         }
     }
 
+    // Corrected getBalance
     async getBalance(userId: number): Promise<number> {
+        if (!userId) throw new BadRequestException('User ID is required');
+
         try {
-            if (!userId) throw new BadRequestException('User ID is required');
             const wallet = await this.getOrCreateWallet(userId);
             return wallet.creditBalance;
         } catch (err) {
@@ -52,16 +60,18 @@ export class WalletService {
         reason: TransactionReason,
         description?: string,
     ): Promise<UserCreditBalance> {
+        if (!userId) throw new BadRequestException('User ID is required');
+        if (typeof amount !== 'number' || amount <= 0) throw new BadRequestException('Amount must be a positive number');
+        if (!reason) throw new BadRequestException('Transaction reason is required');
+
         try {
-            if (!userId) throw new BadRequestException('User ID is required');
-            if (typeof amount !== 'number' || amount <= 0) throw new BadRequestException('Amount must be a positive number');
-            if (!reason) throw new BadRequestException('Transaction reason is required');
             return await this.dataSource.transaction(async (manager) => {
                 const wallet = await this.getOrCreateWallet(userId);
                 const balanceBefore = wallet.creditBalance;
                 const balanceAfter = balanceBefore + amount;
                 wallet.creditBalance = balanceAfter;
                 await manager.save(wallet);
+
                 const transaction = this.transactionRepository.create({
                     walletId: wallet.id,
                     amount,
@@ -71,10 +81,12 @@ export class WalletService {
                     balanceAfter,
                     description: description || `Added ${amount} credits`,
                 });
+
                 await manager.save(transaction);
                 return wallet;
             });
         } catch (err) {
+            if (err instanceof BadRequestException) throw err;
             throw new BadRequestException('Failed to add credits');
         }
     }
@@ -84,31 +96,37 @@ export class WalletService {
         amount: number,
         reason: TransactionReason,
         description?: string,
-        tpye: TransactionType = TransactionType.DEBIT,
+        type: TransactionType = TransactionType.DEBIT,
         metadata?: Record<string, any>,
     ): Promise<UserCreditBalance> {
+        if (!userId) throw new BadRequestException('User ID is required');
+        if (typeof amount !== 'number' || amount <= 0) throw new BadRequestException('Amount must be a positive number');
+        if (!reason) throw new BadRequestException('Transaction reason is required');
+
         try {
-            if (!userId) throw new BadRequestException('User ID is required');
-            if (typeof amount !== 'number' || amount <= 0) throw new BadRequestException('Amount must be a positive number');
-            if (!reason) throw new BadRequestException('Transaction reason is required');
             return await this.dataSource.transaction(async (manager) => {
                 const wallet = await this.getOrCreateWallet(userId);
                 const balanceBefore = wallet.creditBalance;
+
                 if (balanceBefore < amount) {
                     throw new BadRequestException('Insufficient credit balance');
                 }
+
                 const balanceAfter = balanceBefore - amount;
                 wallet.creditBalance = balanceAfter;
                 await manager.save(wallet);
+
                 const transaction = this.transactionRepository.create({
                     walletId: wallet.id,
                     amount,
-                    type: tpye,
+                    type,
                     reason,
                     balanceBefore,
                     balanceAfter,
                     description: description || `Deducted ${amount} credits`,
+                    metadata,
                 });
+
                 await manager.save(transaction);
                 return wallet;
             });
@@ -118,9 +136,11 @@ export class WalletService {
     }
 
     async hasEnoughBalance(userId: number, amount: number): Promise<boolean> {
+        if (!userId) throw new BadRequestException('User ID is required');
+        if (typeof amount !== 'number' || amount < 0)
+            throw new BadRequestException('Amount must be a non-negative number');
+
         try {
-            if (!userId) throw new BadRequestException('User ID is required');
-            if (typeof amount !== 'number' || amount < 0) throw new BadRequestException('Amount must be a non-negative number');
             const balance = await this.getBalance(userId);
             return balance >= amount;
         } catch (err) {
@@ -133,29 +153,32 @@ export class WalletService {
         page: number = 1,
         limit: number = 10,
     ): Promise<TransactionHistoryResponseDto> {
+        if (!userId) throw new BadRequestException('User ID is required');
+        if (typeof page !== 'number' || page < 1) throw new BadRequestException('Page must be a positive integer');
+        if (typeof limit !== 'number' || limit < 1) throw new BadRequestException('Limit must be a positive integer');
+
         try {
-            if (!userId) throw new BadRequestException('User ID is required');
-            if (typeof page !== 'number' || page < 1) throw new BadRequestException('Page must be a positive integer');
-            if (typeof limit !== 'number' || limit < 1) throw new BadRequestException('Limit must be a positive integer');
             const wallet = await this.getOrCreateWallet(userId);
+
             const [transactions, total] = await this.transactionRepository.findAndCount({
                 where: { walletId: wallet.id },
                 order: { created_at: 'DESC' },
                 skip: (page - 1) * limit,
                 take: limit,
             });
-            const transactionDtos: WalletTransactionDto[] = transactions.map((transaction) => ({
-                id: transaction.id,
-                walletId: transaction.walletId!,
-                amount: transaction.amount,
-                type: transaction.type,
-                reason: transaction.reason,
-                balanceBefore: transaction.balanceBefore,
-                balanceAfter: transaction.balanceAfter,
-                description: transaction.description,
-                created_at: transaction.created_at,
-                updatedAt: transaction.updated_at,
+
+            const transactionDtos: WalletTransactionDto[] = transactions.map((t) => ({
+                id: t.id,
+                walletId: t.walletId!,
+                amount: t.amount,
+                type: t.type,
+                reason: t.reason,
+                balanceBefore: t.balanceBefore,
+                balanceAfter: t.balanceAfter,
+                description: t.description,
+                created_at: t.created_at,
             }));
+
             return {
                 data: transactionDtos,
                 meta: {

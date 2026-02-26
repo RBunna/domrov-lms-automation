@@ -23,8 +23,28 @@ jobs:
             python:
               - 'apps/code_eval/**'
 
-  build-nestjs:
+  test-nestjs:
     needs: changes
+    if: needs.changes.outputs.nestjs == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 20
+
+      - name: Install Dependencies
+        working-directory: ./apps/backend_nest
+        run: npm ci
+
+      - name: Run NestJS Tests
+        working-directory: ./apps/backend_nest
+        run: npm run test:ci
+
+  build-nestjs:
+    needs: [changes, test-nestjs]
     if: needs.changes.outputs.nestjs == 'true'
     runs-on: ubuntu-latest
     steps:
