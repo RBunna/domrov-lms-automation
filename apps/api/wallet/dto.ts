@@ -1,8 +1,6 @@
 // /api/wallet/dto.ts
-export enum Currency {
-  USD = 'USD',
-  EUR = 'EUR',
-}
+
+import { Currency } from '../enums/Currency';
 
 export interface AddCreditsDto {
   amount: number;

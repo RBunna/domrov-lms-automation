@@ -1,6 +1,8 @@
+import { SubmissionFileType } from '../enums/Assessment';
+
 // /api/evaluation/dto.ts
 export interface FileContentDto {
-  type: 'file';
+  type: SubmissionFileType;
   name: string;
   path: string;
   content: string[];
@@ -21,7 +23,11 @@ export interface FolderNodeDto {
 export interface FolderStructureResponseDto {
   success: boolean;
   message: string;
-  folder_structure: FolderNodeDto;
+  folder: FolderNodeDto;
+}
+
+export interface AddQueueDto {
+  submission_id: number;
 }
 
 export interface AddQueueResponseDto {

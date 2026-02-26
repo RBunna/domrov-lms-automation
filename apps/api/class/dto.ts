@@ -1,17 +1,7 @@
 // /api/class/dto.ts
-export enum ClassStatus {
-  BEING_START = 'BEING_START',
-  ACTIVE = 'ACTIVE',
-  END = 'END',
-}
 
-export enum UserRole {
-  Teacher = 'Teacher',
-  Student = 'Student',
-  TeacherAssistant = 'TeacherAssistant',
-  ClassMonitor = 'ClassMonitor',
-  AcademicStaff = 'AcademicStaff',
-}
+import { ClassStatus } from '../enums/ClassStatus';
+import { UserRole } from '../enums/UserRole';
 
 export interface ClassOwnerDto {
   id: number;

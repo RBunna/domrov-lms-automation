@@ -1,21 +1,7 @@
 // /api/submission/dto.ts
-export enum SubmissionStatus {
-  PENDING = 'PENDING',
-  SUBMITTED = 'SUBMITTED',
-  GRADED = 'GRADED',
-  RESUBMITTED = 'RESUBMITTED',
-  LATE = 'LATE',
-}
 
-export enum ResourceType {
-  FILE = 'FILE',
-  URL = 'URL',
-  VIDEO = 'VIDEO',
-  IMAGE = 'IMAGE',
-  DOCUMENT = 'DOCUMENT',
-  TEXT = 'TEXT',
-  OTHER = 'OTHER',
-}
+import { SubmissionStatus } from '../enums/SubmissionStatus';
+import { ResourceType } from '../enums/ResourceType';
 
 export interface SubmitResourceDTO {
   resourceId?: number;

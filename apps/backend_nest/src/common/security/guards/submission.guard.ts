@@ -36,11 +36,12 @@ abstract class BaseSubmissionGuard implements CanActivate {
       throw new ForbiddenException('User not authenticated');
     }
 
-    // Get submission ID param name from decorator or default to 'id'
-    const submissionIdParam = this.reflector.getAllAndOverride<string>(SUBMISSION_ID_KEY, [
-      context.getHandler(),
-      context.getClass(),
-    ]) || 'id';
+    // Get submission ID param name from decorator or default to 'submission_id'
+    const submissionIdParam =
+      this.reflector.getAllAndOverride<string>(SUBMISSION_ID_KEY, [
+        context.getHandler(),
+        context.getClass(),
+      ]) || 'submission_id';
 
     // Extract submissionId from params, query, or body
     const submissionId = this.extractSubmissionId(request, submissionIdParam);
@@ -50,34 +51,48 @@ abstract class BaseSubmissionGuard implements CanActivate {
     }
 
     // Get submission context and attach to request
-    const submissionContext = await this.permissionService.getSubmissionContext(user.id, submissionId);
+    const submissionContext = await this.permissionService.getSubmissionContext(
+      user.id,
+      submissionId,
+    );
+
+    if(!submissionContext) {
+      throw new NotFoundException('Submission not found');
+    }
+
     request.submissionContext = submissionContext ?? undefined;
     request.classContext = submissionContext?.classContext ?? undefined;
 
     // Call subclass implementation
-    return this.checkPermission(context, user.id, submissionId, submissionContext);
+    return this.checkPermission(
+      context,
+      user.id,
+      submissionId,
+      submissionContext,
+    );
   }
 
+  /**
+   * Extracts submission_id from params, query, or body safely
+   */
   protected extractSubmissionId(
     request: AuthenticatedRequest,
     paramName: string,
   ): number | undefined {
-    const params = request.params as Record<string, string>;
-    const query = request.query as Record<string, string>;
-    const body = request.body as Record<string, unknown>;
+    const sources: Record<string, unknown>[] = [
+      request.params || {},
+      request.query || {},
+      request.body || {},
+    ];
 
-    // Try route params
-    if (params?.[paramName]) {
-      return parseInt(params[paramName], 10);
+    for (const source of sources) {
+      if (paramName in source) {
+        const val = source[paramName];
+        const n = typeof val === 'number' ? val : Number(val);
+        if (!Number.isNaN(n)) return n;
+      }
     }
-    // Try query params
-    if (query?.[paramName]) {
-      return parseInt(query[paramName], 10);
-    }
-    // Try body
-    if (body?.[paramName]) {
-      return parseInt(String(body[paramName]), 10);
-    }
+
     return undefined;
   }
 
@@ -88,6 +103,8 @@ abstract class BaseSubmissionGuard implements CanActivate {
     submissionContext: SubmissionContext | null,
   ): Promise<boolean>;
 }
+
+// ===================== Guards =====================
 
 // Checks if user is enrolled in the submission's class
 @Injectable()

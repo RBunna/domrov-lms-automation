@@ -1,5 +1,5 @@
 // /api/wallet/wallet.api.ts
-import axios from '../base/axios';
+import axios from '../axios';
 import {
   AddCreditsDto,
   DeductCreditsDto,
@@ -8,7 +8,6 @@ import {
   StartPaymentDto,
   StartPaymentResponseDto,
   CreditPackageResponseDto,
-  Currency
 } from './dto';
 
 export async function addCredits(data: AddCreditsDto): Promise<WalletTransactionResponseDto> {

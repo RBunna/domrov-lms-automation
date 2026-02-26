@@ -1,20 +1,8 @@
 // /api/assessment/dto.ts
-export enum SubmissionType {
-  INDIVIDUAL = 'INDIVIDUAL',
-  TEAM = 'TEAM',
-}
 
-export enum SubmissionMethod {
-  ZIP = 'ZIP ',
-  GITHUB = 'GITHUB',
-  ANY = 'ANY',
-}
-
-export enum AIModelSelectionMode {
-  USER = 'USER',
-  SYSTEM = 'SYSTEM',
-  NONE = 'NONE',
-}
+import { SubmissionType } from '../enums/SubmissionType';
+import { SubmissionMethod } from '../enums/SubmissionMethod';
+import { AIModelSelectionMode } from '../enums/AIModelSelectionMode';
 
 export interface ResourceInfoDto {
   id: number;

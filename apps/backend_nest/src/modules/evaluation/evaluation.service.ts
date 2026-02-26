@@ -2,7 +2,7 @@ import { Injectable, OnModuleInit, Inject, NotFoundException, BadRequestExceptio
 import * as microservices from '@nestjs/microservices';
 import { catchError, lastValueFrom, Observable } from 'rxjs';
 import { Repository } from 'typeorm';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { DataSource } from 'typeorm';
 
 // Entities
@@ -46,14 +46,9 @@ export class EvaluationService implements OnModuleInit {
     constructor(
         @Inject('CODE_EVAL_GRPC')
         private readonly client: microservices.ClientGrpc,
-
-        @InjectRepository(Submission)
-        private submissionRepo: Repository<Submission>,
-
-        @InjectRepository(Evaluation)
-        private evaluationRepo: Repository<Evaluation>,
         private walletService: WalletService,
-        @Inject('DATA_SOURCE') private readonly dataSource: DataSource
+        @InjectDataSource()
+        private readonly dataSource: DataSource,
     ) { }
 
     onModuleInit() {
