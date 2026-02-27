@@ -10,12 +10,14 @@ import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
 import { Submission } from '../../libs/entities/assessment/submission.entity';
 import { join } from 'path';
 import { WalletModule } from '../wallet/wallet.module';
+import { UserAiModule } from '../user-ai/user-ai.module';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Submission, Evaluation, EvaluationFeedback]),
     forwardRef(() => AssessmentModule),
     WalletModule,
+    UserAiModule,
     ClientsModule.registerAsync([
       {
         name: 'CODE_EVAL_GRPC',

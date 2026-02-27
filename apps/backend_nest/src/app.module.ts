@@ -26,6 +26,7 @@ import { WalletTransaction } from './libs/entities/ai/wallet-transaction.entity'
 import { CreditPackage } from './libs/entities/ai/credit-package.entity';
 import { UserCreditBalance } from './libs/entities/ai/user-credit-balance.entity';
 import { HttpModule } from '@nestjs/axios';
+import { UserAiModule } from './modules/user-ai/user-ai.module';
 
 @Module({
     imports: [
@@ -41,6 +42,7 @@ import { HttpModule } from '@nestjs/axios';
         WalletModule,
         EvaluationModule,
         TasksModule,
+        UserAiModule,
         HttpModule.register({}),
         TypeOrmModule.forFeature([Payment, CreditPackage, UserCreditBalance, WalletTransaction]),
     ],

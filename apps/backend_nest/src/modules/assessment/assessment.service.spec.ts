@@ -93,6 +93,7 @@ describe('AssessmentService', () => {
                 },
                 {
                     provide: getRepositoryToken(Submission),
+                    //@ts-ignore
                     useValue: { find: jest.fn(), delete: jest.fn().mockResolvedValue({ affected: 1 }) },
                 },
                 {

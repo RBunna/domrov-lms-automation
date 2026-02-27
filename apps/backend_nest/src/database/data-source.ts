@@ -22,7 +22,6 @@ import { AssessmentResource } from '../libs/entities/resource/assessment-resourc
 import { SubmissionResource } from '../libs/entities/resource/submission-resource.entity';
 import { AIUsageLog } from '../libs/entities/ai/ai-usage-log.entity';
 import { Payment } from '../libs/entities/ai/payment.entity';
-import { PlatformAIModel } from '../libs/entities/ai/platform-ai-model.entity';
 import { WalletTransaction } from '../libs/entities/ai/wallet-transaction.entity';
 import { EvaluationFeedback } from '../libs/entities/assessment/evaluation-feedback.entity';
 import { UserAIKey } from '../libs/entities/ai/user-ai-key.entity';
@@ -55,7 +54,6 @@ export const dataSourceOptions: DataSourceOptions = {
     SubmissionResource,
     AIUsageLog,
     Payment,
-    PlatformAIModel,
     UserCreditBalance,
     CreditPackage,
     WalletTransaction,

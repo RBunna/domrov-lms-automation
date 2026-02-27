@@ -7,7 +7,6 @@ import {
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { User } from '../user/user.entity';
-import { PlatformAIModel } from './platform-ai-model.entity';
 import { UserAIKey } from './user-ai-key.entity';
 
 @Entity({ name: 'ai_usage_logs' })
@@ -29,10 +28,6 @@ export class AIUsageLog extends BaseEntity {
     @ManyToOne(() => User, (user) => user.usageLogs, { onDelete: 'CASCADE' })
     @JoinColumn()
     user: User;
-
-    @ManyToOne(() => PlatformAIModel, (model) => model.usageLogs, { onDelete: 'CASCADE' })
-    @JoinColumn()
-    model: PlatformAIModel;
 
     // Which AI key was used
     @ManyToOne(() => UserAIKey, (key) => key.usageLogs, { onDelete: 'SET NULL' })

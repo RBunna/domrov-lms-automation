@@ -7,7 +7,6 @@ import path from 'path';
 // 1. IMPORT YOUR ENTITIES HERE
 // ==========================================
 import { User } from './user/user.entity';
-import { PlatformAIModel } from './ai/platform-ai-model.entity';
 import { Class } from './classroom/class.entity';
 import { Enrollment } from './classroom/enrollment.entity';
 import { Team } from './classroom/team.entity';
@@ -16,22 +15,14 @@ import { Resource } from './resource/resource.entity';
 import { Assessment } from './assessment/assessment.entity';
 import { Rubrics } from './assessment/rubic.entity';
 import { Submission } from './assessment/submission.entity';
-import { Evaluation } from './assessment/evaluation.entity';
 import { Payment } from './ai/payment.entity';
 import { AIUsageLog } from './ai/ai-usage-log.entity';
 import { Currency, PaymentMethod } from '../enums/Payment';
 import { PaymentStatus, SubmissionStatus, UserStatus } from '../enums/Status';
 import { UserRole } from '../enums/Role';
-import { EvaluationType, SubmissionType, SubmissionMethod } from '../enums/Assessment';
-import { OAuthAccount } from './user/oauth-account.entity';
-import { OAuthProvider } from './user/oauth-provider.entity';
-import { TelegramChat } from './user/telegram-chat.entity';
-import { UserEmailOtp } from './user/user-email-otp.entity';
-import { UserRefreshToken } from './user/user-refresh-token.entity';
-import { AssessmentResource } from './resource/assessment-resource.entity';
+import { SubmissionType, SubmissionMethod } from '../enums/Assessment';
 import { SubmissionResource } from './resource/submission-resource.entity';
 import { Encryption } from '../utils/Encryption';
-import { EvaluationFeedback } from './assessment/evaluation-feedback.entity';
 // import { EvaluationRubricScore } from './assessment/evaluation-rubric-score.entity';
 import { ResourceType } from '../enums/Resource';
 import AppDataSource from '../../database/data-source';
@@ -119,19 +110,19 @@ async function seed() {
 
         console.log('Fixed Khmer mock users created!');
 
-        // --- 2. SEED AI MODELS ---
-        console.log('🤖 Seeding AI Models...');
-        const models: PlatformAIModel[] = [];
-        const modelNames = ['GPT-4o', 'Claude 3.5 Sonnet', 'Gemini 1.5 Pro'];
-        for (const name of modelNames) {
-            const model = new PlatformAIModel();
-            model.name = name;
-            model.apiUrl = faker.internet.url();
-            model.accuracy = faker.number.float({ min: 0.8, max: 0.99, fractionDigits: 2 });
-            model.costPerInputToken = faker.number.float({ min: 0.0001, max: 0.001, fractionDigits: 5 });
-            model.costPerOutputToken = faker.number.float({ min: 0.0002, max: 0.002, fractionDigits: 5 });
-            models.push(await queryRunner.manager.save(model));
-        }
+        // // --- 2. SEED AI MODELS ---
+        // console.log('🤖 Seeding AI Models...');
+        // const models: PlatformAIModel[] = [];
+        // const modelNames = ['GPT-4o', 'Claude 3.5 Sonnet', 'Gemini 1.5 Pro'];
+        // for (const name of modelNames) {
+        //     const model = new PlatformAIModel();
+        //     model.name = name;
+        //     model.apiUrl = faker.internet.url();
+        //     model.accuracy = faker.number.float({ min: 0.8, max: 0.99, fractionDigits: 2 });
+        //     model.costPerInputToken = faker.number.float({ min: 0.0001, max: 0.001, fractionDigits: 5 });
+        //     model.costPerOutputToken = faker.number.float({ min: 0.0002, max: 0.002, fractionDigits: 5 });
+        //     models.push(await queryRunner.manager.save(model));
+        // }
 
         // --- 3. SEED WALLETS & CREDIT PACKAGES ---
         console.log('💰 Seeding Wallets & Credit Packages...');
@@ -206,7 +197,7 @@ async function seed() {
         assessment.maxScore = 100;
         assessment.submissionType = SubmissionType.INDIVIDUAL;
         assessment.class = myClass;
-        assessment.aiModel = models[0];
+        // assessment.aiModel = models[0];
         assessment.aiEvaluationEnable = true;
         assessment.allowedSubmissionMethod = SubmissionMethod.GITHUB;
 
@@ -278,7 +269,7 @@ async function seed() {
             log.inputTokenCount = faker.number.int({ min: 100, max: 1000 });
             log.outputTokenCount = faker.number.int({ min: 50, max: 500 });
             log.user = user;
-            log.model = faker.helpers.arrayElement(models);
+            // log.model = faker.helpers.arrayElement(models);
             await queryRunner.manager.save(log);
 
             // Payment

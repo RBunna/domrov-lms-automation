@@ -24,6 +24,7 @@ import {
     AddQueueResponseDto,
     AIEvaluationResponseDto,
 } from '../../libs/dtos/evaluation/evaluation-response.dto';
+import { AIUsageLogService } from '../user-ai/ai-usage-log.service';
 
 // Service Interfaces
 interface SubmissionService {
@@ -47,6 +48,7 @@ export class EvaluationService implements OnModuleInit {
         @Inject('CODE_EVAL_GRPC')
         private readonly client: microservices.ClientGrpc,
         private walletService: WalletService,
+        private readonly aiLogService: AIUsageLogService,
         @InjectDataSource()
         private readonly dataSource: DataSource,
     ) { }
@@ -189,7 +191,7 @@ export class EvaluationService implements OnModuleInit {
                             cost,
                             TransactionReason.AI_USAGE,
                             `Evaluate submission ${submission.id} using ${ai_model}`
-                        );
+                        );                
                     } catch (err) {
                         const errorMsg = err instanceof Error ? err.message : String(err);
                         throw new BadRequestException(`[Submission: ${submission_id}] [Model: ${ai_model}] Wallet deduction failed: ${errorMsg}`);
@@ -200,7 +202,14 @@ export class EvaluationService implements OnModuleInit {
                 await manager.save(Evaluation, evaluation);
                 submission.status = SubmissionStatus.GRADED;
                 await manager.save(Submission, submission);
-
+                await this.aiLogService.createLog(
+                    {
+                        title: `AI Evaluation - Submission ${submission.id} in assessment ${submission.assessment.title}`,
+                        inputTokenCount: input_token,
+                        outputTokenCount: output_token,
+                        userId: submission.assessment.class.owner.id,
+                    }
+                )
                 return {
                     message: 'Evaluation created successfully',
                     evaluationId: evaluation.id,
