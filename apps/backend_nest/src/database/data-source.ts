@@ -9,6 +9,8 @@ import { OAuthProvider } from '../libs/entities/user/oauth-provider.entity';
 import { TelegramChat } from '../libs/entities/user/telegram-chat.entity';
 import { UserEmailOtp } from '../libs/entities/user/user-email-otp.entity';
 import { UserRefreshToken } from '../libs/entities/user/user-refresh-token.entity';
+import { Notification } from '../libs/entities/user/notification.entity';
+
 import { Class } from '../libs/entities/classroom/class.entity';
 import { Enrollment } from '../libs/entities/classroom/enrollment.entity';
 import { Team } from '../libs/entities/classroom/team.entity';
@@ -59,7 +61,8 @@ export const dataSourceOptions: DataSourceOptions = {
     WalletTransaction,
     EvaluationFeedback,
     UserAIKey,
-    TeamAssessment
+    TeamAssessment,
+    Notification
   ],
   migrations: ['migrations/*.ts'],
 };

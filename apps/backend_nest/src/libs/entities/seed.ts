@@ -30,7 +30,7 @@ import { CreditPackage } from './ai/credit-package.entity';
 import { UserCreditBalance } from './ai/user-credit-balance.entity';
 
 
-async function seed() {
+export async function seed() {
     await AppDataSource.initialize();
     console.log('🌱 DataSource initialized. Starting seeding...');
     const queryRunner = AppDataSource.createQueryRunner();

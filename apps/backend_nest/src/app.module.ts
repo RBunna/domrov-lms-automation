@@ -27,6 +27,9 @@ import { CreditPackage } from './libs/entities/ai/credit-package.entity';
 import { UserCreditBalance } from './libs/entities/ai/user-credit-balance.entity';
 import { HttpModule } from '@nestjs/axios';
 import { UserAiModule } from './modules/user-ai/user-ai.module';
+import { NotificationService } from './services/notification.service';
+import { Assessment } from './libs/entities/assessment/assessment.entity';
+import { Notification } from './libs/entities/user/notification.entity';    
 
 @Module({
     imports: [
@@ -44,9 +47,9 @@ import { UserAiModule } from './modules/user-ai/user-ai.module';
         TasksModule,
         UserAiModule,
         HttpModule.register({}),
-        TypeOrmModule.forFeature([Payment, CreditPackage, UserCreditBalance, WalletTransaction]),
+        TypeOrmModule.forFeature([Payment, CreditPackage, UserCreditBalance, WalletTransaction, Notification,Assessment,]),
     ],
     controllers: [AppController],
-    providers: [AppService, PaymentService, RedisService, PaymentFlowService, PaymentGateway],
+    providers: [AppService, PaymentService, RedisService, PaymentFlowService, PaymentGateway, NotificationService],
 })
 export class AppModule {}

@@ -4,14 +4,14 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { Assessment } from '../libs/entities/assessment/assessment.entity';
 import { User } from '../libs/entities/user/user.entity';
+import { Notification, NotificationStatus, NotificationType } from '../libs/entities/user/notification.entity';
 import { MailerService } from '@nestjs-modules/mailer';
-
-// Entities & Interfaces
 
 export interface NotificationPayload {
     title: string;
-    message: string;
+    message?: string;
     actionUrl?: string;
+    type?: NotificationType;
 }
 
 @Injectable()
@@ -20,20 +20,30 @@ export class NotificationService {
 
     constructor(
         @InjectRepository(Assessment) private readonly assessmentRepo: Repository<Assessment>,
+        @InjectRepository(Notification) private readonly notificationRepo: Repository<Notification>,
         private readonly mailerService: MailerService,
     ) { }
 
     /**
-     * 1. Notify Single Student
-     * Sends to Email (Always) + Telegram (If linked)
+     * Notify a single student and store in DB
      */
     async notifyStudent(student: User, payload: NotificationPayload): Promise<void> {
         const promises: Promise<void>[] = [];
 
-        // Channel A: Email
+        // 1️⃣ Save notification in DB
+        const notification = this.notificationRepo.create({
+            user: student,
+            title: payload.title,
+            message: payload.message || '',
+            type: payload.type || NotificationType.INFO,
+            status: NotificationStatus.UNREAD,
+        });
+        await this.notificationRepo.save(notification);
+
+        // 2️⃣ Send via Email
         promises.push(this.sendEmail(student, payload));
 
-        // Channel B: Telegram (mocked)
+        // 3️⃣ Send via Telegram if linked
         if (student.telegramChats?.length > 0) {
             promises.push(this.sendTelegram(student, payload));
         }
@@ -47,12 +57,10 @@ export class NotificationService {
     }
 
     /**
-     * 2. Batch Notify Students
-     * Optimized for bulk alerts (e.g., new assignment for whole class)
+     * Batch notify students
      */
     async notifyStudents(students: User[], payload: NotificationPayload): Promise<void> {
         this.logger.log(`Sending bulk notifications to ${students.length} students...`);
-
         const batchSize = 50;
         for (let i = 0; i < students.length; i += batchSize) {
             const batch = students.slice(i, i + batchSize);
@@ -63,15 +71,13 @@ export class NotificationService {
     }
 
     /**
-     * 3. CRON JOB: Deadline Reminders
-     * Runs every hour. Finds assignments due in exactly 24 hours.
+     * CRON: Deadline reminders
      */
     @Cron(CronExpression.EVERY_HOUR)
     async scheduleDeadlineReminders() {
         this.logger.log('Checking for upcoming assignment deadlines...');
 
         const now = new Date();
-        // Look for due dates between 24h and 25h from now
         const startWindow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
         const endWindow = new Date(startWindow.getTime() + 60 * 60 * 1000);
 
@@ -84,12 +90,11 @@ export class NotificationService {
 
         for (const assessment of upcomingAssessments) {
             const students = assessment.class.enrollments.map((e) => e.user);
-
             if (students.length > 0) {
                 await this.notifyStudents(students, {
                     title: 'Deadline Reminder',
                     message: `The assignment "${assessment.title}" is due in 24 hours.`,
-                    actionUrl: `http://localhost:3000/assessments/${assessment.id}`, // replace with env URL in prod
+                    actionUrl: `http://localhost:3000/assessments/${assessment.id}`,
                 });
                 this.logger.log(`Sent reminders for assessment ${assessment.id}`);
             }
@@ -108,7 +113,7 @@ export class NotificationService {
                 to: user.email,
                 subject: payload.title,
                 text: payload.message,
-                html: `<p>${payload.message}</p><p><a href="${payload.actionUrl}">View Assignment</a></p>`,
+                html: `<p>${payload.message}</p><p><a href="${payload.actionUrl}">View</a></p>`,
             });
         } catch (err) {
             this.logger.error(`Failed to send email to ${user.id}: ${err}`);
@@ -117,22 +122,35 @@ export class NotificationService {
     }
 
     /**
-     * Mocked Telegram Sending
+     * Mocked Telegram
      */
     private async sendTelegram(user: User, payload: NotificationPayload) {
         if (!user.telegramChats || user.telegramChats.length === 0) return;
 
         for (const chat of user.telegramChats) {
             try {
-                // Mock sending Telegram message
-                const msg = `*${payload.title}*\n${payload.message}\n${payload.actionUrl || ''}`;
+                const msg = `*${payload.title}*\n${payload.message || ''}\n${payload.actionUrl || ''}`;
                 this.logger.log(`[TELEGRAM MOCK] ChatID: ${chat.chatId} | Message: ${msg}`);
-
-                // Future: Integrate actual Telegram API here
-                // await this.telegramBot.sendMessage(chat.chatId, msg, { parse_mode: 'Markdown' });
             } catch (err) {
-                this.logger.error(`Failed to send Telegram to ${user.id} (ChatID: ${chat.chatId}): ${err}`);
+                this.logger.error(`Failed Telegram to ${user.id} (ChatID: ${chat.chatId}): ${err}`);
             }
         }
+    }
+
+    /**
+     * Mark a notification as read
+     */
+    async markAsRead(notificationId: number): Promise<void> {
+        await this.notificationRepo.update(notificationId, { status: NotificationStatus.READ });
+    }
+
+    /**
+     * Get all unread notifications for a user
+     */
+    async getUnreadNotifications(userId: number): Promise<Notification[]> {
+        return this.notificationRepo.find({
+            where: { user: { id: userId }, status: NotificationStatus.UNREAD },
+            order: { createdAt: 'DESC' },
+        });
     }
 }

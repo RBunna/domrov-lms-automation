@@ -19,6 +19,7 @@ import { Submission } from '../assessment/submission.entity';
 import { UserRefreshToken } from './user-refresh-token.entity';
 import { UserEmailOtp } from './user-email-otp.entity';
 import { UserAIKey } from '../ai/user-ai-key.entity';
+import { Notification } from './notification.entity';
 import { BaseEntity } from '../base.entity';
 
 @Entity({ name: 'users' })
@@ -33,13 +34,13 @@ export class User extends BaseEntity {
   lastName?: string;
 
   @Column({ length: 10, nullable: true })
-  gender: string;
+  gender?: string;
 
-  @Column({ nullable: true })
-  dob: Date;
+  @Column({ type: 'date', nullable: true })
+  dob?: Date;
 
   @Column({ length: 50, unique: true, nullable: true })
-  phoneNumber: string;
+  phoneNumber?: string;
 
   @Column({ length: 150, unique: true })
   email: string;
@@ -48,7 +49,7 @@ export class User extends BaseEntity {
   password: string;
 
   @Column({ nullable: true })
-  profilePictureUrl: string;
+  profilePictureUrl?: string;
 
   @Column({ default: false })
   isVerified: boolean;
@@ -64,43 +65,44 @@ export class User extends BaseEntity {
   status: UserStatus;
 
   @OneToMany(() => UserAIKey, (key) => key.user)
-  aiKeys: UserAIKey[];
-
+  aiKeys?: UserAIKey[];
 
   @OneToMany(() => Class, (cls) => cls.owner)
-  classes: Class[];
+  classes?: Class[];
 
   @OneToMany(() => Enrollment, (enrollment) => enrollment.user)
-  enrollments: Enrollment[];
+  enrollments?: Enrollment[];
+
+  @OneToMany(() => Notification, (notification) => notification.user)
+  notifications?: Notification[];
 
   @OneToMany(() => Team, (team) => team.leader)
-  leadTeams: Team[];
+  leadTeams?: Team[];
 
   @OneToMany(() => TeamMember, (member) => member.user)
-  teamMemberships: TeamMember[];
+  teamMemberships?: TeamMember[];
 
   @OneToMany(() => OAuthAccount, (account) => account.user)
-  oauthAccounts: OAuthAccount[];
+  oauthAccounts?: OAuthAccount[];
 
   @OneToMany(() => TelegramChat, (chat) => chat.user)
-  telegramChats: TelegramChat[];
+  telegramChats?: TelegramChat[];
 
   @OneToMany(() => AIUsageLog, (log) => log.user)
-  usageLogs: AIUsageLog[];
+  usageLogs?: AIUsageLog[];
 
-  @OneToOne(() => UserCreditBalance, (balance) => balance.user)
-  creditBalance: UserCreditBalance;
+  @OneToOne(() => UserCreditBalance, (balance) => balance.user, { nullable: true })
+  creditBalance?: UserCreditBalance;
 
   @OneToMany(() => Payment, (payment) => payment.user)
-  payments: Payment[];
+  payments?: Payment[];
 
   @OneToMany(() => Submission, (submission) => submission.user)
-  submissions: Submission[];
+  submissions?: Submission[];
 
   @OneToMany(() => UserRefreshToken, (token) => token.user)
-  refreshTokens: UserRefreshToken[];
+  refreshTokens?: UserRefreshToken[];
 
-  @OneToOne(() => UserEmailOtp, (ueo) => ueo.user)
-  emailOtps: UserEmailOtp;
-
+  @OneToOne(() => UserEmailOtp, (ueo) => ueo.user, { nullable: true })
+  emailOtps?: UserEmailOtp;
 }
