@@ -48,7 +48,7 @@ async function bootstrap() {
     transport: Transport.GRPC,
     options: {
       package: ['evaluation','submission'],
-      protoPath: [join(__dirname, './libs/protos/evaluate.proto'), join(__dirname, './libs/protos/submission.proto')],
+      protoPath: [join(__dirname,'./libs/protos/evaluate.proto'), join(__dirname, './libs/protos/submission.proto')],
       url: '0.0.0.0:50052',
       loader: { keepCase: true },
     }

@@ -13,6 +13,7 @@
     "target": "ES2023",
     "sourceMap": true,
     "outDir": "./dist",
+    "rootDir": "./",
     "incremental": true,
     "skipLibCheck": true,
     "ignoreDeprecations": "5.0",
@@ -22,6 +23,7 @@
     "strictNullChecks": false,
     "forceConsistentCasingInFileNames": false
   },
+  "include": ["./**/*"],
   "watchOptions": {
     "watchFile": "dynamicPriorityPolling",
     "watchDirectory": "dynamicPriorityPolling",

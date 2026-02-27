@@ -90,6 +90,11 @@ export class UpdateAssessmentDTO {
     @IsNumber({}, { each: true })
     allowedTeamIds?: number[];
 
+    @ApiPropertyOptional({ type: [Boolean], example: false, description: 'Assessment accessible' })
+    @IsOptional()
+    @IsBoolean()
+    isPublic ?: boolean;
+
     @ApiPropertyOptional({ type: [UpdateRubricDTO], description: 'Rubrics for this assessment' })
     @IsOptional()
     @IsArray()

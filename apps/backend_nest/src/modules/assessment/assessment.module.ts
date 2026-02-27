@@ -4,7 +4,6 @@ import { AssessmentController } from './assessment.controller';
 import { AssessmentService } from './assessment.service';
 import { FileService } from '../file/file.service';
 import { EvaluationModule } from '../evaluation/evaluation.module';
-
 // Entities
 import { Assessment } from '../../libs/entities/assessment/assessment.entity';
 import { Submission } from '../../libs/entities/assessment/submission.entity';
@@ -25,6 +24,7 @@ import { SubmissionController } from './submission.controller';
 import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
 import { WalletModule } from '../wallet/wallet.module';
 import { TeamAssessment } from '../../libs/entities/classroom/team-assessment.entity';
+import { TasksModule } from '../tasks/tasks.module';
 
 @Module({
   imports: [
@@ -44,9 +44,10 @@ import { TeamAssessment } from '../../libs/entities/classroom/team-assessment.en
       FileModule,
       UserAIKey,
       UserCreditBalance,
-      TeamAssessment
+      TeamAssessment,
     ]),
     WalletModule,
+    forwardRef(() => TasksModule),
     forwardRef(() => EvaluationModule), // <-- import with forwardRef to resolve circular dependency
   ],
   controllers: [AssessmentController,SubmissionController],

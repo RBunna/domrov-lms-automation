@@ -1,0 +1,4 @@
+export enum Tasks {
+    EMAIL_ALERT = 'EMAIL_ALERT',
+    PUBLIC_ASSIGNMENT = 'PUBLIC_ASSIGNMENT',
+}

@@ -1,12 +1,13 @@
-import { Controller, Get, Inject, NotFoundException, Query } from '@nestjs/common';
+import { Controller, Get, Query } from '@nestjs/common';
 import { AppService } from './app.service';
 import { PaymentService } from './services/payment.service';
-import { CACHE_MANAGER } from '@nestjs/cache-manager';
-import type { Cache } from 'cache-manager';
+import { TasksService } from './modules/tasks/tasks.service';
+import { Tasks } from './libs/enums/taks.enum';
+import { getDelayFromNow } from './libs/utils/CustomDateTime';
 
 @Controller()
 export class AppController {
-  constructor(private readonly appService: AppService, private readonly paymentService: PaymentService, @Inject(CACHE_MANAGER) private cacheManager: Cache,) { }
+  constructor(private readonly appService: AppService, private readonly paymentService: PaymentService ,private readonly taskService:TasksService) { }
 
 
   @Get('qr')
@@ -28,20 +29,12 @@ export class AppController {
     return { status };
   }
 
-  @Get('set-cache')
-  async setCache(@Query('md5') md5: string) {
-    await this.cacheManager.set(md5, "paid"); 
-    console.log('Cache set for md5:', md5);
-    return { message: `Cache set for ${md5}` };
+  @Get('sentEmailNow')
+  async sentEmail(@Query('md5') md5: string) {
+    const nowPlus10Seconds = new Date(Date.now() + 10 * 1000);
+    const status = await this.taskService.scheduleTask(Tasks.EMAIL_ALERT,{content:"Welcoem to code"}, getDelayFromNow(nowPlus10Seconds));
+    console.log("Welcome to code")
+    return { status };
   }
-
-  @Get('cache')
-  async getCache(@Query('md5') md5: string) {
-    const result = await this.cacheManager.get(md5);
-    console.log('Cache get for md5:', md5, 'value:', result);
-    if(!result) throw new NotFoundException('No cache found for md5: ' + md5);
-    return { md5, value: result };
-  }
-
 }
   

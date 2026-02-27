@@ -30,6 +30,8 @@ services:
       - ./apps/backend_nest/libs:/app/libs
       - ./apps/shared:/app/shared
       - /app/node_modules
+    environment:
+      - TZ=Asia/Phnom_Penh
     ports:
       - "3000:3000"
     env_file:
@@ -48,6 +50,8 @@ services:
       - ./apps/code_eval:/app 
       - ./apps/shared:/app/shared
       - ./files_cache_data:/files_cache
+    environment:
+      - TZ=Asia/Phnom_Penh
     env_file:
       - .env
     depends_on:

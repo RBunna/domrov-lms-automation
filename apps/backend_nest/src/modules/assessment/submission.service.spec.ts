@@ -135,6 +135,7 @@ describe('SubmissionService', () => {
                         createQueryBuilder: jest.fn(() => ({
                             leftJoinAndSelect: jest.fn().mockReturnThis(),
                             where: jest.fn().mockReturnThis(),
+                            // @ts-ignore
                             getMany: jest.fn().mockResolvedValue([
                                 { id: 1, user: { id: 101, firstName: 'Alice' } },
                                 { id: 2, user: { id: 102, firstName: 'Bob' } },
@@ -148,6 +149,7 @@ describe('SubmissionService', () => {
                         createQueryBuilder: jest.fn(() => ({
                             leftJoinAndSelect: jest.fn().mockReturnThis(),
                             where: jest.fn().mockReturnThis(),
+                            // @ts-ignore
                             getMany: jest.fn().mockResolvedValue([
                                 { id: 1, team: { id: 201, name: 'Team A' } },
                                 { id: 2, team: { id: 202, name: 'Team B' } },
@@ -224,6 +226,7 @@ describe('SubmissionService', () => {
             } as any;
 
             assessmentRepoMock.findOne.mockResolvedValue(assessmentWithRelations);
+            // @ts-ignore
             submissionRepoMock.save.mockResolvedValue([]); // save resolves once with array
 
             await submissionService.createSubmissionsForAssessment(assessmentWithRelations);

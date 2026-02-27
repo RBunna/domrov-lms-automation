@@ -1,16 +1,13 @@
 import { Injectable } from '@nestjs/common';
-import { RedisService } from './redis.service';
+import { Queue } from 'bullmq';
+import { InjectQueue } from '@nestjs/bullmq';
+import { Tasks } from '../../libs/enums/taks.enum';
 
 @Injectable()
 export class TasksService {
-    constructor(private readonly redisService: RedisService) { }
+    constructor(@InjectQueue('task-scheduler') private readonly taskQueue: Queue) {}
 
-    async enqueueSubmission(submissionId: number) {
-        const job = {
-            func: 'job_handler.tasks.process_submission', 
-            args: [submissionId],
-            retry: 3,
-        };
-        await this.redisService.pushToQueue('submission_queue', job);
+    async scheduleTask(taskName: Tasks, payload: any, delayMs: number) {
+        await this.taskQueue.add(taskName, payload, { delay: delayMs });
     }
 }
