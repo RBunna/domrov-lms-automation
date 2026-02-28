@@ -13,12 +13,12 @@ import { UserEmailOtp } from '../../libs/entities/user/user-email-otp.entity';
 import google_oauthConfig from '../../config/google_oauth.config';
 import { ConfigModule } from '@nestjs/config';
 import { GoogleStrategy } from './stragies/google.stragies';
-import { UserService } from '../user/user.service';
 import { UserModule } from '../user/user.module';
+import { GithubStrategy } from './stragies/github.strategy';
 
 @Module({
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, RefreshTokenStrategy, GoogleStrategy],
+  providers: [AuthService, JwtStrategy, RefreshTokenStrategy, GoogleStrategy,GithubStrategy],
   imports: [
     TypeOrmModule.forFeature([User, UserRefreshToken, UserEmailOtp]),
     AccessJwtConfigModule,

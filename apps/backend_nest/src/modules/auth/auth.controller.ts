@@ -1,18 +1,19 @@
 import { Body, Controller, Post, Req, Res, UseGuards, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { 
-    ApiTags, 
-    ApiOperation, 
-    ApiBody, 
-    ApiOkResponse, 
-    ApiCreatedResponse, 
-    ApiBadRequestResponse, 
-    ApiUnauthorizedResponse, 
+import {
+    ApiTags,
+    ApiOperation,
+    ApiBody,
+    ApiOkResponse,
+    ApiCreatedResponse,
+    ApiBadRequestResponse,
+    ApiUnauthorizedResponse,
     ApiNotFoundResponse,
     ApiConflictResponse,
     ApiInternalServerErrorResponse,
     ApiBearerAuth,
-    ApiCookieAuth
+    ApiCookieAuth,
+    ApiParam
 } from '@nestjs/swagger';
 import { RegisterUserDTO } from '../../libs/dtos/user/register-user.dto';
 import { LoginUserDTO } from '../../libs/dtos/user/login.dto';
@@ -21,10 +22,11 @@ import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { ResendOtpDTO, VerifyOtpDTO } from '../../libs/dtos/user/email-verification.dto';
 import { SignUpResponseDto } from '../../libs/dtos/auth/sign-up-response.dto';
-import { LoginResponseDto } from '../../libs/dtos/auth/login-response.dto';
-import { RefreshTokenResponseDto } from '../../libs/dtos/auth/refresh-token-response.dto';
 import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto';
-
+import { OAuthProfileDecorator, User as UserDecorator } from '../../common/decorators/user.decorator';
+import { User } from '../../libs/entities/user/user.entity';
+import { DynamicOAuthGuard, OAuthProvider } from '../../common/decorators/oauth.decorator';
+import type { OAuthProfile } from '../../libs/dtos/auth/oauth-profile.interface';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -35,11 +37,11 @@ export class AuthController {
 
     // ==================== SIGN UP ====================
     @Post('sign-up')
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Register a new user',
         description: 'Creates a new user account with the provided credentials. Email must be unique.'
     })
-    @ApiBody({ 
+    @ApiBody({
         type: RegisterUserDTO,
         description: 'User registration details',
         examples: {
@@ -57,7 +59,7 @@ export class AuthController {
             }
         }
     })
-    @ApiCreatedResponse({ 
+    @ApiCreatedResponse({
         description: 'User registered successfully',
         type: SignUpResponseDto,
         example: {
@@ -67,7 +69,7 @@ export class AuthController {
             email: 'john.doe@example.com'
         }
     })
-    @ApiConflictResponse({ 
+    @ApiConflictResponse({
         description: 'Email already registered',
         example: {
             statusCode: 409,
@@ -75,7 +77,7 @@ export class AuthController {
             error: 'Conflict'
         }
     })
-    @ApiBadRequestResponse({ 
+    @ApiBadRequestResponse({
         description: 'Validation failed',
         example: {
             statusCode: 400,
@@ -98,11 +100,11 @@ export class AuthController {
     // ==================== LOGIN ====================
     @Post('login')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Login to the system',
         description: 'Authenticates user credentials and returns access token. Refresh token is set as HTTP-only cookie.'
     })
-    @ApiBody({ 
+    @ApiBody({
         type: LoginUserDTO,
         description: 'User login credentials',
         examples: {
@@ -115,7 +117,7 @@ export class AuthController {
             }
         }
     })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Login successful',
         schema: {
             type: 'object',
@@ -127,7 +129,7 @@ export class AuthController {
             }
         }
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'Invalid email or password',
         example: {
             statusCode: 401,
@@ -136,8 +138,8 @@ export class AuthController {
         }
     })
     async login(
-        @Req() req: Request, 
-        @Res({ passthrough: true }) res: Response, 
+        @Req() req: Request,
+        @Res({ passthrough: true }) res: Response,
         @Body() loginDto: LoginUserDTO
     ) {
         const { refreshToken, ...loginResponse } = await this.authService.login(loginDto);
@@ -155,11 +157,11 @@ export class AuthController {
     @UseGuards(AuthGuard('refresh-jwt'))
     @HttpCode(HttpStatus.OK)
     @ApiCookieAuth('refresh_token')
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Refresh access token',
         description: 'Issues a new access token using the refresh token from HTTP-only cookie.'
     })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Token refreshed successfully',
         schema: {
             type: 'object',
@@ -179,7 +181,7 @@ export class AuthController {
             }
         }
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'Invalid or expired refresh token',
         example: {
             statusCode: 401,
@@ -203,11 +205,11 @@ export class AuthController {
     @UseGuards(JwtAuthGuard)
     @HttpCode(HttpStatus.OK)
     @ApiBearerAuth()
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Logout from current device',
         description: 'Invalidates the current refresh token and clears the HTTP-only cookie.'
     })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Logged out successfully',
         schema: {
             type: 'object',
@@ -223,7 +225,7 @@ export class AuthController {
             }
         }
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'User not authenticated',
         example: {
             statusCode: 401,
@@ -231,7 +233,7 @@ export class AuthController {
             error: 'Unauthorized'
         }
     })
-    @ApiNotFoundResponse({ 
+    @ApiNotFoundResponse({
         description: 'Session not found or already expired',
         example: {
             statusCode: 404,
@@ -257,11 +259,11 @@ export class AuthController {
     // ==================== VERIFY EMAIL ====================
     @Post('verify-email')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Verify user email with OTP',
         description: 'Verifies user email address using the OTP sent to their email.'
     })
-    @ApiBody({ 
+    @ApiBody({
         type: VerifyOtpDTO,
         description: 'Email verification details',
         examples: {
@@ -274,14 +276,14 @@ export class AuthController {
             }
         }
     })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Email verified successfully',
         type: MessageResponseDto,
         example: {
             message: 'Email verified successfully'
         }
     })
-    @ApiNotFoundResponse({ 
+    @ApiNotFoundResponse({
         description: 'User not found',
         example: {
             statusCode: 404,
@@ -289,7 +291,7 @@ export class AuthController {
             error: 'Not Found'
         }
     })
-    @ApiBadRequestResponse({ 
+    @ApiBadRequestResponse({
         description: 'Invalid or expired OTP',
         examples: {
             alreadyVerified: {
@@ -333,11 +335,11 @@ export class AuthController {
     // ==================== RESEND VERIFICATION OTP ====================
     @Post('resend-verification')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Resend OTP email for verification',
         description: 'Sends a new verification OTP to the user\'s email address.'
     })
-    @ApiBody({ 
+    @ApiBody({
         type: ResendOtpDTO,
         description: 'Email address to resend OTP',
         examples: {
@@ -349,14 +351,14 @@ export class AuthController {
             }
         }
     })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'OTP sent successfully',
         type: MessageResponseDto,
         example: {
             message: 'Verification OTP sent successfully'
         }
     })
-    @ApiNotFoundResponse({ 
+    @ApiNotFoundResponse({
         description: 'User not found',
         example: {
             statusCode: 404,
@@ -364,7 +366,7 @@ export class AuthController {
             error: 'Not Found'
         }
     })
-    @ApiBadRequestResponse({ 
+    @ApiBadRequestResponse({
         description: 'Email already verified',
         example: {
             statusCode: 400,
@@ -385,43 +387,40 @@ export class AuthController {
     }
 
     // ==================== GOOGLE AUTH ====================
-    @Get('google/login')
-    @ApiOperation({ 
-        summary: 'Initiate Google OAuth login',
-        description: 'Redirects to Google OAuth consent screen for authentication.'
-    })
-    @ApiOkResponse({ 
-        description: 'Redirects to Google OAuth'
-    })
-    async googleLogin() {
-        // Handled by Google OAuth guard
+    @Get(':provider/login')
+    @ApiOperation({ summary: 'Initiate OAuth login', description: 'Redirects to provider OAuth consent screen.' })
+    @ApiParam({ name: 'provider', description: 'OAuth provider (google, microsoft, etc.)', required: true })
+    @ApiOkResponse({ description: 'Redirects to OAuth provider consent screen' })
+    @UseGuards(DynamicOAuthGuard) // dynamic guard handles provider internally
+    async oauthLogin(@OAuthProvider() provider: string) {
+        console.log('Logging in with provider:', provider);
     }
 
-    @Get('google/callback')
-    @ApiOperation({ 
-        summary: 'Google OAuth callback',
-        description: 'Handles the callback from Google OAuth and creates/authenticates the user.'
-    })
-    @ApiOkResponse({ 
-        description: 'Google login successful',
-        schema: {
-            type: 'object',
-            properties: {
-                message: {
-                    type: 'string',
-                    example: 'Google login successful!'
-                },
-                user: {
-                    type: 'object',
-                    description: 'User information from Google'
-                }
-            }
-        }
-    })
-    async googleCallback(@Req() req) {
-        return {
-            message: 'Google login successful!',
-            user: req.user,
-        };
+    @Get(':provider/callback')
+    @ApiOperation({ summary: 'OAuth callback', description: 'Handles OAuth provider callback and authenticates the user.' })
+    @ApiParam({ name: 'provider', description: 'OAuth provider (google, microsoft, etc.)', required: true })
+    @ApiOkResponse({ description: 'Login successful and sets accessToken cookie' })
+    @ApiCookieAuth()
+    @UseGuards(DynamicOAuthGuard)
+
+    async oauthCallback(
+        @OAuthProfileDecorator() profile: OAuthProfile,
+        @Res() res: Response
+    ) {
+        const token = await this.authService.oauthLogin(profile);
+
+        res.cookie('accessToken', token.accessToken, {
+            httpOnly: true,
+            secure: true,
+            sameSite: 'lax',
+        });
+
+        console.log(`Logged in via provider: ${profile.provider}, email: ${profile.email}`);
+        return res.send(`
+            <script>
+                window.opener.postMessage({ type: 'OAUTH_SUCCESS', payload: { email: '${profile.email}' } }, 'http://localhost:5173');
+                window.close();
+            </script>
+        `);
     }
 }
