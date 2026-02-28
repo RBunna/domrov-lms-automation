@@ -1,0 +1,85 @@
+name: DOMROV AI Code Review (StarCoder)
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  ai-code-review:
+    name: AI Code Review with StarCoder
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install torch transformers git+https://github.com/huggingface/transformers
+
+      - name: Run StarCoder AI review
+        id: ai_review
+        run: |
+          echo "Collecting source code..."
+          CODE=$(find ./backend ./frontend -name "*.ts" -o -name "*.js" -o -name "*.py" | xargs cat)
+
+          echo "Running StarCoder review..."
+          python - <<END
+            from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+            import torch
+
+            # Load StarCoder (1B or 15B depending on your compute; 1B is small & fast)
+            MODEL_NAME = "bigcode/starcoder"
+            tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+            model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+
+            # Use pipeline for text generation
+            generator = pipeline(
+                "text-generation",
+                model=model,
+                tokenizer=tokenizer,
+                device=0 if torch.cuda.is_available() else -1,
+            )
+
+            code = """$CODE"""
+            prompt = f"""
+            You are an AI code reviewer. Analyze the following DOMROV project code:
+            1. Detect syntax errors or runtime issues.
+            2. Identify missing logic or potential bugs.
+            3. Suggest improvements if applicable.
+
+            Code:
+            {code}
+
+            Provide a clear, structured review.
+            """
+
+            result = generator(prompt, max_new_tokens=500)[0]['generated_text']
+            # Trim the prompt from the result
+            review = result.replace(prompt, "").strip()
+
+            # Write review to file for GitHub Actions env
+            with open("ai_review.txt", "w") as f:
+                f.write(review)
+            END
+
+                    # Save AI review as environment variable
+                    echo "AI_REVIEW<<EOF" >> $GITHUB_ENV
+                    cat ai_review.txt >> $GITHUB_ENV
+                    echo "EOF" >> $GITHUB_ENV
+
+                - name: Comment on PR with StarCoder review
+                    run: |
+                    gh pr comment ${{ github.event.pull_request.number }} --body "$AI_REVIEW"
+                    env:
+                    GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
