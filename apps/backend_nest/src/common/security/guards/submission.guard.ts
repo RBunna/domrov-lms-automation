@@ -26,7 +26,7 @@ abstract class BaseSubmissionGuard implements CanActivate {
   constructor(
     protected readonly reflector: Reflector,
     protected readonly permissionService: PermissionGuardService,
-  ) {}
+  ) { }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
@@ -44,7 +44,7 @@ abstract class BaseSubmissionGuard implements CanActivate {
       ]) || 'submission_id';
 
     // Extract submissionId from params, query, or body
-    const submissionId = this.extractSubmissionId(request, submissionIdParam);
+    const submissionId = this.extractSubmissionId(request);
 
     if (!submissionId) {
       throw new NotFoundException('Submission ID not provided');
@@ -56,7 +56,7 @@ abstract class BaseSubmissionGuard implements CanActivate {
       submissionId,
     );
 
-    if(!submissionContext) {
+    if (!submissionContext) {
       throw new NotFoundException('Submission not found');
     }
 
@@ -77,21 +77,14 @@ abstract class BaseSubmissionGuard implements CanActivate {
    */
   protected extractSubmissionId(
     request: AuthenticatedRequest,
-    paramName: string,
   ): number | undefined {
-    const sources: Record<string, unknown>[] = [
-      request.params || {},
-      request.query || {},
-      request.body || {},
-    ];
 
-    for (const source of sources) {
-      if (paramName in source) {
-        const val = source[paramName];
-        const n = typeof val === 'number' ? val : Number(val);
-        if (!Number.isNaN(n)) return n;
-      }
-    }
+    const val = request.params?.id;
+
+    if (!val) return undefined;
+
+    const n = Number(val);
+    if (!Number.isNaN(n)) return n;
 
     return undefined;
   }

@@ -128,6 +128,7 @@ def process_submission(submission_id: str):
             registry.remove(job)
         else:
             print(f"ERROR: [Submission: {submission_id}] [Model: {ai_model}] Transient LLM error: {e}")
+            registry.remove(job)
             raise
 
     except Exception as e:

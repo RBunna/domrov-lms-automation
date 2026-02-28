@@ -24,20 +24,22 @@ import {
   FolderStructureResponseDto,
   AddQueueResponseDto,
 } from '../../libs/dtos/evaluation/evaluation-response.dto';
+import { SubmissionMemberGuard, SubmissionInstructorGuard } from '../../common/security';
+import { AuthGuard } from '@nestjs/passport';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
-import { SubmissionMemberGuard, SubmissionInstructorGuard, SubmissionIdParam } from '../../common/security';
 
 @ApiTags('Evaluations')
 @ApiBearerAuth('JWT-auth')
-@UseGuards(JwtAuthGuard)
 @Controller('evaluations')
 export class EvaluationController {
+  private readonly logger = new Logger("EvaluationController");
+
   constructor(private readonly evaluationService: EvaluationService,
     private readonly submissionService: SubmissionService) { }
 
   // ==================== VIEW FILE CONTENT ====================
   @Get('submission/:submission_id/file')
-  @UseGuards(SubmissionMemberGuard)
+  @UseGuards(JwtAuthGuard, SubmissionMemberGuard)
   @ApiOperation({
     summary: 'View file content in submission',
     description: 'Retrieves the content of a specific file from a submission.'
@@ -71,7 +73,7 @@ export class EvaluationController {
 
   // ==================== GET FOLDER STRUCTURE ====================
   @Get('submission/:submission_id/folder-structure')
-  @UseGuards(SubmissionMemberGuard)
+  @UseGuards(JwtAuthGuard, SubmissionMemberGuard)
   @ApiOperation({
     summary: 'Get submission folder structure',
     description: 'Retrieves the complete folder tree structure of a submission.'
@@ -97,7 +99,7 @@ export class EvaluationController {
 
   // ==================== ADD TO AI EVALUATION QUEUE ====================
   @Post('queue')
-  @UseGuards(SubmissionInstructorGuard)
+  @UseGuards(JwtAuthGuard, SubmissionInstructorGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Queue submission for AI evaluation',
@@ -173,7 +175,7 @@ export class EvaluationController {
   })
 
   @Post('queue')
-  @UseGuards(SubmissionInstructorGuard)
+  @UseGuards(JwtAuthGuard,SubmissionInstructorGuard)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Queue submission for AI evaluation',
@@ -200,6 +202,10 @@ export class EvaluationController {
     const { submission_id } = body;
     return this.evaluationService.addTaskToQueue(String(submission_id));
   }
+
+
+
+
   // ==================== EVALUATE SUBMISSION ====================
   @GrpcMethod('EvaluateWithAI', 'EvaluateSubmission')
   async evaluateSubmission(
@@ -261,6 +267,33 @@ export class EvaluationController {
         code: grpcJs.status.NOT_FOUND,
         message: `Submission with id ${submission_id} not found`,
       });
+    }
+  }
+
+  // ==================== NOTIFY LLM ERROR / INSUFFICIENT BALANCE ====================
+  @GrpcMethod('EvaluateWithAI', 'NotifyUserAiModelInsufficient')
+  async notifyUserAiModelInsufficient(
+    data: evaluation.NotifyUserAiModelInsufficientRequest,
+    metadata: grpcJs.Metadata,
+    call: grpcJs.ServerUnaryCall<any, any>,
+  ): Promise<evaluation.NotifyUserAiModelInsufficientResponse> {
+
+    this.logger.log(`NotifyUserAiModelInsufficient request: ${JSON.stringify(data)}`);
+    const { submission_id, raw_response_message } = data;
+    const serverMetadata = new grpcJs.Metadata();
+    serverMetadata.add('served-by', 'nestjs-grpc');
+    call.sendMetadata(serverMetadata);
+    try {
+      if (!submission_id || !raw_response_message) {
+        return { success: false, message: 'Missing submission_id or raw_response_message' };
+      }
+
+      await this.evaluationService.handleAiModelInsufficient(submission_id, raw_response_message);
+      return { success: true, message: `AI model disabled for submission ${submission_id}` };
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      this.logger.error(`Failed to notify AI model insufficiency: ${message}`);
+      return { success: false, message };
     }
   }
 

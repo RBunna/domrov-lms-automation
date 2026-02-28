@@ -2,6 +2,7 @@ from ai.llm.base import MAX_TOKENS, AIModel
 from ai.llm.evaluate_with_llm import get_evaluator
 from ai.llm.extract_output import extract_scores_and_feedback_robust
 from ai.prompt.prompt import generate_prompt
+from config.grpc_config import EvaluateClient
 from utils.custom_exception import InputTokenLimited
 from utils.download_file_r2 import downloadFiles
 from utils.read_file import process_path
@@ -28,6 +29,7 @@ def evaluate(
     tree_str, content_str = process_path(
         filePath, user_exclude_files, user_include_files
     )
+    eval_client = EvaluateClient()
 
     final_prompt = generate_prompt(
         rubric=rubrics,
@@ -80,38 +82,9 @@ def evaluate(
 
         except Exception as e:
             print(f"AIClient failed: {e}")
-
-            # NEVER fallback Gemini
-            if provider_lower == "gemini":
-                raise RuntimeError(f"Gemini SDK failed (no HTTP fallback allowed): {e}")
-
-            if not api_endpoint:
-                raise ValueError("Fallback requires api_endpoint")
-
-            headers = {
-                "Authorization": f"Bearer {api_key}",
-                "Content-Type": "application/json",
-            }
-
-            payload = {
-                "prompt": final_prompt,
-                "model": model_name,
-            }
-
-            response = requests.post(
-                api_endpoint,
-                headers=headers,
-                json=payload,
-                timeout=60,
-            )
-
-            if response.status_code != 200:
-                raise RuntimeError(
-                    f"User AI request failed [{response.status_code}]: {response.text}"
-                )
-
-            result = response.json().get("result", "")
-
+            eval_client.notify_user_ai_model_insufficient(submission_id=submission_id, raw_response="AIClient failed: ")
+            raise RuntimeError(f"Gemini SDK failed (no HTTP fallback allowed): {e}")
+        
         output_tokens = estimate_tokens(result, ai_model)
 
     return {

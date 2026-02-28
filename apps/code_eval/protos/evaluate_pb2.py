@@ -24,7 +24,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x65valuate.proto\x12\nevaluation\"\x1e\n\rScoreCriteria\x12\r\n\x05value\x18\x01 \x03(\x02\"\x8f\x01\n\x0f\x45valuateRequest\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\x12(\n\x05score\x18\x02 \x01(\x0b\x32\x19.evaluation.ScoreCriteria\x12\x10\n\x08\x66\x65\x65\x64\x62\x61\x63k\x18\x03 \x01(\t\x12\x13\n\x0binput_token\x18\x04 \x01(\x05\x12\x14\n\x0coutput_token\x18\x05 \x01(\x05\"4\n\x10\x45valuateResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2a\n\x0e\x45valuateWithAI\x12O\n\x12\x45valuateSubmission\x12\x1b.evaluation.EvaluateRequest\x1a\x1c.evaluation.EvaluateResponseb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x0e\x65valuate.proto\x12\nevaluation\"\x1e\n\rScoreCriteria\x12\r\n\x05value\x18\x01 \x03(\x02\"\x8f\x01\n\x0f\x45valuateRequest\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\x12(\n\x05score\x18\x02 \x01(\x0b\x32\x19.evaluation.ScoreCriteria\x12\x10\n\x08\x66\x65\x65\x64\x62\x61\x63k\x18\x03 \x01(\t\x12\x13\n\x0binput_token\x18\x04 \x01(\x05\x12\x14\n\x0coutput_token\x18\x05 \x01(\x05\"[\n$NotifyUserAiModelInsufficientRequest\x12\x15\n\rsubmission_id\x18\x01 \x01(\t\x12\x1c\n\x14raw_response_message\x18\x02 \x01(\t\"I\n%NotifyUserAiModelInsufficientResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t\"4\n\x10\x45valuateResponse\x12\x0f\n\x07success\x18\x01 \x01(\x08\x12\x0f\n\x07message\x18\x02 \x01(\t2\xe8\x01\n\x0e\x45valuateWithAI\x12O\n\x12\x45valuateSubmission\x12\x1b.evaluation.EvaluateRequest\x1a\x1c.evaluation.EvaluateResponse\x12\x84\x01\n\x1dNotifyUserAiModelInsufficient\x12\x30.evaluation.NotifyUserAiModelInsufficientRequest\x1a\x31.evaluation.NotifyUserAiModelInsufficientResponseb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -35,8 +35,12 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_SCORECRITERIA']._serialized_end=60
   _globals['_EVALUATEREQUEST']._serialized_start=63
   _globals['_EVALUATEREQUEST']._serialized_end=206
-  _globals['_EVALUATERESPONSE']._serialized_start=208
-  _globals['_EVALUATERESPONSE']._serialized_end=260
-  _globals['_EVALUATEWITHAI']._serialized_start=262
-  _globals['_EVALUATEWITHAI']._serialized_end=359
+  _globals['_NOTIFYUSERAIMODELINSUFFICIENTREQUEST']._serialized_start=208
+  _globals['_NOTIFYUSERAIMODELINSUFFICIENTREQUEST']._serialized_end=299
+  _globals['_NOTIFYUSERAIMODELINSUFFICIENTRESPONSE']._serialized_start=301
+  _globals['_NOTIFYUSERAIMODELINSUFFICIENTRESPONSE']._serialized_end=374
+  _globals['_EVALUATERESPONSE']._serialized_start=376
+  _globals['_EVALUATERESPONSE']._serialized_end=428
+  _globals['_EVALUATEWITHAI']._serialized_start=431
+  _globals['_EVALUATEWITHAI']._serialized_end=663
 # @@protoc_insertion_point(module_scope)

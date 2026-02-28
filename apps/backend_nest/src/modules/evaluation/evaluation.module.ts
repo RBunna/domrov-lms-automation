@@ -11,10 +11,10 @@ import { Submission } from '../../libs/entities/assessment/submission.entity';
 import { join } from 'path';
 import { WalletModule } from '../wallet/wallet.module';
 import { UserAiModule } from '../user-ai/user-ai.module';
-
+import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
 @Module({
   imports: [
-    TypeOrmModule.forFeature([Submission, Evaluation, EvaluationFeedback]),
+    TypeOrmModule.forFeature([Submission, Evaluation, EvaluationFeedback,UserAIKey]),
     forwardRef(() => AssessmentModule),
     WalletModule,
     UserAiModule,

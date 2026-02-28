@@ -722,7 +722,7 @@ export class SubmissionService {
                 order: { created_at: 'DESC' },
             });
 
-            if (!userKey) throw new NotFoundException('Submission not found');
+            if (!userKey) throw new NotFoundException('User Key invalid');
             console.log(assessment.user_include_files.length)
             console.log(assessment.user_exclude_files.length)
             const decryptedKey = Encryption.decryptKey(userKey.encryptedKey);
@@ -766,5 +766,153 @@ export class SubmissionService {
         }
 
         return { resource_url: resourceUrl };
+    }
+
+    async getSubmissionForTeacher(
+        context: SubmissionContext
+    ): Promise<SubmissionViewerResponseDto> {
+
+        const submission = context.submissionEntity;
+
+        return {
+            id: submission.id,
+            created_at: submission.created_at,
+            updated_at: submission.updated_at,
+            submissionTime: submission.submissionTime,
+            status: submission.status,
+            attemptNumber: submission.attemptNumber,
+
+            user: submission.user
+                ? {
+                    id: submission.user.id,
+                    firstName: submission.user.firstName,
+                    lastName: submission.user.lastName,
+                }
+                : null,
+
+            team: submission.team
+                ? {
+                    id: submission.team.id,
+                    name: submission.team.name,
+                    maxMember: submission.team.maxMember,
+                    members: submission.team.members.map((m) => ({
+                        id: m.id,
+                        user: m.user
+                            ? {
+                                id: m.user.id,
+                                firstName: m.user.firstName,
+                                lastName: m.user.lastName,
+                            }
+                            : null,
+                    })),
+                }
+                : null,
+
+            assessment: submission.assessment
+                ? {
+                    id: submission.assessment.id,
+                    title: submission.assessment.title,
+                    maxScore: submission.assessment.maxScore,
+                    class: submission.assessment.class
+                        ? {
+                            id: submission.assessment.class.id,
+                            name: submission.assessment.class.name,
+                        }
+                        : null,
+                }
+                : null,
+
+            // 🔓 Teacher sees evaluation always
+            evaluation: submission.evaluation ?? null,
+
+            resources: submission.resources.map((r) => ({
+                id: r.id,
+                resource: r.resource
+                    ? {
+                        id: r.resource.id,
+                        title: r.resource.title,
+                        type: r.resource.type,
+                        url: r.resource.url,
+                    }
+                    : null,
+            })),
+        };
+    }
+
+    async getSubmissionForStudent(
+        context: SubmissionContext
+    ): Promise<SubmissionViewerResponseDto> {
+
+        const submission = context.submissionEntity;
+
+        let evaluationData = null;
+
+        if (submission.evaluation && submission.evaluation.isApproved) {
+            evaluationData = submission.evaluation;
+        }
+
+        return {
+            id: submission.id,
+            created_at: submission.created_at,
+            updated_at: submission.updated_at,
+            submissionTime: submission.submissionTime,
+            status: submission.status,
+            attemptNumber: submission.attemptNumber,
+
+            user: submission.user
+                ? {
+                    id: submission.user.id,
+                    firstName: submission.user.firstName,
+                    lastName: submission.user.lastName,
+                }
+                : null,
+
+            team: submission.team
+                ? {
+                    id: submission.team.id,
+                    name: submission.team.name,
+                    maxMember: submission.team.maxMember,
+                    members: submission.team.members.map((m) => ({
+                        id: m.id,
+                        user: m.user
+                            ? {
+                                id: m.user.id,
+                                firstName: m.user.firstName,
+                                lastName: m.user.lastName,
+                            }
+                            : null,
+                    })),
+                }
+                : null,
+
+            assessment: submission.assessment
+                ? {
+                    id: submission.assessment.id,
+                    title: submission.assessment.title,
+                    maxScore: submission.assessment.maxScore,
+                    class: submission.assessment.class
+                        ? {
+                            id: submission.assessment.class.id,
+                            name: submission.assessment.class.name,
+                        }
+                        : null,
+                }
+                : null,
+
+            // 🔐 Student sees evaluation ONLY if approved
+            evaluation: evaluationData,
+
+            resources: submission.resources.map((r) => ({
+                id: r.id,
+                resource: r.resource
+                    ? {
+                        id: r.resource.id,
+                        title: r.resource.title,
+                        type: r.resource.type,
+                        url: r.resource.url,
+                    }
+                    : null,
+            })),
+        };
     }
 }

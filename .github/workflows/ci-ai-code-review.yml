@@ -25,61 +25,81 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install torch transformers git+https://github.com/huggingface/transformers
+          pip install torch transformers
+
+      - name: Get list of changed files in PR
+        id: changed-files
+        run: |
+          echo "Fetching changed files..."
+          FILES=$(gh pr diff ${{ github.event.pull_request.number }} --name-only | grep -E '^app/.*\.(ts|js|py)$' || true)
+          echo "Changed files:"
+          echo "$FILES"
+          echo "FILES<<EOF" >> $GITHUB_ENV
+          echo "$FILES" >> $GITHUB_ENV
+          echo "EOF" >> $GITHUB_ENV
 
       - name: Run StarCoder AI review
         id: ai_review
         run: |
-          echo "Collecting source code..."
-          CODE=$(find ./backend ./frontend -name "*.ts" -o -name "*.js" -o -name "*.py" | xargs cat)
+          echo "Running StarCoder review on changed files..."
+          # Concatenate all changed files
+          CODE=""
+          for file in $FILES; do
+            if [ -f "$file" ]; then
+              CODE="$CODE\n\n# File: $file\n$(cat $file)"
+            fi
+          done
 
-          echo "Running StarCoder review..."
+          echo "Code length: ${#CODE}"
+
           python - <<END
-            from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
-            import torch
+          import os
+          from transformers import AutoModelForCausalLM, AutoTokenizer, pipeline
+          import torch
 
-            # Load StarCoder (1B or 15B depending on your compute; 1B is small & fast)
-            MODEL_NAME = "bigcode/starcoder"
-            tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
-            model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
+          MODEL_NAME = "bigcode/starcoder"
+          tokenizer = AutoTokenizer.from_pretrained(MODEL_NAME)
+          model = AutoModelForCausalLM.from_pretrained(MODEL_NAME)
 
-            # Use pipeline for text generation
-            generator = pipeline(
-                "text-generation",
-                model=model,
-                tokenizer=tokenizer,
-                device=0 if torch.cuda.is_available() else -1,
-            )
+          generator = pipeline(
+              "text-generation",
+              model=model,
+              tokenizer=tokenizer,
+              device=0 if torch.cuda.is_available() else -1,
+          )
 
-            code = """$CODE"""
-            prompt = f"""
-            You are an AI code reviewer. Analyze the following DOMROV project code:
-            1. Detect syntax errors or runtime issues.
-            2. Identify missing logic or potential bugs.
-            3. Suggest improvements if applicable.
+          code = """$CODE"""
+          prompt = f"""
+          You are an AI code reviewer. Analyze the following DOMROV project code:
 
-            Code:
-            {code}
+          1. Detect syntax errors or runtime issues.
+          2. Identify missing logic or potential bugs.
+          3. Suggest improvements if applicable.
 
-            Provide a clear, structured review.
-            """
+          Review only the changed files in the PR.
 
-            result = generator(prompt, max_new_tokens=500)[0]['generated_text']
-            # Trim the prompt from the result
-            review = result.replace(prompt, "").strip()
+          Code:
+          {code}
 
-            # Write review to file for GitHub Actions env
-            with open("ai_review.txt", "w") as f:
-                f.write(review)
-            END
+          Provide a clear, structured review.
+          """
 
-                    # Save AI review as environment variable
+          # Limit output tokens to avoid huge responses
+          result = generator(prompt, max_new_tokens=300)[0]['generated_text']
+          review = result.replace(prompt, "").strip()
+
+          with open("ai_review.txt", "w") as f:
+              f.write(review)
+          END
+
+                - name: Set AI review as env variable
+                  run: |
                     echo "AI_REVIEW<<EOF" >> $GITHUB_ENV
                     cat ai_review.txt >> $GITHUB_ENV
                     echo "EOF" >> $GITHUB_ENV
 
                 - name: Comment on PR with StarCoder review
-                    run: |
+                  run: |
                     gh pr comment ${{ github.event.pull_request.number }} --body "$AI_REVIEW"
-                    env:
+                  env:
                     GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

@@ -1,5 +1,6 @@
-import { Injectable, OnModuleInit, Inject, NotFoundException, BadRequestException, ConflictException, InternalServerErrorException } from '@nestjs/common';
+import { Injectable, OnModuleInit, Inject, NotFoundException, BadRequestException, ConflictException, InternalServerErrorException, Logger } from '@nestjs/common';
 import * as microservices from '@nestjs/microservices';
+import * as grpcJs from '@grpc/grpc-js';
 import { catchError, lastValueFrom, Observable } from 'rxjs';
 import { Repository } from 'typeorm';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
@@ -25,6 +26,7 @@ import {
     AIEvaluationResponseDto,
 } from '../../libs/dtos/evaluation/evaluation-response.dto';
 import { AIUsageLogService } from '../user-ai/ai-usage-log.service';
+import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
 
 // Service Interfaces
 interface SubmissionService {
@@ -43,6 +45,7 @@ interface TasksQueueService {
 export class EvaluationService implements OnModuleInit {
     private submissionService: SubmissionService;
     private tasksQueueService: TasksQueueService;
+    private readonly logger = new Logger(EvaluationService.name);
 
     constructor(
         @Inject('CODE_EVAL_GRPC')
@@ -51,6 +54,11 @@ export class EvaluationService implements OnModuleInit {
         private readonly aiLogService: AIUsageLogService,
         @InjectDataSource()
         private readonly dataSource: DataSource,
+        @InjectRepository(UserAIKey)
+        private readonly aiKeyRepository: Repository<UserAIKey>,
+        @InjectRepository(Submission)
+        private submissionRepo: Repository<Submission>,
+
     ) { }
 
     onModuleInit() {
@@ -236,6 +244,53 @@ export class EvaluationService implements OnModuleInit {
             throw new InternalServerErrorException(
                 `[Submission: ${submission_id}] [Model: ${ai_model}] Internal Error: ${errorMsg}`
             );
+        }
+    }
+
+    async handleAiModelInsufficient(submissionId: string, rawMessage: string) {
+        this.logger.warn(`[Submission ${submissionId}] Disabling AI key due to LLM error: ${rawMessage}`);
+
+        try {
+            // --- Fetch the submission with relations to get owner ---
+            const submission = await this.submissionRepo.findOne({
+                where: { id: Number(submissionId) },
+                relations: ['assessment', 'assessment.class', 'assessment.class.owner'],
+            });
+
+            if (!submission) {
+                this.logger.warn(`Submission ${submissionId} not found`);
+                return;
+            }
+
+            const owner = submission.assessment?.class?.owner;
+            if (!owner || !owner.id) {
+                this.logger.warn(`Owner not found for submission ${submissionId}`);
+                return;
+            }
+            const ownerId = owner.id;
+            this.logger.log(`Submission owner detected: User ID ${ownerId}`);
+
+            // --- Find the most recent active and valid AI key for this user ---
+            const aiKey = await this.aiKeyRepository.findOne({
+                where: { userId: ownerId, isActive: true, isValid: true },
+                order: { created_at: 'DESC' },
+            });
+
+            if (!aiKey) {
+                this.logger.warn(`No active AI key found for User ${ownerId} to disable`);
+                return;
+            }
+
+            // --- Disable the AI key ---
+            aiKey.isActive = false;
+            await this.aiKeyRepository.save(aiKey);
+            this.logger.log(`AI key ${aiKey.id} for User ${ownerId} has been disabled due to LLM error`);
+
+        } catch (err: unknown) {
+            let message = 'Unknown error';
+            if (err instanceof Error) message = err.message;
+            this.logger.error(`Failed to handle AI model insufficiency for submission ${submissionId}: ${message}`);
+            throw new microservices.RpcException({ code: grpcJs.status.INTERNAL, message });
         }
     }
 }

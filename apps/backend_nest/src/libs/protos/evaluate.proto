@@ -14,6 +14,8 @@ service EvaluateWithAI {
     /// EvaluateSubmission is an RPC method that evaluates a submission based on the provided request.
     /// The request includes a submission ID, score criteria, and feedback, and the response indicates success or failure.
     rpc EvaluateSubmission(EvaluateRequest) returns (EvaluateResponse);
+    /// The request includes a submission ID, score criteria, and feedback, and the response indicates success or failure.
+    rpc NotifyUserAiModelInsufficient(NotifyUserAiModelInsufficientRequest) returns (NotifyUserAiModelInsufficientResponse);
 }
 
 message EvaluateRequest {
@@ -24,6 +26,15 @@ message EvaluateRequest {
     int32 output_token = 5;
 }
 
+message NotifyUserAiModelInsufficientRequest {
+    string submission_id = 1;
+    string raw_response_message = 2; // raw AI API response for keyword check
+}
+
+message NotifyUserAiModelInsufficientResponse {
+    bool success = 1;
+    string message = 2;
+}
 message EvaluateResponse {
     bool success = 1;
     string message = 2;

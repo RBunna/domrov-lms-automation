@@ -92,3 +92,24 @@ class EvaluateClient:
         )
         response = self.evaluate_stub.EvaluateSubmission(request)
         return response
+
+    def notify_user_ai_model_insufficient(
+        self,
+        submission_id: str,
+        raw_response: str,
+    ):
+        """
+        Client method to notify backend of an AI error.
+        Works like evaluate_submission: builds request and calls gRPC stub.
+        """
+        # Build request
+        request = evaluate_pb2.NotifyUserAiModelInsufficientRequest(
+            submission_id=submission_id,
+            raw_response_message=raw_response,
+        )
+
+        # Call gRPC stub
+        response = self.evaluate_stub.NotifyUserAiModelInsufficient(request)
+        print(f"[LLM ERROR NOTIFY] {response.message}")
+
+        return response

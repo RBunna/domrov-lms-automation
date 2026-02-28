@@ -20,3 +20,13 @@ export interface TasksResponse {
     message: string;
     job_id?: string;
 }
+
+export interface NotifyUserAiModelInsufficientRequest {
+    submission_id: string;
+    raw_response_message: string;
+}
+
+export interface NotifyUserAiModelInsufficientResponse {
+    success: boolean;
+    message: string;
+}

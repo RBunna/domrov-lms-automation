@@ -2,9 +2,9 @@ import {
     Body, Controller, Post, Get, Param, UseGuards, ParseIntPipe,
     Patch, HttpCode, HttpStatus
 } from '@nestjs/common';
-import { 
-    ApiBearerAuth, 
-    ApiOperation, 
+import {
+    ApiBearerAuth,
+    ApiOperation,
     ApiTags,
     ApiOkResponse,
     ApiNotFoundResponse,
@@ -44,16 +44,175 @@ export class SubmissionController {
     constructor(private readonly submissionService: SubmissionService) { }
 
     // ==================== APPROVE SUBMISSION ====================
-        @Patch('approve/:id')
-        @UseGuards(SubmissionOwnerGuard)
-        @SubmissionIdParam('id')
+    // ==================== GET SUBMISSION DETAILS ====================
+    @Get(':id/teacher')
+    @UseGuards(SubmissionInstructorGuard)
+    @SubmissionIdParam('id')
+    @ApiOperation({
+        summary: 'Get submission details (Teacher)',
+        description: 'Returns detailed information about a submission including files, evaluation, team/user info. Accessible by the submission owner, team members, or the class teacher.'
+    })
+    @ApiParam({ name: 'id', type: Number, description: 'Submission ID', example: 1 })
+    @ApiOkResponse({
+        description: 'Submission details retrieved successfully',
+        type: SubmissionViewerResponseDto,
+        example: {
+            id: 1,
+            created_at: '2024-01-15T10:30:00Z',
+            updated_at: '2024-01-15T10:30:00Z',
+            submissionTime: '2024-01-15T10:30:00Z',
+            status: 'SUBMITTED',
+            attemptNumber: 1,
+            user: { id: 1, firstName: 'John', lastName: 'Doe' },
+            team: null,
+            assessment: {
+                id: 1,
+                title: 'Assignment 1',
+                maxScore: 100,
+                class: { id: 1, name: 'Data Structures' }
+            },
+            evaluation: {
+                id: 1,
+                score: 85,
+                feedback: 'Good work!',
+                penaltyScore: 0,
+                isApproved: true,
+                isModified: false,
+                evaluationType: 'MANUAL',
+                aiOutput: null,
+                confidencePoint: null,
+                feedbacks: [],
+                created_at: '2024-01-15T10:30:00Z',
+                updated_at: '2024-01-15T10:30:00Z'
+            },
+            resources: [
+                {
+                    id: 1,
+                    resource: { id: 1, title: 'main.cpp', type: 'URL', url: 'https://github.com/user/repo' }
+                }
+            ]
+        }
+    })
+    @ApiNotFoundResponse({
+        description: 'Submission not found',
+        example: {
+            statusCode: 404,
+            message: 'Submission not found',
+            error: 'Not Found'
+        }
+    })
+    @ApiForbiddenResponse({
+        description: 'Not authorized to view this submission',
+        example: {
+            statusCode: 403,
+            message: 'You do not have permission to view this submission',
+            error: 'Forbidden'
+        }
+    })
+    @ApiUnauthorizedResponse({
+        description: 'User not authenticated',
+        example: {
+            statusCode: 401,
+            message: 'Unauthorized',
+            error: 'Unauthorized'
+        }
+    })
+    // ==================== GET SUBMISSION DETAILS (TEACHER) ====================
+    async getSubmissionForTeacher(
+        @GetSubmissionContext() context: SubmissionContext,
+    ): Promise<SubmissionViewerResponseDto> {
+        return this.submissionService.getSubmissionForTeacher(context);
+    }
+
+    @Get(':id/student')
+    @UseGuards(SubmissionMemberGuard)
+    @SubmissionIdParam('id')
+    @ApiOperation({
+        summary: 'Get submission details (Student)',
+        description: 'Returns detailed information about a submission including files, evaluation, team/user info. Accessible by the submission owner, team members, or the class teacher.'
+    })
+    @ApiParam({ name: 'id', type: Number, description: 'Submission ID', example: 1 })
+    @ApiOkResponse({
+        description: 'Submission details retrieved successfully',
+        type: SubmissionViewerResponseDto,
+        example: {
+            id: 1,
+            created_at: '2024-01-15T10:30:00Z',
+            updated_at: '2024-01-15T10:30:00Z',
+            submissionTime: '2024-01-15T10:30:00Z',
+            status: 'SUBMITTED',
+            attemptNumber: 1,
+            user: { id: 1, firstName: 'John', lastName: 'Doe' },
+            team: null,
+            assessment: {
+                id: 1,
+                title: 'Assignment 1',
+                maxScore: 100,
+                class: { id: 1, name: 'Data Structures' }
+            },
+            evaluation: {
+                id: 1,
+                score: 85,
+                feedback: 'Good work!',
+                penaltyScore: 0,
+                isApproved: true,
+                isModified: false,
+                evaluationType: 'MANUAL',
+                aiOutput: null,
+                confidencePoint: null,
+                feedbacks: [],
+                created_at: '2024-01-15T10:30:00Z',
+                updated_at: '2024-01-15T10:30:00Z'
+            },
+            resources: [
+                {
+                    id: 1,
+                    resource: { id: 1, title: 'main.cpp', type: 'URL', url: 'https://github.com/user/repo' }
+                }
+            ]
+        }
+    })
+    @ApiNotFoundResponse({
+        description: 'Submission not found',
+        example: {
+            statusCode: 404,
+            message: 'Submission not found',
+            error: 'Not Found'
+        }
+    })
+    @ApiForbiddenResponse({
+        description: 'Not authorized to view this submission',
+        example: {
+            statusCode: 403,
+            message: 'You do not have permission to view this submission',
+            error: 'Forbidden'
+        }
+    })
+    @ApiUnauthorizedResponse({
+        description: 'User not authenticated',
+        example: {
+            statusCode: 401,
+            message: 'Unauthorized',
+            error: 'Unauthorized'
+        }
+    })
+    // ==================== GET SUBMISSION DETAILS (TEACHER) ====================
+    async getSubmissionForStudent(
+        @GetSubmissionContext() context: SubmissionContext,
+    ): Promise<SubmissionViewerResponseDto> {
+        return this.submissionService.getSubmissionForStudent(context);
+    }
+
+    @Patch('approve/:id')
+    @UseGuards(SubmissionOwnerGuard)
+    @SubmissionIdParam('id')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Approve submission evaluation',
         description: 'Approves the evaluation for a submission, making the grade visible to the student. Only the class owner (teacher) can approve.'
     })
     @ApiParam({ name: 'id', type: Number, description: 'Submission ID', example: 1 })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Submission approved successfully',
         type: ApproveSubmissionResponseDto,
         example: {
@@ -63,7 +222,7 @@ export class SubmissionController {
             isApproved: true
         }
     })
-    @ApiNotFoundResponse({ 
+    @ApiNotFoundResponse({
         description: 'Submission not found',
         example: {
             statusCode: 404,
@@ -71,7 +230,7 @@ export class SubmissionController {
             error: 'Not Found'
         }
     })
-    @ApiForbiddenResponse({ 
+    @ApiForbiddenResponse({
         description: 'Not authorized to approve this submission',
         example: {
             statusCode: 403,
@@ -79,7 +238,7 @@ export class SubmissionController {
             error: 'Forbidden'
         }
     })
-    @ApiBadRequestResponse({ 
+    @ApiBadRequestResponse({
         description: 'Submission has no evaluation yet',
         example: {
             statusCode: 400,
@@ -87,7 +246,7 @@ export class SubmissionController {
             error: 'Bad Request'
         }
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'User not authenticated',
         example: {
             statusCode: 401,
@@ -160,12 +319,12 @@ export class SubmissionController {
     // ==================== GET MY SUBMISSIONS STATUS IN CLASS ====================
     @Get('my-status/class/:classId')
     @UseGuards(ClassMemberGuard)
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Get status of all assignments in a class (Student)',
         description: 'Returns the submission status, grades, and due dates for all assessments in a class for the authenticated student.'
     })
     @ApiParam({ name: 'classId', type: Number, description: 'Class ID', example: 1 })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Submission statuses retrieved successfully',
         type: [SubmissionStatusItemDto],
         example: [
@@ -187,7 +346,7 @@ export class SubmissionController {
             }
         ]
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'User not authenticated',
         example: {
             statusCode: 401,
@@ -206,12 +365,12 @@ export class SubmissionController {
     @Get(':assessmentId/my-status')
     @UseGuards(AssessmentMemberGuard)
     @AssessmentIdParam('assessmentId')
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Get my submission status for an assessment (Student)',
         description: 'Returns the current user\'s submission details for a specific assessment. Handles team synchronization automatically for team submissions.'
     })
     @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Submission status retrieved successfully',
         type: MySubmissionResponseDto,
         examples: {
@@ -254,7 +413,7 @@ export class SubmissionController {
             }
         }
     })
-    @ApiNotFoundResponse({ 
+    @ApiNotFoundResponse({
         description: 'Assessment not found',
         example: {
             statusCode: 404,
@@ -262,7 +421,7 @@ export class SubmissionController {
             error: 'Not Found'
         }
     })
-    @ApiBadRequestResponse({ 
+    @ApiBadRequestResponse({
         description: 'Assessment is not public',
         example: {
             statusCode: 400,
@@ -270,7 +429,7 @@ export class SubmissionController {
             error: 'Bad Request'
         }
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'User not authenticated',
         example: {
             statusCode: 401,
@@ -289,12 +448,12 @@ export class SubmissionController {
     @Get('assessment/:assessmentId/roster')
     @UseGuards(AssessmentInstructorGuard)
     @AssessmentIdParam('assessmentId')
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Get submission roster for an assessment (Teacher)',
         description: 'Returns a list of all students/teams with their submission status, scores, and submission times. Response format depends on assessment submission type.'
     })
     @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Roster retrieved successfully',
         schema: {
             oneOf: [
@@ -350,7 +509,7 @@ export class SubmissionController {
             }
         }
     })
-    @ApiNotFoundResponse({ 
+    @ApiNotFoundResponse({
         description: 'Assessment not found',
         example: {
             statusCode: 404,
@@ -358,7 +517,7 @@ export class SubmissionController {
             error: 'Not Found'
         }
     })
-    @ApiBadRequestResponse({ 
+    @ApiBadRequestResponse({
         description: 'Assessment is not public',
         example: {
             statusCode: 400,
@@ -366,7 +525,7 @@ export class SubmissionController {
             error: 'Bad Request'
         }
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'User not authenticated',
         example: {
             statusCode: 401,
@@ -384,12 +543,12 @@ export class SubmissionController {
     @Get('assessment/:assessmentId/stats')
     @UseGuards(AssessmentInstructorGuard)
     @AssessmentIdParam('assessmentId')
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Get assessment submission statistics (Teacher)',
         description: 'Returns aggregate statistics about submissions for an assessment including total count, submitted count, pending count, and graded count.'
     })
     @ApiParam({ name: 'assessmentId', type: Number, description: 'Assessment ID', example: 1 })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Statistics retrieved successfully',
         type: AssessmentStatsResponseDto,
         example: {
@@ -399,7 +558,7 @@ export class SubmissionController {
             gradedCount: 20
         }
     })
-    @ApiNotFoundResponse({ 
+    @ApiNotFoundResponse({
         description: 'Assessment not found',
         example: {
             statusCode: 404,
@@ -407,7 +566,7 @@ export class SubmissionController {
             error: 'Not Found'
         }
     })
-    @ApiBadRequestResponse({ 
+    @ApiBadRequestResponse({
         description: 'Assessment is not public',
         example: {
             statusCode: 400,
@@ -415,7 +574,7 @@ export class SubmissionController {
             error: 'Bad Request'
         }
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'User not authenticated',
         example: {
             statusCode: 401,
@@ -430,16 +589,16 @@ export class SubmissionController {
     }
 
     // ==================== GRADE SUBMISSION ====================
-        @Post(':id/grade')
-        @UseGuards(SubmissionInstructorGuard)
-        @SubmissionIdParam('id')
+    @Post(':id/grade')
+    @UseGuards(SubmissionInstructorGuard)
+    @SubmissionIdParam('id')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Grade a submission (Teacher)',
         description: 'Manually grades a submission with a score and optional feedback. Only the class owner can grade submissions.'
     })
     @ApiParam({ name: 'id', type: Number, description: 'Submission ID', example: 1 })
-    @ApiBody({ 
+    @ApiBody({
         type: GradeSubmissionDTO,
         description: 'Grading details',
         examples: {
@@ -458,7 +617,7 @@ export class SubmissionController {
             }
         }
     })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Submission graded successfully',
         type: EvaluationResponseDto,
         example: {
@@ -476,7 +635,7 @@ export class SubmissionController {
             updated_at: '2024-01-15T10:30:00Z'
         }
     })
-    @ApiNotFoundResponse({ 
+    @ApiNotFoundResponse({
         description: 'Submission not found',
         example: {
             statusCode: 404,
@@ -484,7 +643,7 @@ export class SubmissionController {
             error: 'Not Found'
         }
     })
-    @ApiForbiddenResponse({ 
+    @ApiForbiddenResponse({
         description: 'Not authorized to grade this submission',
         example: {
             statusCode: 403,
@@ -492,7 +651,7 @@ export class SubmissionController {
             error: 'Forbidden'
         }
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'User not authenticated',
         example: {
             statusCode: 401,
@@ -507,96 +666,19 @@ export class SubmissionController {
         return this.submissionService.gradeSubmission(context, dto);
     }
 
-    // ==================== GET SUBMISSION DETAILS ====================
-        @Get(':id')
-        @UseGuards(SubmissionMemberGuard)
-        @SubmissionIdParam('id')
-    @ApiOperation({ 
-        summary: 'Get submission details (Teacher)',
-        description: 'Returns detailed information about a submission including files, evaluation, team/user info. Accessible by the submission owner, team members, or the class teacher.'
-    })
-    @ApiParam({ name: 'id', type: Number, description: 'Submission ID', example: 1 })
-    @ApiOkResponse({ 
-        description: 'Submission details retrieved successfully',
-        type: SubmissionViewerResponseDto,
-        example: {
-            id: 1,
-            created_at: '2024-01-15T10:30:00Z',
-            updated_at: '2024-01-15T10:30:00Z',
-            submissionTime: '2024-01-15T10:30:00Z',
-            status: 'SUBMITTED',
-            attemptNumber: 1,
-            user: { id: 1, firstName: 'John', lastName: 'Doe' },
-            team: null,
-            assessment: {
-                id: 1,
-                title: 'Assignment 1',
-                maxScore: 100,
-                class: { id: 1, name: 'Data Structures' }
-            },
-            evaluation: {
-                id: 1,
-                score: 85,
-                feedback: 'Good work!',
-                penaltyScore: 0,
-                isApproved: true,
-                isModified: false,
-                evaluationType: 'MANUAL',
-                aiOutput: null,
-                confidencePoint: null,
-                feedbacks: [],
-                created_at: '2024-01-15T10:30:00Z',
-                updated_at: '2024-01-15T10:30:00Z'
-            },
-            resources: [
-                {
-                    id: 1,
-                    resource: { id: 1, title: 'main.cpp', type: 'URL', url: 'https://github.com/user/repo' }
-                }
-            ]
-        }
-    })
-    @ApiNotFoundResponse({ 
-        description: 'Submission not found',
-        example: {
-            statusCode: 404,
-            message: 'Submission not found',
-            error: 'Not Found'
-        }
-    })
-    @ApiForbiddenResponse({ 
-        description: 'Not authorized to view this submission',
-        example: {
-            statusCode: 403,
-            message: 'You do not have permission to view this submission',
-            error: 'Forbidden'
-        }
-    })
-    @ApiUnauthorizedResponse({ 
-        description: 'User not authenticated',
-        example: {
-            statusCode: 401,
-            message: 'Unauthorized',
-            error: 'Unauthorized'
-        }
-    })
-    async getSubmission(
-        @GetSubmissionContext() context: SubmissionContext,
-    ): Promise<SubmissionViewerResponseDto> {
-        return this.submissionService.getSubmissionForViewer(context);
-    }
+    
 
     // ==================== ADD LINE-BY-LINE FEEDBACK ====================
-        @Post(':id/feedback')
-        @UseGuards(SubmissionInstructorGuard)
-        @SubmissionIdParam('id')
+    @Post(':id/feedback')
+    @UseGuards(SubmissionInstructorGuard)
+    @SubmissionIdParam('id')
     @HttpCode(HttpStatus.OK)
-    @ApiOperation({ 
+    @ApiOperation({
         summary: 'Add line-by-line feedback (Teacher)',
         description: 'Adds a code review feedback item to a submission. Allows teachers to provide specific feedback on code lines.'
     })
     @ApiParam({ name: 'id', type: Number, description: 'Submission ID', example: 1 })
-    @ApiBody({ 
+    @ApiBody({
         type: FeedbackItemDto,
         description: 'Feedback details',
         examples: {
@@ -632,7 +714,7 @@ export class SubmissionController {
             }
         }
     })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Feedback added successfully',
         type: AddFeedbackResponseDto,
         example: {
@@ -641,7 +723,7 @@ export class SubmissionController {
             addedItemsCount: 1
         }
     })
-    @ApiNotFoundResponse({ 
+    @ApiNotFoundResponse({
         description: 'Submission not found',
         example: {
             statusCode: 404,
@@ -649,7 +731,7 @@ export class SubmissionController {
             error: 'Not Found'
         }
     })
-    @ApiForbiddenResponse({ 
+    @ApiForbiddenResponse({
         description: 'Not authorized to add feedback',
         example: {
             statusCode: 403,
@@ -657,7 +739,7 @@ export class SubmissionController {
             error: 'Forbidden'
         }
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'User not authenticated',
         example: {
             statusCode: 401,
@@ -673,15 +755,15 @@ export class SubmissionController {
     }
 
     // ==================== UPDATE SINGLE FEEDBACK ====================
-        @Patch('feedback/:feedbackId')
-        @UseGuards(SubmissionOwnerGuard)
-        @HttpCode(HttpStatus.OK)
-    @ApiOperation({ 
+    @Patch('feedback/:feedbackId')
+    @UseGuards(SubmissionOwnerGuard)
+    @HttpCode(HttpStatus.OK)
+    @ApiOperation({
         summary: 'Update a feedback item (Teacher)',
         description: 'Updates an existing code review feedback item. Only the class owner can update feedback.'
     })
     @ApiParam({ name: 'feedbackId', type: String, description: 'Feedback UUID', example: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890' })
-    @ApiBody({ 
+    @ApiBody({
         type: FeedbackItemDto,
         description: 'Updated feedback details',
         examples: {
@@ -697,7 +779,7 @@ export class SubmissionController {
             }
         }
     })
-    @ApiOkResponse({ 
+    @ApiOkResponse({
         description: 'Feedback updated successfully',
         type: UpdateFeedbackResponseDto,
         example: {
@@ -705,7 +787,7 @@ export class SubmissionController {
             feedbackId: 'a1b2c3d4-e5f6-7890-abcd-ef1234567890'
         }
     })
-    @ApiNotFoundResponse({ 
+    @ApiNotFoundResponse({
         description: 'Feedback item not found',
         example: {
             statusCode: 404,
@@ -713,7 +795,7 @@ export class SubmissionController {
             error: 'Not Found'
         }
     })
-    @ApiForbiddenResponse({ 
+    @ApiForbiddenResponse({
         description: 'Not authorized to update this feedback',
         example: {
             statusCode: 403,
@@ -721,7 +803,7 @@ export class SubmissionController {
             error: 'Forbidden'
         }
     })
-    @ApiUnauthorizedResponse({ 
+    @ApiUnauthorizedResponse({
         description: 'User not authenticated',
         example: {
             statusCode: 401,
