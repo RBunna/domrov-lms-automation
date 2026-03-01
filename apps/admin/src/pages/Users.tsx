@@ -30,6 +30,11 @@ const Users = () => {
         loadUsers();
     }, []);
 
+    // Refetch data when filters change
+    useEffect(() => {
+        loadUsers();
+    }, [currentSearch, currentStatus, currentRole]);
+
     useEffect(() => {
         if (successMessage) {
             const timer = setTimeout(() => setSuccessMessage(null), 4000);

@@ -73,13 +73,13 @@ export class AddCreditsResponseDto {
 export class ToggleUserStatusDto {
   @ApiProperty({
     example: 'active',
-    enum: ['active', 'suspended'],
+    enum: ['active', 'inactive'],
     description: 'New user status',
   })
-  @IsEnum(['active', 'suspended'])
+  @IsEnum(['active', 'inactive'])
   status: string;
 
-  @ApiProperty({ example: 'Suspicious activity', description: 'Reason for status change' })
+  @ApiProperty({ example: 'Account deactivation', description: 'Reason for status change' })
   @IsString()
   @IsOptional()
   reason?: string;
@@ -116,6 +116,9 @@ export class UserListResponseDto {
 
   @ApiProperty({ example: 10, description: 'Items per page' })
   limit: number;
+
+  @ApiProperty({ example: true, description: 'Whether any filters were applied' })
+  filtered?: boolean;
 }
 
 export class UserDetailDto {

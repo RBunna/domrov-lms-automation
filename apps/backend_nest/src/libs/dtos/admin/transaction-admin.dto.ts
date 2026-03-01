@@ -1,22 +1,27 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsNumber, IsOptional } from 'class-validator';
+import { IsString, IsNumber, IsOptional, Length, Min, IsEnum } from 'class-validator';
 import { Currency } from '../../enums/Payment';
-
 export class VerifyTransactionByHashDto {
-  @ApiProperty({ example: '6f802c25', description: 'Transaction hash (8 characters)' })
+
+  @ApiProperty({
+    example: '208212f0',
+    description: 'Transaction hash (8 characters)',
+  })
   @IsString()
+  @Length(8, 8) // ✅ enforce exactly 8 characters
   transactionHash: string;
 
-  @ApiProperty({ example: 121, description: 'Transaction amount' })
+  @ApiProperty({ example: 0.1 })
   @IsNumber()
+  @Min(0.01)
   amount: number;
 
-  @ApiProperty({ example: Currency.USD, default: Currency.USD, description: 'Currency of the transaction' })
+  @ApiProperty({
+    enum: Currency,
+    example: Currency.USD,
+  })
+  @IsEnum(Currency) // ✅ correct enum validation
   currency: Currency;
-
-  @ApiProperty({ example: '6f802c25', description: 'Transaction hash (8 characters)' })
-  @IsNumber()
-  userId: number;
 }
 
 export class TransactionVerificationResponseDto {

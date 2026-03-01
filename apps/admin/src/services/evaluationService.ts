@@ -3,7 +3,7 @@
 import { apiClient } from './api';
 
 export interface Evaluation {
-    id: string | number;
+    id: number;
     name?: string;
     user?: string;
     model?: string;
@@ -35,7 +35,7 @@ class EvaluationService {
     /**
      * Fetch a single evaluation by ID
      */
-    async fetchEvaluationById(id: string | number): Promise<Evaluation | null> {
+    async fetchEvaluationById(id: number): Promise<Evaluation | null> {
         try {
             const evaluations = await this.fetchEvaluations();
             return evaluations.find((e) => e.id === id) || null;

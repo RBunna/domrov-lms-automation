@@ -81,7 +81,7 @@ class TransactionService {
         }
     }
 
-    async verifyTransaction(id: string | number, verificationNote?: string): Promise<any> {
+    async verifyTransaction(id: number, verificationNote?: string): Promise<any> {
         try {
             // API returns { success: true, data: { message: "..." } }
             // request function automatically unwraps to { message: "..." }
@@ -93,7 +93,7 @@ class TransactionService {
         }
     }
 
-    async failTransaction(id: string | number, reason: string = 'Rejected by admin', note?: string): Promise<any> {
+    async failTransaction(id: number, reason: string = 'Rejected by admin', note?: string): Promise<any> {
         try {
             // API returns { success: true, data: { message: "..." } }
             // request function automatically unwraps to { message: "..." }

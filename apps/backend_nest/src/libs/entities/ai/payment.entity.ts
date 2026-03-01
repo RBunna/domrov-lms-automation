@@ -38,6 +38,9 @@ export class Payment extends BaseEntity {
   status: PaymentStatus;
 
   @Column({ nullable: true })
+  imgProof?: string;
+
+  @Column({ nullable: true })
   transactionId?: string;
 
   @Column({ type: 'jsonb', nullable: true })
@@ -53,6 +56,7 @@ export class Payment extends BaseEntity {
     trackingStatus?: string;
     receiverBank?: string;
     receiverBankAccount?: string;
+    proofImageUrl?: string;
   };
 
   @ManyToOne(() => User, (user) => user.payments, {

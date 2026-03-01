@@ -50,7 +50,7 @@ const Transactions = () => {
         openModal();
     };
 
-    const handleVerifyTransaction = async (id: string | number, note?: string) => {
+    const handleVerifyTransaction = async (id: number, note?: string) => {
         try {
             setError(null);
             await transactionService.verifyTransaction(id, note);
@@ -62,7 +62,7 @@ const Transactions = () => {
         }
     };
 
-    const handleFailTransaction = async (id: string | number, reason?: string, note?: string) => {
+    const handleFailTransaction = async (id: number, reason?: string, note?: string) => {
         try {
             setError(null);
             await transactionService.failTransaction(id, reason || 'Rejected by admin', note);

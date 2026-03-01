@@ -9,8 +9,8 @@ interface TransactionModalProps {
     isOpen: boolean;
     transaction: Transaction | null;
     onClose: () => void;
-    onVerify: (id: string | number, note?: string) => Promise<void>;
-    onFail: (id: string | number, note?: string) => Promise<void>;
+    onVerify: (id: number, note?: string) => Promise<void>;
+    onFail: (id: number, note?: string) => Promise<void>;
 }
 
 const TransactionModal: React.FC<TransactionModalProps> = ({
@@ -33,7 +33,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
         if (!transaction) return;
         try {
             setIsProcessing(true);
-            await onVerify(transaction.id.toString(), verificationNote || undefined);
+            await onVerify(transaction.id, verificationNote || undefined);
             setVerificationNote('');
         } finally {
             setIsProcessing(false);
@@ -44,7 +44,7 @@ const TransactionModal: React.FC<TransactionModalProps> = ({
         if (!transaction) return;
         try {
             setIsProcessing(true);
-            await onFail(transaction.id.toString(), verificationNote || undefined);
+            await onFail(transaction.id, verificationNote || undefined);
             setVerificationNote('');
         } finally {
             setIsProcessing(false);

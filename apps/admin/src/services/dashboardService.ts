@@ -11,7 +11,7 @@ export interface DashboardStats {
 }
 
 export interface Activity {
-    id: string;
+    id: number;
     type: string;
     description: string;
     user: string;

@@ -103,7 +103,7 @@ export class PaymentController {
                     responseCode: 0,
                     responseMessage: 'Getting transaction successfully.',
                     data: {
-                        hash: '8465d722d7d5065f2886f0a474a4d34dc6a7855355b611836f7b6111228893e9',
+                        hash: '8465d723',
                         fromAccountId: 'rieu_dhqj_1984@devb',
                         toAccountId: 'bridge_account@devb',
                         currency: 'USD',
@@ -148,7 +148,6 @@ export class PaymentController {
             dto.hash,
             dto.amount,
             dto.currency,
-            dto.userId,
         );
         return { success: true, data };
     }

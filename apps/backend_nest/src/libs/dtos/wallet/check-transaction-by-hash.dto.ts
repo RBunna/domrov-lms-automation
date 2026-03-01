@@ -35,10 +35,10 @@ export class CheckTransactionByHashDto {
     @ApiProperty({
         example: 'USD',
         description: 'Transaction currency',
-        enum: ['USD', 'KHR'],
+        enum: Currency,
     })
     @IsEnum(Currency, { message: 'Currency must be either USD or KHR' })
-    currency: string;
+    currency: Currency;
 }
 
 export class TransactionDataDto {

@@ -146,7 +146,7 @@ const apiClient = {
     getRecentActivity: () =>
       request<{
         activities: Array<{
-          id: string;
+          id: number;
           type: string;
           description: string;
           user: string;
@@ -201,7 +201,7 @@ const apiClient = {
         params: { page, limit, status, search },
       }),
 
-    getById: (transactionId: string | number) =>
+    getById: (transactionId: number) =>
       request<{
         id: number;
         user: string;
@@ -223,12 +223,12 @@ const apiClient = {
         userId,
       }),
 
-    markAsPaid: (transactionId: string | number, verificationNote?: string) =>
+    markAsPaid: (transactionId: number, verificationNote?: string) =>
       request<{ message: string }>(`/admin/transactions/${transactionId}/verify`, 'POST', {
         verificationNote,
       }),
 
-    reject: (transactionId: string | number, reason: string, verificationNote?: string) =>
+    reject: (transactionId: number, reason: string, verificationNote?: string) =>
       request<{ message: string }>(`/admin/transactions/${transactionId}/reject`, 'POST', {
         reason,
         verificationNote,

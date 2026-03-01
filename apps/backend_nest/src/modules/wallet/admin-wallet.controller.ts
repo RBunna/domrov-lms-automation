@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Patch, Param, ParseIntPipe, HttpCode, HttpStatus, BadRequestException, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Post, Patch, Param, ParseIntPipe, HttpCode, HttpStatus, BadRequestException, UseGuards, Query, NotFoundException } from '@nestjs/common';
 import {
     ApiBearerAuth,
     ApiOperation,
@@ -9,8 +9,11 @@ import {
     ApiBadRequestResponse,
     ApiUnauthorizedResponse,
     ApiParam,
-    ApiBody
+    ApiBody,
+    ApiQuery,
 } from '@nestjs/swagger';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, ILike } from 'typeorm';
 import { WalletService } from './wallet.service';
 import { CreditPackageService } from './credit-package.service';
 import { CreateCreditPackageDto, UpdateCreditPackageDto } from '../../libs/dtos/wallet/wallet.dto';
@@ -21,6 +24,8 @@ import { Roles } from '../../common/decorators/roles.decorator';
 import { RolesGuard } from '../../common/security/guards/roles.guard';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { SystemRole } from '../../libs/enums/Role';
+import { Payment } from '../../libs/entities/ai/payment.entity';
+import { PaymentStatus } from '../../libs/enums/Status';
 
 @ApiTags('Wallet (Admin)')
 @Controller('admin/wallet')
@@ -31,6 +36,8 @@ export class AdminWalletController {
     constructor(
         private readonly packageService: CreditPackageService,
         private readonly walletService: WalletService,
+        @InjectRepository(Payment)
+        private readonly paymentRepo: Repository<Payment>,
     ) { }
 
     // ==================== CREATE PACKAGE ====================
@@ -291,6 +298,151 @@ export class AdminWalletController {
             );
             data = { success: true };
         }
+
+        return { success: true, data };
+    }
+
+    // ==================== GET ALL TRANSACTIONS (READ-ONLY) ====================
+    @Get('transactions')
+    @ApiOperation({
+        summary: 'Get All Transactions (Paginated & Searchable)',
+        description: 'Retrieve paginated list of payment transactions with optional filtering. Admin view only.',
+    })
+    @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
+    @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
+    @ApiQuery({ name: 'status', required: false, enum: ['paid', 'unpaid', 'all'] })
+    @ApiQuery({ name: 'search', required: false, type: String })
+    @ApiOkResponse({
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    data: [
+                        {
+                            id: 123,
+                            user: 'John Doe',
+                            userId: 456,
+                            amount: 49.99,
+                            currency: 'USD',
+                            method: 'bakong',
+                            status: 'paid',
+                            date: '2026-03-01T09:00:00Z',
+                        },
+                    ],
+                    total: 1,
+                    page: 1,
+                    limit: 10,
+                },
+            },
+        },
+    })
+    async getAllTransactions(
+        @Query('page') page: number = 1,
+        @Query('limit') limit: number = 10,
+        @Query('status') status: string = 'all',
+        @Query('search') search: string = '',
+    ): Promise<{ success: true; data: any }> {
+        const pageNum = page ? parseInt(String(page), 10) : 1;
+        const limitNum = limit ? parseInt(String(limit), 10) : 10;
+        const validPage = Math.max(1, pageNum);
+        const validLimit = Math.min(100, Math.max(1, limitNum));
+
+        const where: any = {};
+
+        if (status !== 'all') {
+            where.status = status === 'paid' ? PaymentStatus.COMPLETED : PaymentStatus.PENDING;
+        }
+
+        if (search) {
+            where.transactionId = ILike(`%${search}%`);
+        }
+
+        const [payments, total] = await this.paymentRepo.findAndCount({
+            where,
+            relations: ['user'],
+            skip: (validPage - 1) * validLimit,
+            take: validLimit,
+            order: { created_at: 'DESC' },
+        });
+
+        const transactionData = payments.map((payment) => ({
+            id: payment.id,
+            user: payment.user ? `${payment.user.firstName} ${payment.user.lastName || ''}`.trim() : 'Unknown',
+            userId: payment.user?.id || null,
+            amount: payment.amount,
+            currency: payment.currency,
+            method: payment.paymentMethod,
+            status: payment.status === PaymentStatus.COMPLETED ? 'paid' : 'unpaid',
+            date: payment.created_at.toISOString(),
+        }));
+
+        const responseData = {
+            data: transactionData,
+            total,
+            page: validPage,
+            limit: validLimit,
+        };
+
+        return { success: true, data: responseData };
+    }
+
+    // ==================== GET TRANSACTION DETAILS (READ-ONLY) ====================
+    @Get('transactions/:transactionId')
+    @ApiOperation({
+        summary: 'Get Transaction Details',
+        description: 'Retrieve detailed information about a specific transaction. Admin view only.',
+    })
+    @ApiParam({ name: 'transactionId', type: String })
+    @ApiOkResponse({
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    id: 123,
+                    user: 'John Doe',
+                    userId: 456,
+                    amount: 49.99,
+                    currency: 'USD',
+                    method: 'bakong',
+                    status: 'paid',
+                    date: '2026-03-01T09:00:00Z',
+                    transactionDetails: {
+                        hash: '208212f0',
+                        fromAccountId: 'sender@bakong',
+                        toAccountId: 'receiver@bakong',
+                        amount: 49.99,
+                        currency: 'USD',
+                        description: 'Credit package purchase',
+                        proofImageUrl: 'https://res.cloudinary.com/xxx/image/upload/receipt.jpg',
+                    },
+                },
+            },
+        },
+    })
+    @ApiNotFoundResponse({ description: 'Transaction not found' })
+    async getTransactionDetails(
+        @Param('transactionId') transactionId: string,
+    ): Promise<{ success: true; data: any }> {
+        const payment = await this.paymentRepo.findOne({
+            where: { id: parseInt(transactionId, 10) },
+            relations: ['user'],
+        });
+
+        if (!payment) {
+            throw new NotFoundException(`Transaction ${transactionId} not found`);
+        }
+
+        const data = {
+            id: payment.id,
+            user: payment.user ? `${payment.user.firstName} ${payment.user.lastName || ''}`.trim() : 'Unknown',
+            userId: payment.user?.id || null,
+            amount: payment.amount,
+            currency: payment.currency,
+            method: payment.paymentMethod,
+            status: payment.status === PaymentStatus.COMPLETED ? 'paid' : 'unpaid',
+            date: payment.created_at.toISOString(),
+            transactionDetails: payment.transactionDetails || {},
+        };
 
         return { success: true, data };
     }

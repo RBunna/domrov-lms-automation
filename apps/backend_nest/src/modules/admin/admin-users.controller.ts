@@ -11,7 +11,7 @@ import {
   ApiBearerAuth,
 } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, ILike } from 'typeorm';
+import { Repository, ILike, Between, In } from 'typeorm';
 import {
   AddCreditsDto,
   DeductCreditsDto,
@@ -52,13 +52,18 @@ export class AdminUsersController {
   // ==================== GET ALL USERS ====================
   @Get()
   @ApiOperation({
-    summary: 'Get All Users (Paginated & Searchable)',
-    description: 'Retrieve paginated list of users with optional filtering and search',
+    summary: 'Get All Users (Paginated & Searchable with Advanced Filters)',
+    description: 'Retrieve paginated list of users with optional filtering and multi-field search',
   })
-  @ApiQuery({ name: 'page', required: false, type: Number, example: 1 })
-  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10 })
-  @ApiQuery({ name: 'status', required: false, enum: ['active', 'suspended', 'all'] })
-  @ApiQuery({ name: 'search', required: false, type: String })
+  @ApiQuery({ name: 'page', required: false, type: Number, example: 1, description: 'Page number (default: 1)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number, example: 10, description: 'Items per page (default: 10, max: 100)' })
+  @ApiQuery({ name: 'status', required: false, enum: ['active', 'inactive', 'all'], description: 'Filter by user status' })
+  @ApiQuery({ name: 'role', required: false, enum: ['user', 'admin', 'superadmin', 'all'], description: 'Filter by user role' })
+  @ApiQuery({ name: 'verified', required: false, enum: ['true', 'false', 'all'], description: 'Filter by email verification status' })
+  @ApiQuery({ name: 'search', required: false, type: String, description: 'Search by firstName, lastName, email, or phoneNumber' })
+  @ApiQuery({ name: 'joinDateFrom', required: false, type: String, description: 'Filter by join date (from) - ISO format' })
+  @ApiQuery({ name: 'joinDateTo', required: false, type: String, description: 'Filter by join date (to) - ISO format' })
+  @ApiQuery({ name: 'sortBy', required: false, enum: ['newest', 'oldest', 'firstNameAsc', 'firstNameDesc', 'emailAsc'], description: 'Sort order', example: 'newest' })
   @ApiOkResponse({
     schema: {
       example: {
@@ -83,9 +88,10 @@ export class AdminUsersController {
               totalPurchased: 5,
             },
           ],
-          total: 1,
+          total: 100,
           page: 1,
           limit: 10,
+          filtered: true,
         },
       },
     },
@@ -94,70 +100,202 @@ export class AdminUsersController {
     @Query('page') page: number = 1,
     @Query('limit') limit: number = 10,
     @Query('status') status: string = 'all',
+    @Query('role') role: string = 'all',
+    @Query('verified') verified: string = 'all',
     @Query('search') search: string = '',
+    @Query('joinDateFrom') joinDateFrom: string = '',
+    @Query('joinDateTo') joinDateTo: string = '',
+    @Query('sortBy') sortBy: string = 'newest',
   ): Promise<{ success: true; data: UserListResponseDto }> {
-    // Convert to numbers if they're strings
-    const pageNum = page ? parseInt(String(page), 10) : 1;
-    const limitNum = limit ? parseInt(String(limit), 10) : 10;
-    const validPage = Math.max(1, pageNum);
-    const validLimit = Math.min(100, Math.max(1, limitNum));
+    try {
+      // Validate and parse pagination parameters
+      const pageNum = Math.max(1, parseInt(String(page), 10) || 1);
+      const limitNum = Math.min(100, Math.max(1, parseInt(String(limit), 10) || 10));
 
-    const where: any = {};
-    if (status !== 'all') {
-      where.status = status === 'active' ? UserStatus.ACTIVE : UserStatus.BANNED;
-    }
-    if (search) {
-      where.email = ILike(`%${search}%`);
-    }
+      // Build where clause with multiple conditions
+      const where: any = {};
 
-    const [users, total] = await this.userRepo.findAndCount({
-      where,
-      select: ['id', 'firstName', 'lastName', 'gender', 'dob', 'email', 'phoneNumber', 'profilePictureUrl', 'isVerified', 'status', 'role', 'created_at', 'updated_at'],
-      skip: (validPage - 1) * validLimit,
-      take: validLimit,
-      order: { created_at: 'DESC' },
-    });
-
-    // Get credit balances for each user
-    const listData = await Promise.all(
-      users.map(async (user) => {
-        const wallet = await this.walletRepo.findOne({
-          where: { user: { id: user.id } },
-        });
-
-        // Get total purchases
-        const purchases = await this.paymentRepo.count({
-          where: { user: { id: user.id } },
-        });
-
-        return {
-          id: user.id,
-          firstName: user.firstName,
-          lastName: user.lastName || null,
-          gender: user.gender || null,
-          dob: user.dob ? user.dob.toISOString().split('T')[0] : null,
-          email: user.email,
-          phoneNumber: user.phoneNumber || null,
-          profilePictureUrl: user.profilePictureUrl || null,
-          isVerified: user.isVerified,
-          status: user.status,
-          role: user.role,
-          credits: wallet?.creditBalance || 0,
-          joinDate: user.created_at,
-          lastActivity: user.updated_at,
-          totalPurchased: purchases,
+      // ✅ STATUS FILTER - Fix for proper enum mapping
+      if (status !== 'all') {
+        const statusMap: Record<string, UserStatus> = {
+          'active': UserStatus.ACTIVE,
+          'inactive': UserStatus.INACTIVE,
         };
-      }),
-    );
+        if (statusMap[status]) {
+          where.status = statusMap[status];
+        }
+      }
 
-    const responseData: UserListResponseDto = {
-      data: listData,
-      total,
-      page: validPage,
-      limit: validLimit,
-    };
+      // ✅ ROLE FILTER
+      if (role !== 'all') {
+        const roleMap: Record<string, SystemRole> = {
+          'user': SystemRole.User,
+          'admin': SystemRole.Admin,
+          'superadmin': SystemRole.SuperAdmin,
+        };
+        if (roleMap[role]) {
+          where.role = roleMap[role];
+        }
+      }
 
-    return { success: true, data: responseData };
+      // ✅ VERIFICATION STATUS FILTER
+      if (verified !== 'all') {
+        where.isVerified = verified === 'true';
+      }
+
+      // ✅ MULTI-FIELD SEARCH - Improved to search firstName, lastName, email, phoneNumber
+      if (search && search.trim()) {
+        const searchTerm = search.trim();
+        where.email = ILike(`%${searchTerm}%`);
+        // TypeORM doesn't support OR in where clause directly, so we'll use query builder
+      }
+
+      // ✅ DATE RANGE FILTER
+      if (joinDateFrom || joinDateTo) {
+        const dateWhere: any = {};
+        
+        if (joinDateFrom) {
+          const fromDate = new Date(joinDateFrom);
+          if (!isNaN(fromDate.getTime())) {
+            dateWhere.from = fromDate;
+          }
+        }
+
+        if (joinDateTo) {
+          const toDate = new Date(joinDateTo);
+          if (!isNaN(toDate.getTime())) {
+            dateWhere.to = toDate;
+          }
+        }
+
+        if (dateWhere.from || dateWhere.to) {
+          where.created_at = Between(
+            dateWhere.from || new Date('1970-01-01'),
+            dateWhere.to || new Date(),
+          );
+        }
+      }
+
+      // Sort mapping
+      const sortMap: Record<string, [string, 'ASC' | 'DESC']> = {
+        'newest': ['created_at', 'DESC'],
+        'oldest': ['created_at', 'ASC'],
+        'firstNameAsc': ['firstName', 'ASC'],
+        'firstNameDesc': ['firstName', 'DESC'],
+        'emailAsc': ['email', 'ASC'],
+      };
+
+      const [sortField, sortOrder] = sortMap[sortBy] || sortMap['newest'];
+
+      // ✅ Use QueryBuilder for multi-field search (OR conditions)
+      let query = this.userRepo.createQueryBuilder('user');
+
+      // Apply multi-field search
+      if (search && search.trim()) {
+        const searchTerm = `%${search.trim()}%`;
+        query = query.where(
+          '(user.firstName ILIKE :search OR user.lastName ILIKE :search OR user.email ILIKE :search OR user.phoneNumber ILIKE :search)',
+          { search: searchTerm },
+        );
+      }
+
+      // Apply other filters
+      if (status !== 'all') {
+        const statusMap: Record<string, UserStatus> = {
+          'active': UserStatus.ACTIVE,
+          'inactive': UserStatus.INACTIVE,
+        };
+        if (statusMap[status]) {
+          query = query.andWhere('user.status = :status', { status: statusMap[status] });
+        } else {
+          // Invalid status value, log warning
+          this.logger.warn(`Invalid status filter value: ${status}`);
+        }
+      }
+
+      if (role !== 'all') {
+        const roleMap: Record<string, SystemRole> = {
+          'user': SystemRole.User,
+          'admin': SystemRole.Admin,
+          'superadmin': SystemRole.SuperAdmin,
+        };
+        if (roleMap[role]) {
+          query = query.andWhere('user.role = :role', { role: roleMap[role] });
+        }
+      }
+
+      if (verified !== 'all') {
+        const isVerified = verified === 'true';
+        query = query.andWhere('user.isVerified = :isVerified', { isVerified });
+      }
+
+      // Date range filter
+      if (joinDateFrom || joinDateTo) {
+        if (joinDateFrom) {
+          const fromDate = new Date(joinDateFrom);
+          if (!isNaN(fromDate.getTime())) {
+            query = query.andWhere('user.created_at >= :fromDate', { fromDate });
+          }
+        }
+        if (joinDateTo) {
+          const toDate = new Date(joinDateTo);
+          if (!isNaN(toDate.getTime())) {
+            query = query.andWhere('user.created_at <= :toDate', { toDate });
+          }
+        }
+      }
+
+      // Apply pagination and sorting
+      const [users, total] = await query
+        .orderBy(`user.${sortField}`, sortOrder)
+        .skip((pageNum - 1) * limitNum)
+        .take(limitNum)
+        .getManyAndCount();
+
+      // Get credit balances and purchase counts for each user
+      const listData = await Promise.all(
+        users.map(async (user) => {
+          const wallet = await this.walletRepo.findOne({
+            where: { user: { id: user.id } },
+          });
+
+          const purchases = await this.paymentRepo.count({
+            where: { user: { id: user.id } },
+          });
+
+          return {
+            id: user.id,
+            firstName: user.firstName,
+            lastName: user.lastName || null,
+            gender: user.gender || null,
+            dob: user.dob ? (user.dob instanceof Date ? user.dob.toISOString().split('T')[0] : String(user.dob).split('T')[0]) : null,
+            email: user.email,
+            phoneNumber: user.phoneNumber || null,
+            profilePictureUrl: user.profilePictureUrl || null,
+            isVerified: user.isVerified,
+            status: user.status,
+            role: user.role,
+            credits: wallet?.creditBalance || 0,
+            joinDate: user.created_at.toISOString(),
+            lastActivity: user.updated_at.toISOString(),
+            totalPurchased: purchases,
+          };
+        }),
+      );
+
+      const responseData: UserListResponseDto = {
+        data: listData,
+        total,
+        page: pageNum,
+        limit: limitNum,
+        filtered: (status !== 'all' || role !== 'all' || verified !== 'all' || !!search || !!joinDateFrom || !!joinDateTo),
+      };
+
+      return { success: true, data: responseData };
+    } catch (err) {
+      this.logger.error('Failed to fetch users:', err);
+      throw new BadRequestException('Failed to fetch users. Please check your filter parameters.');
+    }
   }
 
   // ==================== GET USER DETAILS ====================
@@ -176,7 +314,6 @@ export class AdminUsersController {
           firstName: 'John',
           lastName: 'Doe',
           gender: 'M',
-          dob: '1990-05-15',
           email: 'john@example.com',
           phoneNumber: '+1234567890',
           profilePictureUrl: 'https://example.com/profile.jpg',
@@ -203,7 +340,6 @@ export class AdminUsersController {
   async getUserDetails(@Param('userId', ParseIntPipe) userId: number): Promise<{ success: true; data: UserDetailDto }> {
     const user = await this.userRepo.findOne({
       where: { id: userId },
-      select: ['id', 'firstName', 'lastName', 'gender', 'dob', 'email', 'phoneNumber', 'profilePictureUrl', 'isVerified', 'status', 'role', 'created_at', 'updated_at'],
     });
 
     if (!user) {
@@ -223,7 +359,7 @@ export class AdminUsersController {
       .getMany();
 
     const recentTransactions = payments.map((p) => ({
-      id: `TXN-${p.id}`,
+      id: p.id,
       amount: p.amount,
       date: p.created_at,
       status: p.status,
@@ -234,7 +370,7 @@ export class AdminUsersController {
       firstName: user.firstName,
       lastName: user.lastName || null,
       gender: user.gender || null,
-      dob: user.dob ? user.dob.toISOString().split('T')[0] : null,
+      dob: user.dob ? (user.dob instanceof Date ? user.dob.toISOString().split('T')[0] : String(user.dob).split('T')[0]) : null,
       email: user.email,
       phoneNumber: user.phoneNumber || null,
       profilePictureUrl: user.profilePictureUrl || null,
@@ -378,7 +514,7 @@ export class AdminUsersController {
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Toggle User Status',
-    description: 'Activate or suspend a user account',
+    description: 'Activate or deactivate a user account',
   })
   @ApiParam({ name: 'userId', type: String })
   @ApiOkResponse({
@@ -404,9 +540,20 @@ export class AdminUsersController {
       throw new NotFoundException(`User with ID ${userId} not found`);
     }
 
-    const newStatus = dto.status === 'active' ? UserStatus.ACTIVE : UserStatus.BANNED;
+    const statusMap: Record<string, UserStatus> = {
+      'active': UserStatus.ACTIVE,
+      'inactive': UserStatus.INACTIVE,
+    };
+
+    const newStatus = statusMap[dto.status];
+    if (!newStatus) {
+      throw new BadRequestException('Invalid status value. Allowed values: active, inactive');
+    }
+
     user.status = newStatus;
     await this.userRepo.save(user);
+
+    this.logger.log(`User ${userId} status changed to ${newStatus} - Reason: ${dto.reason || 'No reason provided'}`);
 
     const statusData = {
       id: user.id,

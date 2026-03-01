@@ -6,16 +6,21 @@ import {
     ApiTags,
     ApiUnauthorizedResponse,
     ApiQuery,
+    ApiBadRequestResponse,
+    ApiNotFoundResponse,
 } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { WalletService } from './wallet.service';
 import { CreditPackageService } from './credit-package.service';
+import { PaymentFlowService } from './payment-flow.service';
+import { UserId } from '../../common/decorators/user.decorator';
 import {
     TransactionHistoryQueryDto,
     WalletBalanceResponseDto,
     TransactionHistoryResponseDto,
 } from '../../libs/dtos/wallet/wallet.dto';
 import { CreditPackageResponseDto } from '../../libs/dtos/wallet/credit-package-response.dto';
+import { SubmitPaymentProofDto, SubmitPaymentProofResponseDto } from '../../libs/dtos/wallet/submit-payment-proof.dto';
 import { ParseIntPipe } from '@nestjs/common/pipes';
 
 @ApiTags('Wallet')
@@ -26,6 +31,7 @@ export class WalletController {
     constructor(
         private walletService: WalletService,
         private creditPackageService: CreditPackageService,
+        private paymentFlowService: PaymentFlowService,
     ) { }
 
     // ==================== GET BALANCE ====================
@@ -168,6 +174,62 @@ export class WalletController {
     })
     async getPackages(): Promise<{ success: true; data: CreditPackageResponseDto[] }> {
         const data = await this.creditPackageService.findAllActive();
+        return { success: true, data };
+    }
+
+    // ==================== SUBMIT PAYMENT PROOF ====================
+    @Post('transactions/submit-payment-proof')
+    @ApiOperation({
+        summary: 'Submit payment proof for manual verification',
+        description: 'User submits payment proof (hash and image) to verify a Bakong payment and receive credits. The endpoint validates the payment, confirms the amount matches the package, and credits the user wallet.',
+    })
+    @ApiOkResponse({
+        description: 'Payment verified and credits applied',
+        schema: {
+            example: {
+                success: true,
+                data: {
+                    transactionId: 123,
+                    message: 'Payment verified and credits applied',
+                    creditsApplied: 50,
+                }
+            }
+        }
+    })
+    @ApiBadRequestResponse({
+        description: 'Invalid payment data or validation failed',
+        example: {
+            statusCode: 400,
+            message: 'Payment hash must be exactly 8 characters',
+            error: 'Bad Request',
+        },
+    })
+    @ApiNotFoundResponse({
+        description: 'Credit package not found',
+        example: {
+            statusCode: 404,
+            message: 'Credit package not found',
+            error: 'Not Found',
+        },
+    })
+    @ApiUnauthorizedResponse({
+        description: 'User not authenticated',
+        example: {
+            statusCode: 401,
+            message: 'Unauthorized',
+            error: 'Unauthorized',
+        },
+    })
+    async submitPaymentProof(
+        @Body() dto: SubmitPaymentProofDto,
+        @UserId() userId: number,
+    ): Promise<{ success: true; data: SubmitPaymentProofResponseDto }> {
+        const data = await this.paymentFlowService.submitPaymentProof(
+            userId,
+            dto.paymentHash,
+            dto.imageUrl,
+            dto.packageId,
+        );
         return { success: true, data };
     }
 }

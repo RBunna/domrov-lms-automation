@@ -26,7 +26,7 @@ export interface User {
 }
 
 export interface UserDetail {
-  id: string;
+  id: number;
   name: string;
   email: string;
   phone: string;
@@ -35,7 +35,7 @@ export interface UserDetail {
   joinDate: string;
   totalSpent: number;
   recentTransactions: Array<{
-    id: string;
+    id: number;
     amount: number;
     date: string;
     status: string;
@@ -68,10 +68,10 @@ export interface DashboardUserListResponse {
 }
 
 export interface CreditsResponse {
-  userId: string;
+  userId: number;
   previousBalance: number;
   newBalance: number;
-  transactionId: string;
+  transactionId: number;
   timestamp: string;
 }
 
