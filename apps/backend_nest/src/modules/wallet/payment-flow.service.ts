@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { PaymentGateway } from './payment.gateway';
-import { PaymentService } from '../../services/payment.service';
+import { PaymentService, TransactionData } from '../../services/payment.service';
 import { Payment } from '../../libs/entities/ai/payment.entity';
 import { CreditPackage } from '../../libs/entities/ai/credit-package.entity';
 import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
@@ -86,9 +86,9 @@ export class PaymentFlowService implements OnModuleInit {
       const startTime = Date.now();
       while (Date.now() - startTime < timeoutMs) {
         try {
-          const status = await this.paymentService.checkPayment(md5);
-          this.gateway.sendStatus(userId, status);
-          if (status === 'PAID') {
+          const response = await this.paymentService.checkPayment(md5);
+          this.gateway.sendStatus(userId, response.responseCode === 0 ? 'PAID' : 'UNPAID');
+          if (response.responseCode === 0) {
             await this.handleSuccess(paymentId);
             return;
           }
@@ -103,7 +103,7 @@ export class PaymentFlowService implements OnModuleInit {
     }
   }
 
-  private async handleSuccess(paymentId: number) {
+  private async handleSuccess(paymentId: number, paymentData?: TransactionData) {
     try {
       if (!paymentId) throw new BadRequestException('Payment ID is required');
       const payment = await this.paymentRepo.findOne({
@@ -139,7 +139,10 @@ export class PaymentFlowService implements OnModuleInit {
         description: `Purchased credit package: ${creditPackage.name}`,
         metadata: { paymentId: payment.id, packageId: creditPackage.id },
       });
+      //payment data store
       payment.status = PaymentStatus.COMPLETED;
+      payment.transactionId = paymentData.hash;
+      payment.transactionDetails = paymentData;
       await this.paymentRepo.save(payment);
       this.logger.log(
         `Payment ${paymentId} completed. Credited ${totalCredits} credits to user ${user.id}.`,
@@ -150,5 +153,69 @@ export class PaymentFlowService implements OnModuleInit {
   }
   private sleep(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
+  }
+
+  async verifyTransactionByHash(hash: string, amount: number, currency: string, userId: number): Promise<any> {
+    try {
+      if (!hash || typeof hash !== 'string' || hash.length !== 8) {
+        throw new BadRequestException('Hash must be exactly 8 characters');
+      }
+      if (typeof amount !== 'number' || amount <= 0) {
+        throw new BadRequestException('Amount must be a positive number');
+      }
+      if (!['USD', 'KHR'].includes(currency)) {
+        throw new BadRequestException('Currency must be either USD or KHR');
+      }
+      if (!userId) {
+        throw new BadRequestException('User ID is required');
+      }
+
+      // Check if transaction with this hash already exists in database
+      const existingTransaction = await this.paymentRepo.findOne({
+        where: { transactionId: hash },
+        relations: ['user', 'creditPackage'],
+      });
+
+      if (existingTransaction) {
+        // Transaction already exists, return the stored details
+        return {
+          responseCode: 0,
+          responseMessage: 'Transaction already verified',
+          data: existingTransaction.transactionDetails,
+        };
+      }
+
+      // Call the payment service to check the transaction with the Bakong API
+      const response = await this.paymentService.checkPaymentByHash(hash, amount, currency as any);
+
+      if (response.responseCode === 0 && response.data) {
+        // Store the transaction details in the database
+        // We can store it with the short hash for future reference
+        const payment = await this.paymentRepo.findOne({
+          where: { transactionId: hash },
+        });
+
+        if (!payment) {
+          // Store the transaction details with the user who verified it
+          await this.paymentRepo.save({
+            transactionId: hash,
+            amount: response.data.amount,
+            currency: response.data.currency as any,
+            status: PaymentStatus.COMPLETED,
+            transactionDetails: response.data,
+            paymentMethod: PaymentMethod.BAKOGN,
+            user: { id: userId },
+          });
+        }
+      }
+
+      return response;
+    } catch (err) {
+      if (err instanceof BadRequestException || err instanceof NotFoundException) {
+        throw err;
+      }
+      this.logger.error('Failed to verify transaction by hash', err);
+      throw new BadRequestException('Failed to verify transaction');
+    }
   }
 }

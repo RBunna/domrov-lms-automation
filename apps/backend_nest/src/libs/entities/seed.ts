@@ -19,7 +19,7 @@ import { Payment } from './ai/payment.entity';
 import { AIUsageLog } from './ai/ai-usage-log.entity';
 import { Currency, PaymentMethod } from '../enums/Payment';
 import { PaymentStatus, SubmissionStatus, UserStatus } from '../enums/Status';
-import { UserRole } from '../enums/Role';
+import { SystemRole, UserRole } from '../enums/Role';
 import { SubmissionType, SubmissionMethod } from '../enums/Assessment';
 import { SubmissionResource } from './resource/submission-resource.entity';
 import { Encryption } from '../utils/Encryption';
@@ -35,101 +35,81 @@ export async function seed() {
     console.log('🌱 DataSource initialized. Starting seeding...');
     const queryRunner = AppDataSource.createQueryRunner();
     await queryRunner.connect();
-
     await queryRunner.startTransaction();
 
-    // ==========================================
-    // 4. TRUNCATE DATA
-    // ==========================================
-    console.log('🧹 Clearing existing data...');
-    // Updated to match your entities
-    await queryRunner.query(`
-        DO
-        $$
-        DECLARE
-            tbl RECORD;
-        BEGIN
-            -- Loop over all tables in the current schema
-            FOR tbl IN
-                SELECT tablename
-                FROM pg_tables
-                WHERE schemaname = current_schema()
-            LOOP
-                -- Execute truncate with cascade and restart identity
-                EXECUTE 'TRUNCATE TABLE ' || quote_ident(tbl.tablename) || ' RESTART IDENTITY CASCADE;';
-            END LOOP;
-        END
-        $$;
-    `);
-
     try {
-        // --- 1. SEED USERS ---
+        // -----------------------
+        // 1. CLEAR DATABASE
+        // -----------------------
+        console.log('🧹 Clearing existing data...');
+        await queryRunner.query(`
+            DO
+            $$
+            DECLARE
+                tbl RECORD;
+            BEGIN
+                FOR tbl IN
+                    SELECT tablename
+                    FROM pg_tables
+                    WHERE schemaname = current_schema()
+                LOOP
+                    EXECUTE 'TRUNCATE TABLE ' || quote_ident(tbl.tablename) || ' RESTART IDENTITY CASCADE;';
+                END LOOP;
+            END
+            $$;
+        `);
+
+        // -----------------------
+        // 2. SEED USERS
+        // -----------------------
         console.log('👤 Seeding Users...');
+        const khmerFirstNames = ['Sophea', 'Vannak', 'Sokha', 'Chanda', 'Ratha', 'Sreymom', 'Borey', 'Sophal', 'Rithy', 'Sokunthea'];
+        const khmerLastNames = ['Heng', 'Chhun', 'Meas', 'Ngin', 'Keo', 'Sok', 'Rith', 'Ouk', 'Touch', 'Ly'];
         const users: User[] = [];
 
-        // Fixed list of Khmer names
-        const khmerFirstNames = [
-            'Sophea', 'Vannak', 'Sokha', 'Chanda', 'Ratha', 'Sreymom', 'Borey', 'Sophal', 'Rithy', 'Sokunthea'
-        ];
-        const khmerLastNames = [
-            'Heng', 'Chhun', 'Meas', 'Ngin', 'Keo', 'Sok', 'Rith', 'Ouk', 'Touch', 'Ly'
-        ];
+        const userHashes = await Promise.all(
+            Array.from({ length: 15 }).map(() => Encryption.hashPassword('password123'))
+        );
 
         for (let i = 0; i < 15; i++) {
             const user = new User();
-
-            // Pick a fixed name based on index so it's consistent
             const firstName = khmerFirstNames[i % khmerFirstNames.length];
             const lastName = khmerLastNames[i % khmerLastNames.length];
 
             user.firstName = firstName;
             user.lastName = lastName;
-
-            // Optionally, fix gender based on firstName or just random seed
             user.gender = i % 2 === 0 ? 'male' : 'female';
-
-            // Fixed DOB pattern (so it won't change each run)
-            const year = 1985 + (i % 20); // 1985–2004
-            const month = (i % 12) + 1;
-            const day = (i % 28) + 1;
-            user.dob = new Date(year, month - 1, day);
-
-            // Fixed phone number pattern
+            user.dob = new Date(1985 + (i % 20), (i % 12), (i % 28) + 1);
             user.phoneNumber = `0123456${(100 + i).toString().slice(-4)}`;
-
             user.status = UserStatus.ACTIVE;
             user.isVerified = true;
-
-            const cleanFirstName = firstName.toLowerCase().replace(/[^a-z0-9]/g, '');
-            const cleanLastName = lastName.toLowerCase().replace(/[^a-z0-9]/g, '');
-            user.email = `${cleanFirstName}.${cleanLastName}${i}@example.com`;
-            user.password = await Encryption.hashPassword('password123');
+            user.email = `${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`;
+            user.password = userHashes[i];
 
             users.push(await queryRunner.manager.save(user));
+            console.log(`✅ User created: ${user.firstName} ${user.lastName}`);
         }
 
-        console.log('Fixed Khmer mock users created!');
+        // Fixed Super Admin
+        const superAdmin = new User();
+        superAdmin.email = 'cpf.cadt@gmail.com';
+        superAdmin.password = await Encryption.hashPassword('Admin@123');
+        superAdmin.firstName = 'Super';
+        superAdmin.lastName = 'Admin';
+        superAdmin.status = UserStatus.ACTIVE;
+        superAdmin.role = SystemRole.SuperAdmin;
+        superAdmin.isVerified = true;
+        await queryRunner.manager.save(superAdmin);
+        console.log('✅ Super Admin created');
 
-        // // --- 2. SEED AI MODELS ---
-        // console.log('🤖 Seeding AI Models...');
-        // const models: PlatformAIModel[] = [];
-        // const modelNames = ['GPT-4o', 'Claude 3.5 Sonnet', 'Gemini 1.5 Pro'];
-        // for (const name of modelNames) {
-        //     const model = new PlatformAIModel();
-        //     model.name = name;
-        //     model.apiUrl = faker.internet.url();
-        //     model.accuracy = faker.number.float({ min: 0.8, max: 0.99, fractionDigits: 2 });
-        //     model.costPerInputToken = faker.number.float({ min: 0.0001, max: 0.001, fractionDigits: 5 });
-        //     model.costPerOutputToken = faker.number.float({ min: 0.0002, max: 0.002, fractionDigits: 5 });
-        //     models.push(await queryRunner.manager.save(model));
-        // }
-
-        // --- 3. SEED WALLETS & CREDIT PACKAGES ---
-        console.log('💰 Seeding Wallets & Credit Packages...');
+        // -----------------------
+        // 3. SEED CREDIT PACKAGES
+        // -----------------------
+        console.log('💰 Seeding Credit Packages...');
         const creditPackages: CreditPackage[] = [];
         for (let i = 0; i < 3; i++) {
             const pkg = new CreditPackage();
-            pkg.name = `${faker.commerce.productName()} Pack`;
+            pkg.name = `Pack ${i + 1}`;
             pkg.description = faker.lorem.sentence();
             pkg.credits = faker.number.int({ min: 1000, max: 10000 });
             pkg.price = faker.number.float({ min: 5, max: 50, fractionDigits: 2 });
@@ -140,6 +120,7 @@ export async function seed() {
             creditPackages.push(await queryRunner.manager.save(pkg));
         }
 
+        // Assign wallet to all users
         for (const user of users) {
             const wallet = new UserCreditBalance();
             wallet.user = user;
@@ -147,18 +128,19 @@ export async function seed() {
             await queryRunner.manager.save(wallet);
         }
 
-        // --- 4. SEED CLASSES, ENROLLMENTS & TEAMS ---
+        // -----------------------
+        // 4. SEED CLASSES & TEAMS
+        // -----------------------
         console.log('🏫 Seeding Classes & Teams...');
         const teacher = users[0];
         const studentUsers = users.slice(1);
 
         const myClass = new Class();
-        myClass.name = `Advanced Software Engineering ${faker.number.int({ min: 100, max: 999 })}`;
+        myClass.name = `Advanced SE ${faker.number.int({ min: 100, max: 999 })}`;
         myClass.joinCode = faker.string.alphanumeric(6).toUpperCase();
         myClass.owner = teacher;
         await queryRunner.manager.save(myClass);
 
-        // Enroll students
         for (const student of studentUsers) {
             const enrollment = new Enrollment();
             enrollment.user = student;
@@ -167,7 +149,7 @@ export async function seed() {
             await queryRunner.manager.save(enrollment);
         }
 
-        // Create Teams
+        // Teams
         for (let i = 0; i < 3; i++) {
             const team = new Team();
             team.name = `Team ${faker.animal.type()}`;
@@ -177,17 +159,19 @@ export async function seed() {
             team.leader = studentUsers[i];
             const savedTeam = await queryRunner.manager.save(team);
 
-            // Add members
             for (let j = 0; j < 3; j++) {
+                const memberIndex = (i + j + 1) % studentUsers.length;
                 const member = new TeamMember();
                 member.team = savedTeam;
-                member.user = studentUsers[i + j + 1];
+                member.user = studentUsers[memberIndex];
                 member.isApproved = true;
                 await queryRunner.manager.save(member);
             }
         }
 
-        // --- 5. SEED ASSESSMENTS ---
+        // -----------------------
+        // 5. SEED ASSESSMENTS
+        // -----------------------
         console.log('📝 Seeding Assessments...');
         const assessment = new Assessment();
         assessment.title = 'Library Management System - Week 2';
@@ -197,13 +181,12 @@ export async function seed() {
         assessment.maxScore = 100;
         assessment.submissionType = SubmissionType.INDIVIDUAL;
         assessment.class = myClass;
-        // assessment.aiModel = models[0];
         assessment.aiEvaluationEnable = true;
         assessment.allowedSubmissionMethod = SubmissionMethod.GITHUB;
 
         const savedAssessment = await queryRunner.manager.save(assessment);
 
-        // Specific Rubrics based on your requirement (Total: 100)
+        // Rubrics
         const rubricCriteria = [
             { text: "Define Book struct in models/Book.h", score: 15 },
             { text: "Implement addBook and displayAllBooks", score: 15 },
@@ -221,9 +204,10 @@ export async function seed() {
             await queryRunner.manager.save(rubric);
         }
 
-        // --- 6. SEED SUBMISSIONS (Excluding Teacher) ---
-        console.log('📊 Seeding Submissions for Students...');
-
+        // -----------------------
+        // 6. SEED SUBMISSIONS
+        // -----------------------
+        console.log('📊 Seeding Submissions...');
         const githubUrls = [
             "https://github.com/Next-Gen-G9/week-2-algorithms-anisda.git",
             "https://github.com/Next-Gen-G9/week-2-algorithms-chill-chill.git",
@@ -232,47 +216,41 @@ export async function seed() {
         ];
 
         for (let i = 0; i < githubUrls.length; i++) {
-            // 👈 LOGIC: Offset by 1 to skip the Teacher (users[0])
-            // Student 1 gets users[1], Student 2 gets users[2], etc.
-            const studentUser = users[i + 1];
-
+            const studentUser = studentUsers[i];
             if (!studentUser) break;
 
             const submission = new Submission();
             submission.assessment = savedAssessment;
             submission.user = studentUser;
-            submission.status = SubmissionStatus.PENDING; // Ready to test
+            submission.status = SubmissionStatus.PENDING;
             const savedSubmission = await queryRunner.manager.save(submission);
 
-            // Create the Resource as a GitHub LINK
             const resource = new Resource();
             resource.title = `Project Repo: ${studentUser.lastName}`;
             resource.type = ResourceType.URL;
             resource.url = githubUrls[i];
             resource.owner = `Student:${studentUser.id}`;
-            const savedResource = await queryRunner.manager.save(resource);
+            await queryRunner.manager.save(resource);
 
-            // Link Resource to Submission via Junction Table
             const submissionResource = new SubmissionResource();
             submissionResource.submission = savedSubmission;
-            submissionResource.resource = savedResource;
+            submissionResource.resource = resource;
             await queryRunner.manager.save(submissionResource);
         }
 
-        // --- 7. SEED USAGE LOGS & PAYMENTS ---
+        // -----------------------
+        // 7. SEED USAGE LOGS & PAYMENTS
+        // -----------------------
         console.log('📊 Seeding Usage & Payments...');
         for (const user of users) {
-            // Usage
             const log = new AIUsageLog();
             log.title = 'Code Analysis';
             log.usingDate = new Date();
             log.inputTokenCount = faker.number.int({ min: 100, max: 1000 });
             log.outputTokenCount = faker.number.int({ min: 50, max: 500 });
             log.user = user;
-            // log.model = faker.helpers.arrayElement(models);
             await queryRunner.manager.save(log);
 
-            // Payment
             const payment = new Payment();
             payment.paymentMethod = faker.helpers.enumValue(PaymentMethod);
             payment.amount = faker.number.float({ min: 5, max: 20, fractionDigits: 2 });
@@ -293,5 +271,4 @@ export async function seed() {
         await AppDataSource.destroy();
     }
 }
-
 seed();
