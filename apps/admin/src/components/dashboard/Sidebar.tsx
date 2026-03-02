@@ -14,8 +14,7 @@ const navItems = [
 ];
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${
-        isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-neutral-50'
+    `flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-neutral-50'
     }`;
 
 interface NavItemProps {
@@ -42,8 +41,8 @@ const Sidebar = memo(() => {
     };
 
     return (
-        <aside className="w-64 bg-white flex flex-col min-h-screen border-r border-neutral-100">
-            <div className="flex items-center justify-center h-16 px-4 border-b border-neutral-100">
+        <aside className="hidden lg:flex w-56 xl:w-64 bg-white flex-col h-screen border-r-2 border-neutral-100 overflow-hidden flex-shrink-0">
+            <div className="flex items-center justify-center h-16 px-4 border-b border-neutral-200 flex-shrink-0">
                 <div className="flex items-center gap-2 select-none">
                     <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center">
                         <BadgeCent className="w-5 h-5 text-white" />
@@ -52,13 +51,13 @@ const Sidebar = memo(() => {
                 </div>
             </div>
 
-            <nav className="flex-1 px-3 py-6 space-y-1">
+            <nav className="flex-1 px-3 py-6 space-y-1 overflow-y-auto">
                 {navItems.map(({ label, icon, to, disabled }) =>
                     disabled ? null : <NavItem key={label} label={label} icon={icon} to={to} />
                 )}
             </nav>
 
-            <div className="border-t border-neutral-100 px-3 py-4 space-y-1">
+            <div className="border-t border-neutral-200 px-3 py-4 space-y-1 flex-shrink-0">
                 <NavLink to={ROUTES.SETTINGS} className={navLinkClass}>
                     <Settings className="w-5 h-5" />
                     <span>Settings</span>

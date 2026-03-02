@@ -43,3 +43,12 @@ export interface ActivityItem {
 export interface RecentActivityResponseDto {
   activities: ActivityItem[];
 }
+
+export interface DailyGrowthData {
+  date: string;
+  value: number;
+}
+
+export interface DailyIncomeResponseDto {
+  dailyData: DailyGrowthData[];
+}

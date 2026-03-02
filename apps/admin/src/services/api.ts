@@ -178,6 +178,14 @@ const apiClient = {
       }>('/admin/dashboard/users', 'GET', undefined, {
         params: { page, limit, search, status, role },
       }),
+
+    getDailyIncome: () =>
+      request<{
+        dailyData: Array<{
+          date: string;
+          value: number;
+        }>;
+      }>('/admin/dashboard/income-daily'),
   },
 
   // Transaction endpoints

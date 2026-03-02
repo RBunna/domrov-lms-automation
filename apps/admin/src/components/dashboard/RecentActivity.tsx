@@ -1,6 +1,8 @@
-import { useEffect, useState } from 'react';
-import { ShoppingBag, UserPlus, AlertCircle } from 'lucide-react';
+import React, { useState, useCallback } from 'react';
+import { ShoppingBag, UserPlus } from 'lucide-react';
 import { BaseCard } from '../base';
+import { DynamicSection } from '../sections';
+import { useFetchOnce } from '../../hooks';
 import { dashboardService, type Activity } from '../../services';
 
 const getActivityIcon = (type: string) => {
@@ -10,7 +12,7 @@ const getActivityIcon = (type: string) => {
         case 'user_registration':
             return UserPlus;
         default:
-            return AlertCircle;
+            return ShoppingBag;
     }
 };
 
@@ -39,74 +41,88 @@ const formatTimeAgo = (isoString: string): string => {
     return `${days}d ago`;
 };
 
-const RecentActivity = () => {
+/**
+ * RecentActivity Component
+ *
+ * Displays the latest system activities (user registrations, purchases, etc.).
+ * Integrated with DynamicSection for loading and error management.
+ *
+ * Features:
+ * - Real-time activity display
+ * - Loading skeleton animation
+ * - Error handling display
+ * - Activity icon color coding
+ * - Time-relative timestamps
+ * - Full accessibility support
+ * - Single API call on mount (prevents duplicate requests)
+ */
+const RecentActivity: React.FC = () => {
     const [activities, setActivities] = useState<Activity[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
-        const fetchActivity = async () => {
-            try {
-                setIsLoading(true);
-                setError(null);
-                const data = await dashboardService.fetchRecentActivity();
-                setActivities(data.activities || []);
-            } catch (err) {
-                setError(err instanceof Error ? err.message : 'Failed to load activities');
-            } finally {
-                setIsLoading(false);
-            }
-        };
-
-        fetchActivity();
+    // Fetch function wrapped in useCallback
+    const fetchActivity = useCallback(async () => {
+        try {
+            setIsLoading(true);
+            setError(null);
+            const data = await dashboardService.fetchRecentActivity();
+            setActivities(data.activities || []);
+        } catch (err) {
+            setError(err instanceof Error ? err.message : 'Failed to load activities');
+            console.error('Failed to fetch recent activity:', err);
+        } finally {
+            setIsLoading(false);
+        }
     }, []);
 
-    if (isLoading) {
-        return (
-            <BaseCard padding="md" className="col-span-1">
-                <h2 className="text-base font-semibold text-gray-900 mb-1">Recent Activity</h2>
-                <p className="text-gray-500 text-xs mb-6">Latest system events</p>
-                <div className="space-y-4">
-                    {Array(4).fill(0).map((_, i) => (
-                        <div key={i} className="h-6 bg-gray-200 rounded animate-pulse" />
-                    ))}
-                </div>
-            </BaseCard>
-        );
-    }
+    // Only call fetch once on mount
+    useFetchOnce(fetchActivity);
 
-    if (error) {
-        return (
-            <BaseCard padding="md" className="col-span-1">
-                <h2 className="text-base font-semibold text-gray-900 mb-1">Recent Activity</h2>
-                <p className="text-red-600 text-sm mt-4">{error}</p>
-            </BaseCard>
-        );
-    }
+    const loadingContent = (
+        <div className="space-y-3">
+            {Array(4)
+                .fill(0)
+                .map((_, i) => (
+                    <div key={i} className="h-5 bg-gray-200 rounded animate-pulse" />
+                ))}
+        </div>
+    );
 
     const displayActivities = activities.slice(0, 5);
 
-    return (
-        <BaseCard padding="md" className="col-span-1">
-            <h2 className="text-base font-semibold text-gray-900 mb-1">Recent Activity</h2>
-            <p className="text-gray-500 text-xs mb-6">Latest system events</p>
+    const contentNode = (
+        <BaseCard padding="md" className="mt-0">
             {displayActivities.length === 0 ? (
-                <p className="text-gray-500 text-sm">No recent activity</p>
+                <div className="py-8 text-center">
+                    <p className="text-gray-500 text-sm">No recent activity yet</p>
+                </div>
             ) : (
-                <ul className="space-y-4">
+                <ul className="space-y-3" role="list">
                     {displayActivities.map((activity) => {
                         const Icon = getActivityIcon(activity.type);
-                        const icoColor = getActivityColor(activity.type);
+                        const colorClass = getActivityColor(activity.type);
                         return (
-                            <li key={activity.id} className="flex items-center justify-between">
+                            <li
+                                key={activity.id}
+                                className="flex items-center justify-between py-2 px-3 rounded-lg hover:bg-gray-50 transition-colors"
+                                role="listitem"
+                            >
                                 <span className="flex items-center gap-3 flex-1 min-w-0">
-                                    <Icon className={`w-4 h-4 flex-shrink-0 ${icoColor}`} />
+                                    <Icon
+                                        className={`w-5 h-5 flex-shrink-0 ${colorClass}`}
+                                        aria-hidden="true"
+                                    />
                                     <div className="text-sm text-gray-700 font-medium truncate">
-                                        {activity.user}
-                                        {activity.amount && <span className="text-gray-500"> - ${activity.amount}</span>}
+                                        <span className="font-semibold block">{activity.user}</span>
+                                        {activity.amount && (
+                                            <span className="text-gray-500 text-xs">
+                                                Amount: ${activity.amount}
+                                            </span>
+                                        )}
                                     </div>
                                 </span>
-                                <span className="text-gray-500 text-xs font-medium flex-shrink-0 ml-2">
+                                <span className="text-gray-500 text-xs font-medium flex-shrink-0 ml-2 whitespace-nowrap">
                                     {formatTimeAgo(activity.timestamp)}
                                 </span>
                             </li>
@@ -116,6 +132,21 @@ const RecentActivity = () => {
             )}
         </BaseCard>
     );
+
+    return (
+        <div className="col-span-1">
+            <DynamicSection
+                title="Recent Activity"
+                description="Latest system events"
+                isLoading={isLoading}
+                error={error}
+                loadingContent={loadingContent}
+                skeletonCount={4}
+            >
+                {contentNode}
+            </DynamicSection>
+        </div>
+    );
 };
 
-export default RecentActivity;
+export default React.memo(RecentActivity);

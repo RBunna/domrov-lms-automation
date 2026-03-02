@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import { classNames } from '../../utils';
 
@@ -31,6 +31,22 @@ const BaseModal: React.FC<BaseModalProps> = ({
     size = 'md',
     closeButton = true,
 }) => {
+    // Block scroll when modal is open
+    useEffect(() => {
+        if (isOpen) {
+            document.documentElement.style.overflow = 'hidden';
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.documentElement.style.overflow = 'auto';
+            document.body.style.overflow = 'auto';
+        }
+
+        return () => {
+            document.documentElement.style.overflow = 'auto';
+            document.body.style.overflow = 'auto';
+        };
+    }, [isOpen]);
+
     if (!isOpen) return null;
 
     return (

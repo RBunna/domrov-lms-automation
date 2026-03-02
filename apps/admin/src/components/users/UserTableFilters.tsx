@@ -1,3 +1,4 @@
+import React from 'react';
 import { Search } from 'lucide-react';
 import { USER_ROLES, USER_STATUSES } from '../../constants/config';
 
@@ -58,4 +59,4 @@ const UserTableFilters: React.FC<UserTableFiltersProps> = ({
     </div>
 );
 
-export default UserTableFilters;
+export default React.memo(UserTableFilters);

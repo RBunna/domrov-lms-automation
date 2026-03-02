@@ -3,6 +3,7 @@ import { ApiTags, ApiOperation, ApiOkResponse, ApiQuery, ApiBearerAuth } from '@
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, MoreThan, Like, ILike } from 'typeorm';
 import { DashboardStatsDto, RecentActivityResponseDto } from '../../libs/dtos/admin/dashboard.dto';
+import { DailyIncomeResponseDto } from '../../libs/dtos/admin/daily-income.dto';
 import { UserListTableResponseDto, UserTableItemDto } from '../../libs/dtos/admin/user-admin.dto';
 import { User } from '../../libs/entities/user/user.entity';
 import { UserStatus } from '../../libs/enums/Status';
@@ -327,6 +328,79 @@ export class AdminDashboardController {
     activities.splice(20);
 
     const data: RecentActivityResponseDto = { activities };
+
+    return { success: true, data };
+  }
+
+  // ==================== GET DAILY INCOME DATA ====================
+  @Get('income-daily')
+  @ApiOperation({
+    summary: 'Get Daily Income Data',
+    description: 'Fetch daily income data for the last 7 days. Perfect for "Income Daily" dashboard chart. Includes days with zero income.',
+  })
+  @ApiOkResponse({
+    schema: {
+      example: {
+        success: true,
+        data: {
+          dailyData: [
+            { date: '2026-02-24', value: 120.0 },
+            { date: '2026-02-25', value: 95.50 },
+            { date: '2026-02-26', value: 0 },
+            { date: '2026-02-27', value: 250.75 },
+            { date: '2026-02-28', value: 180.25 },
+            { date: '2026-03-01', value: 0 },
+            { date: '2026-03-02', value: 210.0 },
+          ],
+        },
+      },
+    },
+  })
+  async getDailyIncome(): Promise<{ success: true; data: DailyIncomeResponseDto }> {
+    // Calculate the last 7 days
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6); // -6 to include today
+
+    // Create a map of all days in the last 7 days with zero values
+    const dailyIncomeMap = new Map<string, number>();
+    for (let i = 0; i < 7; i++) {
+      const date = new Date(sevenDaysAgo);
+      date.setDate(date.getDate() + i);
+      const dateStr = date.toISOString().split('T')[0]; // YYYY-MM-DD format
+      dailyIncomeMap.set(dateStr, 0);
+    }
+
+    // Fetch completed payments from the last 7 days
+    const payments = await this.paymentRepo.find({
+      where: {
+        status: PaymentStatus.COMPLETED,
+        created_at: MoreThan(sevenDaysAgo),
+      },
+    });
+
+    // Aggregate income by date
+    for (const payment of payments) {
+      const paymentDate = new Date(payment.created_at);
+      paymentDate.setHours(0, 0, 0, 0);
+      const dateStr = paymentDate.toISOString().split('T')[0];
+
+      if (dailyIncomeMap.has(dateStr)) {
+        dailyIncomeMap.set(dateStr, dailyIncomeMap.get(dateStr)! + payment.amount);
+      }
+    }
+
+    // Convert map to sorted array (ascending by date)
+    const dailyData = Array.from(dailyIncomeMap.entries())
+      .sort(([dateA], [dateB]) => dateA.localeCompare(dateB))
+      .map(([date, value]) => ({
+        date,
+        value: parseFloat(value.toFixed(2)), // Round to 2 decimal places
+      }));
+
+    const data: DailyIncomeResponseDto = { dailyData };
 
     return { success: true, data };
   }

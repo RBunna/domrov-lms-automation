@@ -1,6 +1,5 @@
 import React from 'react';
 import Sidebar from '../dashboard/Sidebar';
-import { MAX_WIDTH_CONTAINER, MAIN_PADDING } from '../../constants/config';
 
 interface MainLayoutProps {
     children: React.ReactNode;
@@ -8,10 +7,15 @@ interface MainLayoutProps {
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
     return (
-        <div className="flex min-h-screen bg-neutral-50 font-sans">
+        <div className="flex h-screen bg-neutral-50 font-sans overflow-hidden">
+            {/* Sidebar - Fixed height, doesn't scroll */}
             <Sidebar />
-            <main className={`flex-1 ${MAIN_PADDING}`}>
-                <div className={MAX_WIDTH_CONTAINER}>{children}</div>
+            {/* Main content area - Responsive padding, fills width */}
+            <main className="flex-1 flex flex-col overflow-hidden bg-white">
+                {/* Content container with responsive padding and gap from sidebar */}
+                <div className="px-4 sm:px-6 md:px-8 lg:px-10 xl:px-12 py-6 sm:py-8 md:py-10 lg:py-12 flex flex-col h-full overflow-hidden">
+                    {children}
+                </div>
             </main>
         </div>
     );

@@ -7,9 +7,11 @@ import type {
   UserListTableResponseDto,
   RecentActivityResponseDto,
   ActivityItem,
+  DailyGrowthData,
+  DailyIncomeResponseDto,
 } from '../types/admin-dashboard';
 
-export type { DashboardStatsDto, RecentActivityResponseDto, ActivityItem };
+export type { DashboardStatsDto, RecentActivityResponseDto, ActivityItem, DailyGrowthData, DailyIncomeResponseDto };
 
 class DashboardService {
   /**
@@ -70,6 +72,22 @@ class DashboardService {
       return response;
     } catch (error) {
       console.error('Failed to fetch dashboard users list:', error);
+      throw error;
+    }
+  }
+
+  /**
+   * Fetch daily income data for the last 7 days
+   * Matches: GET /admin/dashboard/income-daily
+   */
+  async fetchDailyGrowth(): Promise<DailyIncomeResponseDto> {
+    try {
+      const response = await apiClient.dashboard.getDailyIncome();
+      return {
+        dailyData: response.dailyData,
+      };
+    } catch (error) {
+      console.error('Failed to fetch daily income:', error);
       throw error;
     }
   }

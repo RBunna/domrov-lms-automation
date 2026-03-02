@@ -3,8 +3,9 @@ import { useNavigate } from 'react-router-dom';
 import UserTableFilters from '../components/users/UserTableFilters';
 import UserTable from '../components/users/UserTable';
 import { MainLayout, PageHeader } from '../components/layout';
+import { PaginationControls } from '../components/base';
 import { userService, type User } from '../services';
-import { useModal } from '../hooks';
+import { useModal, usePaginationWithPrefetch } from '../hooks';
 import { AlertCircle, CheckCircle } from 'lucide-react';
 import type { UserCreditReason } from '../types/admin-wallet';
 import AddCreditModal from '../components/users/AddCreditModal';
@@ -12,8 +13,8 @@ import DeductCreditModal from '../components/users/DeductCreditModal';
 import StatusToggleModal from '../components/users/StatusToggleModal';
 
 type DeductReason = Extract<UserCreditReason, 'refund' | 'other'> | 'penalty' | 'correction';
+const PAGE_SIZE = 10;
 
-// Custom debounce hook
 const useDebounce = <T,>(value: T, delay: number) => {
   const [debouncedValue, setDebouncedValue] = useState(value);
 
@@ -28,57 +29,120 @@ const useDebounce = <T,>(value: T, delay: number) => {
   return debouncedValue;
 };
 
-// Memoized UserTable to prevent unnecessary re-renders
 const MemoizedUserTable = React.memo(UserTable);
+
+interface FiltersSectionProps {
+  search: string;
+  roleFilter: string;
+  statusFilter: string;
+  onSearchChange: (value: string) => void;
+  onRoleChange: (value: string) => void;
+  onStatusChange: (value: string) => void;
+}
+
+const FiltersSection = React.memo<FiltersSectionProps>(({
+  search,
+  roleFilter,
+  statusFilter,
+  onSearchChange,
+  onRoleChange,
+  onStatusChange,
+}) => (
+  <div className="mb-3 flex-shrink-0">
+    <UserTableFilters
+      search={search}
+      onSearchChange={onSearchChange}
+      roleFilter={roleFilter}
+      onRoleChange={onRoleChange}
+      statusFilter={statusFilter}
+      onStatusChange={onStatusChange}
+    />
+  </div>
+));
+FiltersSection.displayName = 'FiltersSection';
+
+interface PaginationSectionProps {
+  currentPage: number;
+  totalPages: number;
+  totalRecords: number;
+  isLoading: boolean;
+  onPrevPage: () => void;
+  onNextPage: () => void;
+  onGoToPage: (page: number) => void;
+}
+
+const PaginationSection = React.memo<PaginationSectionProps>(({
+  currentPage,
+  totalPages,
+  totalRecords,
+  isLoading,
+  onPrevPage,
+  onNextPage,
+  onGoToPage,
+}) => {
+  if (totalPages === 0) return null;
+
+  return (
+    <div className="flex-shrink-0">
+      <PaginationControls
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalRecords={totalRecords}
+        pageSize={PAGE_SIZE}
+        onPrevPage={onPrevPage}
+        onNextPage={onNextPage}
+        onGoToPage={onGoToPage}
+        isLoading={isLoading}
+      />
+    </div>
+  );
+});
+PaginationSection.displayName = 'PaginationSection';
 
 const Users = () => {
   const navigate = useNavigate();
-  // Data state
-  const [users, setUsers] = useState<User[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [currentSearch, setCurrentSearch] = useState<string>('');
+  const [currentStatus, setCurrentStatus] = useState<string>('all');
+  const [currentRole, setCurrentRole] = useState<string>('all');
 
-  // UI state (doesn't trigger table re-render)
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Filter state
-  const [currentSearch, setCurrentSearch] = useState<string>('');
-  const [currentStatus, setCurrentStatus] = useState<string>('all');
-  const [currentRole, setCurrentRole] = useState<string>('all');
-  const [currentPage, setCurrentPage] = useState(1);
-
-  // Debounced search (500ms delay)
   const debouncedSearch = useDebounce(currentSearch, 500);
 
-  const viewModal = useModal();
   const addCreditModal = useModal();
   const deductCreditModal = useModal();
   const statusModal = useModal();
 
-  // Fetch users only when debounced search, status, or role changes
-  useEffect(() => {
-    loadUsers(1);
-  }, [debouncedSearch, currentStatus, currentRole]);
+  const transformUserData = (user: any): User => ({
+    id: user.id,
+    firstName: user.firstName,
+    lastName: user.lastName || null,
+    email: user.email,
+    profilePictureUrl: user.profilePictureUrl,
+    avatar: user.profilePictureUrl || undefined,
+    name: `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`,
+    role: user.role,
+    balance: user.credits,
+    credits: user.credits,
+    status: user.status,
+    created: user.joinDate,
+    isVerified: user.isVerified,
+    gender: user.gender || null,
+    dob: user.dob || null,
+    phoneNumber: user.phoneNumber || null,
+    joinDate: user.joinDate,
+    lastActivity: user.lastActivity,
+    totalPurchased: user.totalPurchased,
+  });
 
-  // Clear success message after 4 seconds
-  useEffect(() => {
-    if (successMessage) {
-      const timer = setTimeout(() => setSuccessMessage(null), 4000);
-      return () => clearTimeout(timer);
-    }
-  }, [successMessage]);
-
-  const loadUsers = useCallback(async (page: number = 1) => {
-    try {
-      setIsLoading(true);
-      setError(null);
-      setCurrentPage(page);
-
+  const fetchUsersWithParams = useCallback(
+    async (page: number, limit: number) => {
       const response = await userService.fetchUsers(
         page,
-        10,
+        limit,
         {
           status: currentStatus,
           role: currentRole,
@@ -88,56 +152,78 @@ const Users = () => {
         }
       );
 
-      // Memoized transform to prevent unnecessary re-processing
-      const transformedUsers = response.data.map((user) => ({
-        id: user.id,
-        firstName: user.firstName,
-        lastName: user.lastName || null,
-        email: user.email,
-        profilePictureUrl: user.profilePictureUrl,
-        avatar: user.profilePictureUrl || undefined,
-        name: `${user.firstName}${user.lastName ? ' ' + user.lastName : ''}`,
-        role: user.role,
-        balance: user.credits,
-        credits: user.credits,
-        status: user.status,
-        created: user.joinDate,
-        isVerified: user.isVerified,
-        gender: user.gender || null,
-        dob: user.dob || null,
-        phoneNumber: user.phoneNumber || null,
-        joinDate: user.joinDate,
-        lastActivity: user.lastActivity,
-        totalPurchased: user.totalPurchased,
-      }));
+      return {
+        data: (response.data || []).map(transformUserData),
+        total: response.total || 0,
+      };
+    },
+    [currentStatus, currentRole, debouncedSearch]
+  );
 
-      setUsers(transformedUsers);
-    } catch (err) {
-      const errorMsg = err instanceof Error ? err.message : 'Failed to load users. Please try again.';
-      setError(errorMsg);
-      console.error('Load users error:', err);
-    } finally {
-      setIsLoading(false);
+  const {
+    currentData: users,
+    isLoading,
+    error: paginationError,
+    totalRecords,
+    totalPages,
+    currentPage,
+    goToPage,
+    nextPage,
+    prevPage,
+    prefetchPage,
+  } = usePaginationWithPrefetch(
+    fetchUsersWithParams,
+    PAGE_SIZE,
+    [currentStatus, currentRole, debouncedSearch]
+  );
+
+  useEffect(() => {
+    if (successMessage) {
+      const timer = setTimeout(() => setSuccessMessage(null), 4000);
+      return () => clearTimeout(timer);
     }
-  }, [debouncedSearch, currentStatus, currentRole]);
+  }, [successMessage]);
 
-  // Memoized event handlers - prevent recreating functions on every render
+  useEffect(() => {
+    goToPage(1);
+  }, [debouncedSearch, currentStatus, currentRole, goToPage]);
+
+  useEffect(() => {
+    if (currentPage < totalPages) {
+      prefetchPage(currentPage + 1);
+    }
+  }, [currentPage, totalPages, prefetchPage]);
+
   const handleSearch = useCallback((value: string) => {
     setCurrentSearch(value);
   }, []);
 
   const handleStatusFilter = useCallback((value: string) => {
     setCurrentStatus(value);
-    setCurrentPage(1); // Reset to first page when filter changes
   }, []);
 
   const handleRoleFilter = useCallback((value: string) => {
     setCurrentRole(value);
-    setCurrentPage(1); // Reset to first page when filter changes
   }, []);
 
+  const handleGoToPage = useCallback((page: number) => {
+    const validPage = Math.max(1, Math.min(page, totalPages || 1));
+    goToPage(validPage);
+  }, [totalPages, goToPage]);
+
+  const handleNextPage = useCallback(() => {
+    if (currentPage < totalPages) {
+      nextPage();
+    }
+  }, [currentPage, totalPages, nextPage]);
+
+  const handlePrevPage = useCallback(() => {
+    if (currentPage > 1) {
+      prevPage();
+    }
+  }, [currentPage, prevPage]);
+
   const handleViewClick = useCallback((user: User) => {
-    // Navigate to user detail page instead of opening modal
     navigate(`/users/${user.id}`);
   }, [navigate]);
 
@@ -169,7 +255,7 @@ const Users = () => {
         `Admin added ${amount} credits`
       );
 
-      await loadUsers(currentPage);
+      await goToPage(currentPage);
       setSuccessMessage(
         `Added ${amount} credits to ${selectedUser.firstName}`
       );
@@ -182,7 +268,7 @@ const Users = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedUser, currentPage, loadUsers, addCreditModal]);
+  }, [selectedUser, currentPage, goToPage, addCreditModal]);
 
   const handleDeductCredit = useCallback(async (amount: number, reason: DeductReason) => {
     if (!selectedUser || amount <= 0) return;
@@ -197,7 +283,7 @@ const Users = () => {
         `Admin deducted ${amount} credits`
       );
 
-      await loadUsers(currentPage);
+      await goToPage(currentPage);
       setSuccessMessage(
         `Deducted ${amount} credits from ${selectedUser.firstName}`
       );
@@ -210,7 +296,7 @@ const Users = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedUser, currentPage, loadUsers, deductCreditModal]);
+  }, [selectedUser, currentPage, goToPage, deductCreditModal]);
 
   const handleStatusToggle = useCallback(async (status: 'active' | 'inactive' | 'banned', reason?: string) => {
     if (!selectedUser) return;
@@ -220,7 +306,7 @@ const Users = () => {
 
       await userService.toggleUserStatus(selectedUser.id, status, reason);
 
-      await loadUsers(currentPage);
+      await goToPage(currentPage);
       setSuccessMessage(`User status changed to ${status}`);
       statusModal.closeModal();
       setSelectedUser(null);
@@ -231,15 +317,16 @@ const Users = () => {
     } finally {
       setIsSubmitting(false);
     }
-  }, [selectedUser, currentPage, loadUsers, statusModal]);
+  }, [selectedUser, currentPage, goToPage, statusModal]);
 
-  // Memoize handlers to pass to table
   const tableHandlers = useMemo(() => ({
     onView: handleViewClick,
     onAddCredit: handleAddCreditClick,
     onDeductCredit: handleDeductCreditClick,
     onToggleStatus: handleStatusToggleClick,
   }), [handleViewClick, handleAddCreditClick, handleDeductCreditClick, handleStatusToggleClick]);
+
+  const displayError = error || paginationError;
 
   return (
     <MainLayout>
@@ -248,15 +335,13 @@ const Users = () => {
         description="Manage system users and their access levels."
       />
 
-      {/* Error Alert */}
-      {error && (
+      {displayError && (
         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex gap-3">
           <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <span>{error}</span>
+          <span>{displayError}</span>
         </div>
       )}
 
-      {/* Success Alert */}
       {successMessage && (
         <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex gap-3">
           <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
@@ -264,28 +349,35 @@ const Users = () => {
         </div>
       )}
 
-      {/* Filters */}
-      <div className="mb-6">
-        <UserTableFilters
-          search={currentSearch || ''}
-          onSearchChange={handleSearch}
-          roleFilter={currentRole || ''}
-          onRoleChange={handleRoleFilter}
-          statusFilter={currentStatus || ''}
-          onStatusChange={handleStatusFilter}
-        />
+      <FiltersSection
+        search={currentSearch || ''}
+        roleFilter={currentRole || ''}
+        statusFilter={currentStatus || ''}
+        onSearchChange={handleSearch}
+        onRoleChange={handleRoleFilter}
+        onStatusChange={handleStatusFilter}
+      />
+
+      <div className="flex-1 flex flex-col min-h-0 mb-3">
+        <div className="overflow-y-auto">
+          <MemoizedUserTable
+            users={users}
+            isLoading={isLoading}
+            {...tableHandlers}
+          />
+        </div>
       </div>
 
-      {/* Users Table - Memoized to prevent unnecessary re-renders */}
-      <div className="mb-6">
-        <MemoizedUserTable
-          users={users}
-          isLoading={isLoading}
-          {...tableHandlers}
-        />
-      </div>
+      <PaginationSection
+        currentPage={currentPage}
+        totalPages={totalPages}
+        totalRecords={totalRecords}
+        isLoading={isLoading}
+        onPrevPage={handlePrevPage}
+        onNextPage={handleNextPage}
+        onGoToPage={handleGoToPage}
+      />
 
-      {/* Add Credits Modal */}
       <AddCreditModal
         user={selectedUser}
         isOpen={addCreditModal.isOpen}
@@ -294,7 +386,6 @@ const Users = () => {
         onSubmit={handleAddCredit}
       />
 
-      {/* Deduct Credits Modal */}
       <DeductCreditModal
         user={selectedUser}
         isOpen={deductCreditModal.isOpen}
@@ -303,7 +394,6 @@ const Users = () => {
         onSubmit={handleDeductCredit}
       />
 
-      {/* Status Toggle Modal */}
       <StatusToggleModal
         user={selectedUser}
         isOpen={statusModal.isOpen}
