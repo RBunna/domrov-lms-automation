@@ -82,17 +82,21 @@ export class TransactionResponseDto {
   amount: number;
 
   @ApiProperty({ example: Currency.USD, default: Currency.USD })
-  currency: Currency;
+  currency?: Currency;
 
-  @ApiProperty({ example: 'bank_transfer' })
-  method: string;
+  @ApiProperty({ example: 'bank_transfer', nullable: true })
+  method?: string;
 
-  @ApiProperty({ example: 'unpaid' })
-  status: string;
+  @ApiProperty({ example: 'unpaid', nullable: true })
+  status?: string;
 
   @ApiProperty({ example: '2026-02-15T10:00:00Z' })
   date: string;
 
+  @ApiProperty({ example: 'payment', enum: ['payment', 'admin_adjustment'] })
+  transactionType: 'payment' | 'admin_adjustment';
+
+  // Payment-specific fields
   @ApiProperty({ example: 'Amount mismatch - sent wrong amount', nullable: true })
   userNote?: string;
 
@@ -101,6 +105,40 @@ export class TransactionResponseDto {
 
   @ApiProperty({ example: null, nullable: true })
   verificationNote?: string;
+
+  // Package info (for payments)
+  @ApiProperty({
+    example: { id: 1, name: 'Basic Package', credits: 100, bonusCredits: 10 },
+    nullable: true
+  })
+  creditPackage?: {
+    id: number;
+    name: string;
+    credits: number;
+    bonusCredits?: number;
+  };
+
+  // Admin adjustment specific fields
+  @ApiProperty({ example: 'credit', enum: ['credit', 'debit', 'purchase'], nullable: true })
+  adjustmentType?: 'credit' | 'debit' | 'purchase';
+
+  @ApiProperty({ example: 'admin_adjustment', nullable: true })
+  reason?: string;
+
+  @ApiProperty({ example: 100, nullable: true })
+  balanceBefore?: number;
+
+  @ApiProperty({ example: 150, nullable: true })
+  balanceAfter?: number;
+
+  @ApiProperty({ example: 'Admin added 50 credits - bonus', nullable: true })
+  description?: string;
+
+  @ApiProperty({
+    example: { source: 'admin_users_controller', adminAction: 'add_credits', inputReason: 'bonus' },
+    nullable: true
+  })
+  metadata?: Record<string, any>;
 }
 
 export class TransactionListResponseDto {
@@ -124,23 +162,26 @@ export class TransactionDetailDto {
   @ApiProperty({ example: 'Charlie Davis' })
   user: string;
 
-  @ApiProperty({ example: 3 })
-  userId: number;
+  @ApiProperty({ example: 3, nullable: true })
+  userId: number | null;
 
   @ApiProperty({ example: 9.99 })
   amount: number;
 
-  @ApiProperty({ example: 'USD' })
-  currency: string;
+  @ApiProperty({ example: 'USD', nullable: true })
+  currency?: string;
 
-  @ApiProperty({ example: 'bank_transfer' })
-  method: string;
+  @ApiProperty({ example: 'bank_transfer', nullable: true })
+  method?: string;
 
-  @ApiProperty({ example: 'unpaid' })
-  status: string;
+  @ApiProperty({ example: 'unpaid', nullable: true })
+  status?: string;
 
   @ApiProperty({ example: '2026-02-15T10:00:00Z' })
   date: string;
+
+  @ApiProperty({ example: 'payment', enum: ['payment', 'admin_adjustment'] })
+  transactionType: 'payment' | 'admin_adjustment';
 
   @ApiProperty({
     type: 'object',
@@ -154,6 +195,41 @@ export class TransactionDetailDto {
       trackingStatus: { type: 'string' },
       createdDate: { type: 'string' },
     },
+    nullable: true,
   })
-  transactionDetails: any;
+  transactionDetails?: any;
+
+  // Admin adjustment fields
+  @ApiProperty({
+    example: { source: 'admin_users_controller', adminAction: 'add_credits', inputReason: 'bonus' },
+    nullable: true
+  })
+  metadata?: Record<string, any>;
+
+  @ApiProperty({ example: 'credit', enum: ['credit', 'debit', 'purchase'], nullable: true })
+  adjustmentType?: 'credit' | 'debit' | 'purchase';
+
+  @ApiProperty({ example: 'admin_adjustment', nullable: true })
+  reason?: string;
+
+  @ApiProperty({ example: 100, nullable: true })
+  balanceBefore?: number;
+
+  @ApiProperty({ example: 150, nullable: true })
+  balanceAfter?: number;
+
+  @ApiProperty({ example: 'Admin added 50 credits - bonus', nullable: true })
+  description?: string;
+
+  // Package info
+  @ApiProperty({
+    example: { id: 1, name: 'Basic Package', credits: 100, bonusCredits: 10 },
+    nullable: true
+  })
+  creditPackage?: {
+    id: number;
+    name: string;
+    credits: number;
+    bonusCredits?: number;
+  };
 }

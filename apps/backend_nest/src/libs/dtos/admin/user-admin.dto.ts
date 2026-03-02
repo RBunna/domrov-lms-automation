@@ -54,8 +54,8 @@ export class DeductCreditsDto {
 }
 
 export class AddCreditsResponseDto {
-  @ApiProperty({ example: 'user_001', description: 'User ID' })
-  userId: string;
+  @ApiProperty({ example: 1, description: 'User ID' })
+  userId: number;
 
   @ApiProperty({ example: 500, description: 'Balance before adjustment' })
   previousBalance: number;
@@ -63,8 +63,8 @@ export class AddCreditsResponseDto {
   @ApiProperty({ example: 600, description: 'Balance after adjustment' })
   newBalance: number;
 
-  @ApiProperty({ example: 'txn_001', description: 'Transaction ID' })
-  transactionId: string;
+  @ApiProperty({ example: 5, description: 'Transaction ID' })
+  transactionId: number;
 
   @ApiProperty({ example: '2026-03-01T10:30:00Z', description: 'Timestamp' })
   timestamp: string;
@@ -121,9 +121,58 @@ export class UserListResponseDto {
   filtered?: boolean;
 }
 
+export class PurchasedPackageDto {
+  @ApiProperty({ example: 1 })
+  packageId: number;
+
+  @ApiProperty({ example: 'Premium Pack' })
+  packageName: string;
+
+  @ApiProperty({ example: 500 })
+  credits: number;
+
+  @ApiProperty({ example: 50 })
+  bonusCredits: number;
+
+  @ApiProperty({ example: 39.99 })
+  price: number;
+
+  @ApiProperty({ example: 'USD' })
+  currency: string;
+
+  @ApiProperty({ example: '2026-03-01T10:30:00Z' })
+  purchaseDate: string;
+
+  @ApiProperty({ example: 'COMPLETED', enum: ['PENDING', 'COMPLETED', 'FAILED', 'REFUNDED'] })
+  paymentStatus: string;
+}
+
+export class DetailedTransactionDto {
+  @ApiProperty({ example: 1 })
+  id: number;
+
+  @ApiProperty({ example: 100 })
+  amount: number;
+
+  @ApiProperty({ example: 'Payment', enum: ['Payment', 'Bonus', 'Refund', 'Adjustment', 'AI Usage'] })
+  reason: string;
+
+  @ApiProperty({ example: 500 })
+  balanceBefore: number;
+
+  @ApiProperty({ example: 600 })
+  balanceAfter: number;
+
+  @ApiProperty({ example: 'Admin added 100 credits - bonus' })
+  description: string;
+
+  @ApiProperty({ example: '2026-03-01T10:30:00Z' })
+  date: string;
+}
+
 export class UserDetailDto {
-  @ApiProperty({ example: 'user_001' })
-  id: string;
+  @ApiProperty({ example: 1 })
+  id: number;
 
   @ApiProperty({ example: 'John' })
   firstName: string;
@@ -172,14 +221,37 @@ export class UserDetailDto {
     items: {
       type: 'object',
       properties: {
-        id: { type: 'string' },
-        amount: { type: 'number' },
-        date: { type: 'string' },
-        status: { type: 'string' },
+        packageId: { type: 'number', example: 1 },
+        packageName: { type: 'string', example: 'Premium Pack' },
+        credits: { type: 'number', example: 500 },
+        bonusCredits: { type: 'number', example: 50 },
+        price: { type: 'number', example: 39.99 },
+        currency: { type: 'string', example: 'USD' },
+        purchaseDate: { type: 'string', example: '2026-03-01T10:30:00Z' },
+        paymentStatus: { type: 'string', example: 'COMPLETED' },
       },
     },
+    description: 'Purchased credit packages',
   })
-  recentTransactions: any[];
+  purchasedPackages: PurchasedPackageDto[];
+
+  @ApiProperty({
+    type: 'array',
+    items: {
+      type: 'object',
+      properties: {
+        id: { type: 'number', example: 1 },
+        amount: { type: 'number', example: 100 },
+        reason: { type: 'string', example: 'Payment' },
+        balanceBefore: { type: 'number', example: 500 },
+        balanceAfter: { type: 'number', example: 600 },
+        description: { type: 'string' },
+        date: { type: 'string', example: '2026-03-01T10:30:00Z' },
+      },
+    },
+    description: 'All credit transactions: payments, bonuses, refunds, and admin adjustments',
+  })
+  recentTransactions: DetailedTransactionDto[];
 }
 
 export class UserTableItemDto {

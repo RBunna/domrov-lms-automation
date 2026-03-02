@@ -1,40 +1,64 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import TransactionTable from '../components/transactions/TransactionTable';
 import TransactionModal from '../components/transactions/TransactionModal';
 import { MainLayout, PageHeader } from '../components/layout';
 import { transactionService, type Transaction } from '../services';
-import { useFilter, useModal } from '../hooks';
+import { useModal } from '../hooks';
+
+// Custom debounce hook
+const useDebounce = <T,>(value: T, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
+// Memoized TransactionTable to prevent unnecessary re-renders
+const MemoizedTransactionTable = React.memo(TransactionTable);
 
 const Transactions = () => {
+    // Data state
     const [transactions, setTransactions] = useState<Transaction[]>([]);
-    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // UI state (doesn't trigger table re-render)
     const [error, setError] = useState<string | null>(null);
+    const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
+    
+    // Filter state
+    const [currentSearch, setCurrentSearch] = useState<string>('');
+    const [currentStatus, setCurrentStatus] = useState<string>('');
+    
+    // Debounced search (500ms delay)
+    const debouncedSearch = useDebounce(currentSearch, 500);
+    
     const { isOpen: modalOpen, openModal, closeModal } = useModal();
-
-    const { filters, filteredData, setFilter } = useFilter(transactions, [
-        'user',
-        'id',
-    ]);
 
     useEffect(() => {
         loadTransactions();
     }, []);
 
+    // Only reload when debounced search or status changes
     useEffect(() => {
-        // Reload when filters change
         loadTransactions();
-    }, [filters.status, filters.search]);
+    }, [debouncedSearch, currentStatus]);
 
-    const loadTransactions = async () => {
+    const loadTransactions = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
             const response = await transactionService.fetchTransactions(
                 1,
                 100,
-                (filters.status as string) || undefined,
-                (filters.search as string) || undefined
+                currentStatus || undefined,
+                debouncedSearch || undefined
             );
             setTransactions(response.data || []);
         } catch (err) {
@@ -43,36 +67,20 @@ const Transactions = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, [debouncedSearch, currentStatus]);
 
-    const handleViewTransaction = (transaction: Transaction) => {
+    const handleSearch = useCallback((value: string) => {
+        setCurrentSearch(value);
+    }, []);
+
+    const handleStatusFilter = useCallback((value: string) => {
+        setCurrentStatus(value);
+    }, []);
+
+    const handleViewTransaction = useCallback((transaction: Transaction) => {
         setSelectedTransaction(transaction);
         openModal();
-    };
-
-    const handleVerifyTransaction = async (id: number, note?: string) => {
-        try {
-            setError(null);
-            await transactionService.verifyTransaction(id, note);
-            await loadTransactions();
-            closeModal();
-        } catch (err) {
-            setError('Failed to verify transaction. Please try again.');
-            console.error('Verify error:', err);
-        }
-    };
-
-    const handleFailTransaction = async (id: number, reason?: string, note?: string) => {
-        try {
-            setError(null);
-            await transactionService.failTransaction(id, reason || 'Rejected by admin', note);
-            await loadTransactions();
-            closeModal();
-        } catch (err) {
-            setError('Failed to update transaction. Please try again.');
-            console.error('Fail error:', err);
-        }
-    };
+    }, [openModal]);
 
     return (
         <MainLayout>
@@ -91,13 +99,13 @@ const Transactions = () => {
                 <input
                     type="text"
                     placeholder="Search transaction ID or user..."
-                    value={(filters.search as string) || ''}
-                    onChange={(e) => setFilter('search', e.target.value)}
+                    value={currentSearch || ''}
+                    onChange={(e) => handleSearch(e.target.value)}
                     className="flex-1 pl-4 pr-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 <select
-                    value={(filters.status as string) || ''}
-                    onChange={(e) => setFilter('status', e.target.value)}
+                    value={currentStatus || ''}
+                    onChange={(e) => handleStatusFilter(e.target.value)}
                     className="px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                     <option value="">All Status</option>
@@ -106,8 +114,9 @@ const Transactions = () => {
                 </select>
             </div>
 
-            <TransactionTable
-                transactions={filteredData}
+            {/* Transactions Table - Memoized to prevent unnecessary re-renders */}
+            <MemoizedTransactionTable
+                transactions={transactions}
                 isLoading={isLoading}
                 onView={handleViewTransaction}
             />
@@ -117,8 +126,6 @@ const Transactions = () => {
                     isOpen={modalOpen}
                     transaction={selectedTransaction}
                     onClose={closeModal}
-                    onVerify={handleVerifyTransaction}
-                    onFail={handleFailTransaction}
                 />
             )}
         </MainLayout>

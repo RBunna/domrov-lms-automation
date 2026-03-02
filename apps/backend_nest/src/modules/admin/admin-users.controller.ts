@@ -19,13 +19,18 @@ import {
   ToggleUserStatusDto,
   UserListResponseDto,
   UserDetailDto,
+  CreditReason,
+  DeductReason,
+  PurchasedPackageDto,
+  DetailedTransactionDto,
 } from '../../libs/dtos/admin/user-admin.dto';
 import { User } from '../../libs/entities/user/user.entity';
 import { UserStatus } from '../../libs/enums/Status';
 import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
 import { WalletService } from '../wallet/wallet.service';
-import { TransactionReason } from '../../libs/entities/ai/wallet-transaction.entity';
+import { TransactionReason, WalletTransaction } from '../../libs/entities/ai/wallet-transaction.entity';
 import { Payment } from '../../libs/entities/ai/payment.entity';
+import { CreditPackage } from '../../libs/entities/ai/credit-package.entity';
 import { AuthGuard } from '@nestjs/passport';
 import { RolesGuard } from '../../common/security/guards/roles.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
@@ -46,8 +51,34 @@ export class AdminUsersController {
     private readonly walletRepo: Repository<UserCreditBalance>,
     @InjectRepository(Payment)
     private readonly paymentRepo: Repository<Payment>,
+    @InjectRepository(WalletTransaction)
+    private readonly transactionRepo: Repository<WalletTransaction>,
+    @InjectRepository(CreditPackage)
+    private readonly packageRepo: Repository<CreditPackage>,
     private readonly walletService: WalletService,
   ) { }
+
+  private mapAdminCreditReason(reason: CreditReason): TransactionReason {
+    const reasonMap: Record<CreditReason, TransactionReason> = {
+      [CreditReason.BONUS]: TransactionReason.BONUS,
+      [CreditReason.REFUND]: TransactionReason.REFUND,
+      [CreditReason.PROMO]: TransactionReason.ADMIN_ADJUSTMENT,
+      [CreditReason.OTHER]: TransactionReason.ADMIN_ADJUSTMENT,
+    };
+
+    return reasonMap[reason] ?? TransactionReason.ADMIN_ADJUSTMENT;
+  }
+
+  private mapAdminDeductReason(reason: DeductReason): TransactionReason {
+    const reasonMap: Record<DeductReason, TransactionReason> = {
+      [DeductReason.REFUND]: TransactionReason.REFUND,
+      [DeductReason.ADJUSTMENT]: TransactionReason.ADMIN_ADJUSTMENT,
+      [DeductReason.CHARGEBACK]: TransactionReason.ADMIN_ADJUSTMENT,
+      [DeductReason.OTHER]: TransactionReason.ADMIN_ADJUSTMENT,
+    };
+
+    return reasonMap[reason] ?? TransactionReason.ADMIN_ADJUSTMENT;
+  }
 
   // ==================== GET ALL USERS ====================
   @Get()
@@ -71,7 +102,7 @@ export class AdminUsersController {
         data: {
           data: [
             {
-              id: 123,
+              id: 1,
               firstName: 'John',
               lastName: 'Doe',
               gender: 'M',
@@ -153,7 +184,7 @@ export class AdminUsersController {
       // ✅ DATE RANGE FILTER
       if (joinDateFrom || joinDateTo) {
         const dateWhere: any = {};
-        
+
         if (joinDateFrom) {
           const fromDate = new Date(joinDateFrom);
           if (!isNaN(fromDate.getTime())) {
@@ -310,7 +341,7 @@ export class AdminUsersController {
       example: {
         success: true,
         data: {
-          id: '123',
+          id: 1,
           firstName: 'John',
           lastName: 'Doe',
           gender: 'M',
@@ -324,12 +355,27 @@ export class AdminUsersController {
           joinDate: '2026-03-01T09:00:00Z',
           lastActivity: '2026-03-01T10:00:00Z',
           totalSpent: 500,
+          purchasedPackages: [
+            {
+              packageId: 1,
+              packageName: 'Premium Pack',
+              credits: 500,
+              bonusCredits: 50,
+              price: 39.99,
+              currency: 'USD',
+              purchaseDate: '2026-03-01T09:00:00Z',
+              paymentStatus: 'COMPLETED',
+            },
+          ],
           recentTransactions: [
             {
-              id: 'TXN-1',
+              id: 1,
               amount: 100,
+              reason: 'Payment',
+              balanceBefore: 900,
+              balanceAfter: 1000,
+              description: 'Premium Pack purchase',
               date: '2026-03-01T09:00:00Z',
-              status: 'paid',
             },
           ],
         },
@@ -350,23 +396,60 @@ export class AdminUsersController {
       where: { user: { id: userId } },
     });
 
-    // Get recent transactions
+    // Get purchased packages with credit package details
     const payments = await this.paymentRepo
       .createQueryBuilder('payment')
+      .leftJoinAndSelect('payment.creditPackage', 'creditPackage')
       .where('payment.userId = :userId', { userId })
       .orderBy('payment.created_at', 'DESC')
-      .limit(5)
       .getMany();
 
-    const recentTransactions = payments.map((p) => ({
-      id: p.id,
-      amount: p.amount,
-      date: p.created_at,
-      status: p.status,
+    const purchasedPackages: PurchasedPackageDto[] = payments.map((p) => ({
+      packageId: p.creditPackage?.id || null,
+      packageName: p.creditPackage?.name || 'Unknown Package',
+      credits: p.creditPackage?.credits || 0,
+      bonusCredits: p.creditPackage?.bonusCredits || 0,
+      price: p.amount,
+      currency: p.currency,
+      purchaseDate: p.created_at.toISOString(),
+      paymentStatus: p.status,
     }));
 
+    // Get wallet transactions (both payments and admin adjustments)
+    const walletTransactions = await this.transactionRepo.find({
+      where: { walletId: wallet?.id },
+      order: { created_at: 'DESC' },
+      take: 10,
+    });
+
+    // Map transaction reasons to user-friendly labels
+    const mapTransactionReason = (reason: string | null | undefined): string => {
+      const reasonMap: Record<string, string> = {
+        'ai_usage': 'AI Usage',
+        'purchase': 'Payment',
+        'refund': 'Refund',
+        'bonus': 'Bonus',
+        'admin_adjustment': 'Adjustment',
+      };
+      return reasonMap[reason] || 'Transaction';
+    };
+
+    const recentTransactions: DetailedTransactionDto[] = walletTransactions.map((t) => ({
+      id: t.id,
+      amount: t.amount,
+      reason: mapTransactionReason(t.reason),
+      balanceBefore: t.balanceBefore || 0,
+      balanceAfter: t.balanceAfter,
+      description: t.description,
+      date: t.created_at.toISOString(),
+    }));
+
+    const totalSpent = payments
+      .filter((p) => p.status === 'COMPLETED')
+      .reduce((sum, p) => sum + p.amount, 0);
+
     const detailData: UserDetailDto = {
-      id: user.id.toString(),
+      id: user.id,
       firstName: user.firstName,
       lastName: user.lastName || null,
       gender: user.gender || null,
@@ -380,7 +463,8 @@ export class AdminUsersController {
       credits: wallet?.creditBalance || 0,
       joinDate: user.created_at.toISOString(),
       lastActivity: user.updated_at.toISOString(),
-      totalSpent: payments.reduce((sum, p) => sum + p.amount, 0),
+      totalSpent,
+      purchasedPackages,
       recentTransactions,
     };
 
@@ -400,10 +484,10 @@ export class AdminUsersController {
       example: {
         success: true,
         data: {
-          userId: '123',
+          userId: 1,
           previousBalance: 500,
           newBalance: 1000,
-          transactionId: 'txn_1234567890',
+          transactionId: 5,
           timestamp: '2026-03-01T09:00:00Z',
         },
       },
@@ -424,20 +508,26 @@ export class AdminUsersController {
       throw new BadRequestException('Amount must be greater than 0');
     }
 
-    const wallet = await this.walletService.addCredits(
+    const addResult = await this.walletService.addCredits(
       userId,
       dto.amount,
-      dto.reason as any as TransactionReason,
+      this.mapAdminCreditReason(dto.reason),
       dto.adminNote || `Admin added ${dto.amount} credits - ${dto.reason}`,
+      {
+        source: 'admin_users_controller',
+        adminAction: 'add_credits',
+        inputReason: dto.reason,
+      },
     );
 
+    const wallet = addResult.wallet;
     const walletBefore = wallet.creditBalance - dto.amount;
 
     const creditsData: AddCreditsResponseDto = {
-      userId: user.id.toString(),
+      userId: user.id,
       previousBalance: walletBefore,
       newBalance: wallet.creditBalance,
-      transactionId: `txn_${Date.now()}`,
+      transactionId: addResult.transactionId,
       timestamp: new Date().toISOString(),
     };
 
@@ -457,10 +547,10 @@ export class AdminUsersController {
       example: {
         success: true,
         data: {
-          userId: '123',
+          userId: 1,
           previousBalance: 1000,
           newBalance: 500,
-          transactionId: 'txn_1234567890',
+          transactionId: 6,
           timestamp: '2026-03-01T09:00:00Z',
         },
       },
@@ -489,20 +579,27 @@ export class AdminUsersController {
       throw new BadRequestException('Insufficient credit balance');
     }
 
-    const updatedWallet = await this.walletService.deductCredits(
+    const deductResult = await this.walletService.deductCredits(
       userId,
       dto.amount,
-      dto.reason as any as TransactionReason,
+      this.mapAdminDeductReason(dto.reason),
       dto.adminNote || `Admin deducted ${dto.amount} credits - ${dto.reason}`,
+      undefined,
+      {
+        source: 'admin_users_controller',
+        adminAction: 'deduct_credits',
+        inputReason: dto.reason,
+      },
     );
 
     const walletBefore = wallet.creditBalance;
+    const deductedWallet = deductResult.wallet;
 
     const creditsData: AddCreditsResponseDto = {
-      userId: user.id.toString(),
+      userId: user.id,
       previousBalance: walletBefore,
-      newBalance: updatedWallet.creditBalance,
-      transactionId: `txn_${Date.now()}`,
+      newBalance: deductedWallet.creditBalance,
+      transactionId: deductResult.transactionId,
       timestamp: new Date().toISOString(),
     };
 

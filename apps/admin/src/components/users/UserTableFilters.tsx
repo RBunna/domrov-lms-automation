@@ -35,10 +35,10 @@ const UserTableFilters: React.FC<UserTableFiltersProps> = ({
             onChange={(e) => onRoleChange(e.target.value)}
             className="px-3 py-2 rounded-lg bg-neutral-100 border border-neutral-200 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
-            <option value="">All Roles</option>
+            <option value="all">All Roles</option>
             {USER_ROLES.map((role) => (
                 <option key={role} value={role}>
-                    {role}
+                    {role.charAt(0).toUpperCase() + role.slice(1)}
                 </option>
             ))}
         </select>
@@ -48,7 +48,7 @@ const UserTableFilters: React.FC<UserTableFiltersProps> = ({
             onChange={(e) => onStatusChange(e.target.value)}
             className="px-3 py-2 rounded-lg bg-neutral-100 border border-neutral-200 text-gray-700 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
         >
-            <option value="">All Status</option>
+            <option value="all">All Status</option>
             {USER_STATUSES.map((status) => (
                 <option key={status} value={status}>
                     {status.charAt(0).toUpperCase() + status.slice(1)}

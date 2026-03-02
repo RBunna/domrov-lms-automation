@@ -1,4 +1,4 @@
-import { Eye, Plus, Minus, Lock, Unlock } from 'lucide-react';
+import { Eye, Plus, Minus, Lock, Unlock ,Currency } from 'lucide-react';
 import UserStatusBadge from './UserStatusBadge';
 import { type User } from '../../services';
 
@@ -34,7 +34,7 @@ const UserTableRow: React.FC<UserTableRowProps> = ({
             <td className="px-6 py-4 font-medium text-gray-900">{fullName}</td>
             <td className="px-6 py-4 text-gray-700">{user.email}</td>
             <td className="px-6 py-4 text-sm text-gray-700">{user.role || '-'}</td>
-            <td className="px-6 py-4 font-semibold text-gray-900">{user.balance || 0} credits</td>
+            <td className="px-6 py-4 font-semibold text-gray-900">{user.balance || 0} <Currency className="w-4 h-4 inline ml-1 text-amber-500" /></td>
             <td className="px-6 py-4">
                 <UserStatusBadge status={statusLabel} />
             </td>

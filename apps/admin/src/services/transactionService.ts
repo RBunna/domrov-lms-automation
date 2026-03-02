@@ -1,8 +1,17 @@
 // Transaction Service
 
 import { apiClient } from './api';
+import type { TransactionResponseDto } from '../types/admin-wallet';
 
-export interface Transaction {
+export interface CreditPackageInfo {
+    id: number;
+    name: string;
+    credits: number;
+    bonusCredits: number;
+}
+
+// Payment transaction
+export interface PaymentTransaction {
     id: number;
     user: string;
     userId: number;
@@ -11,10 +20,30 @@ export interface Transaction {
     method: string;
     status: 'paid' | 'unpaid';
     date: string;
+    transactionType: 'payment';
     userNote?: string | null;
     proofImageUrl?: string | null;
     verificationNote?: string | null;
+    creditPackage?: CreditPackageInfo | null;
 }
+
+// Admin adjustment transaction
+export interface AdminAdjustmentTransaction {
+    id: number;
+    user: string;
+    userId: number;
+    amount: number;
+    date: string;
+    transactionType: 'admin_adjustment';
+    adjustmentType: 'credit' | 'debit';
+    reason: string;
+    balanceBefore: number;
+    balanceAfter: number;
+    description?: string;
+    metadata?: Record<string, any>;
+}
+
+export type Transaction = PaymentTransaction | AdminAdjustmentTransaction;
 
 export interface TransactionDetail {
     id: number;
@@ -44,19 +73,39 @@ class TransactionService {
             // For paginated responses, items are in response.data
             const itemsData = response.data || [];
 
-            const transactions: Transaction[] = itemsData.map((t: any) => ({
-                id: t.id,
-                user: t.user,
-                userId: t.userId,
-                amount: t.amount,
-                currency: t.currency,
-                method: t.method,
-                status: t.status as 'paid' | 'unpaid',
-                date: t.date,
-                userNote: t.userNote,
-                proofImageUrl: t.proofImageUrl,
-                verificationNote: t.verificationNote,
-            }));
+            const transactions: Transaction[] = itemsData.map((t: TransactionResponseDto) => {
+                if (t.transactionType === 'admin_adjustment') {
+                    return {
+                        id: t.id,
+                        user: t.user,
+                        userId: t.userId,
+                        amount: t.amount,
+                        date: t.date,
+                        transactionType: 'admin_adjustment',
+                        adjustmentType: t.adjustmentType,
+                        reason: t.reason,
+                        balanceBefore: t.balanceBefore,
+                        balanceAfter: t.balanceAfter,
+                        description: t.description,
+                        metadata: t.metadata,
+                    } as AdminAdjustmentTransaction;
+                } else {
+                    return {
+                        id: t.id,
+                        user: t.user,
+                        userId: t.userId,
+                        amount: t.amount,
+                        currency: t.currency || 'USD',
+                        method: t.method || 'Unknown',
+                        status: t.status as 'paid' | 'unpaid',
+                        date: t.date,
+                        transactionType: 'payment',
+                        userNote: t.userNote,
+                        proofImageUrl: t.proofImageUrl,
+                        verificationNote: t.verificationNote,
+                    } as PaymentTransaction;
+                }
+            });
             return {
                 data: transactions,
                 total: response.total || 0,
@@ -74,7 +123,38 @@ class TransactionService {
             // API returns { success: true, data: { id, user, userId, ... } }
             // request function automatically unwraps to { id, user, userId, ... }
             const response = await apiClient.transactions.getById(id);
-            return response as Transaction;
+            
+            if (response.transactionType === 'admin_adjustment') {
+                return {
+                    id: response.id,
+                    user: response.user,
+                    userId: response.userId,
+                    amount: response.amount,
+                    date: response.date,
+                    transactionType: 'admin_adjustment',
+                    adjustmentType: response.adjustmentType,
+                    reason: response.reason,
+                    balanceBefore: response.balanceBefore,
+                    balanceAfter: response.balanceAfter,
+                    description: response.description,
+                    metadata: response.metadata,
+                } as AdminAdjustmentTransaction;
+            } else {
+                return {
+                    id: response.id,
+                    user: response.user,
+                    userId: response.userId,
+                    amount: response.amount,
+                    currency: response.currency || 'USD',
+                    method: response.method || 'Unknown',
+                    status: response.status as 'paid' | 'unpaid',
+                    date: response.date,
+                    transactionType: 'payment',
+                    userNote: response.userNote,
+                    proofImageUrl: response.proofImageUrl,
+                    verificationNote: response.verificationNote,
+                } as PaymentTransaction;
+            }
         } catch (error) {
             console.error(`Failed to fetch transaction ${id}:`, error);
             return null;

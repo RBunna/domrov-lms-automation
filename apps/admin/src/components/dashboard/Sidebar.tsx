@@ -1,6 +1,3 @@
-
-
-
 import { NavLink, useNavigate } from 'react-router-dom';
 import { memo } from 'react';
 import { LayoutDashboard, Users, Package, CreditCard, Brain, FileText, Settings, BadgeCent, LogOut } from 'lucide-react';
@@ -17,7 +14,8 @@ const navItems = [
 ];
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-    `flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-neutral-50'
+    `flex items-center gap-3 px-4 py-2.5 rounded-lg font-medium text-sm transition-colors ${
+        isActive ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-neutral-50'
     }`;
 
 interface NavItemProps {

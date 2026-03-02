@@ -8,6 +8,7 @@ import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import Login from './pages/Login';
 import Dashboard from './pages/Dashboard';
 import Users from './pages/Users';
+import UserDetail from './pages/UserDetail';
 import CreditPackages from './pages/CreditPackages';
 import Transactions from './pages/Transactions';
 import Evaluations from './pages/Evaluations';
@@ -29,6 +30,14 @@ const AppRoutes: React.FC = () => {
         element={
           <ProtectedRoute>
             <Users />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users/:userId"
+        element={
+          <ProtectedRoute>
+            <UserDetail />
           </ProtectedRoute>
         }
       />

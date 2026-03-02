@@ -1,26 +1,53 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { Download } from 'lucide-react';
 import EvaluationTable from '../components/evaluations/EvaluationTable';
 import { BaseButton } from '../components/base';
 import { MainLayout, PageHeader } from '../components/layout';
 import { evaluationService, type Evaluation } from '../services';
-import { useFilter } from '../hooks';
+
+// Custom debounce hook
+const useDebounce = <T,>(value: T, delay: number) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => clearTimeout(handler);
+  }, [value, delay]);
+
+  return debouncedValue;
+};
+
+// Memoized EvaluationTable to prevent unnecessary re-renders
+const MemoizedEvaluationTable = React.memo(EvaluationTable);
 
 const Evaluations = () => {
+    // Data state
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [isLoading, setIsLoading] = useState(false);
+    
+    // UI state (doesn't trigger table re-render)
     const [error, setError] = useState<string | null>(null);
-
-    const { filters, filteredData, setFilter } = useFilter(evaluations, [
-        'user',
-        'id',
-    ]);
+    
+    // Filter state
+    const [currentSearch, setCurrentSearch] = useState<string>('');
+    const [currentStatus, setCurrentStatus] = useState<string>('');
+    
+    // Debounced search (500ms delay)
+    const debouncedSearch = useDebounce(currentSearch, 500);
 
     useEffect(() => {
         loadEvaluations();
     }, []);
 
-    const loadEvaluations = async () => {
+    // Only reload when debounced search or status changes
+    useEffect(() => {
+        loadEvaluations();
+    }, [debouncedSearch, currentStatus]);
+
+    const loadEvaluations = useCallback(async () => {
         try {
             setIsLoading(true);
             setError(null);
@@ -32,12 +59,20 @@ const Evaluations = () => {
         } finally {
             setIsLoading(false);
         }
-    };
+    }, []);
 
-    const handleExport = () => {
+    const handleSearch = useCallback((value: string) => {
+        setCurrentSearch(value);
+    }, []);
+
+    const handleStatusFilter = useCallback((value: string) => {
+        setCurrentStatus(value);
+    }, []);
+
+    const handleExport = useCallback(() => {
         const csv = [
             ['Evaluation ID', 'User', 'Model', 'Input', 'Score', 'Status', 'Date'],
-            ...filteredData.map((e) => [e.id, e.user, e.model, e.input, e.score, e.status, e.date]),
+            ...evaluations.map((e) => [e.id, e.user, e.model, e.input, e.score, e.status, e.date]),
         ]
             .map((row) => row.map((cell) => `"${cell}"`).join(','))
             .join('\n');
@@ -49,7 +84,7 @@ const Evaluations = () => {
         a.download = `evaluations-${new Date().toISOString()}.csv`;
         a.click();
         window.URL.revokeObjectURL(url);
-    };
+    }, [evaluations]);
 
     return (
         <MainLayout>
@@ -77,13 +112,13 @@ const Evaluations = () => {
                 <input
                     type="text"
                     placeholder="Search evaluation ID or user..."
-                    value={(filters.search as string) || ''}
-                    onChange={(e) => setFilter('search', e.target.value)}
+                    value={currentSearch || ''}
+                    onChange={(e) => handleSearch(e.target.value)}
                     className="flex-1 px-4 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 />
                 <select
-                    value={(filters.status as string) || ''}
-                    onChange={(e) => setFilter('status', e.target.value)}
+                    value={currentStatus || ''}
+                    onChange={(e) => handleStatusFilter(e.target.value)}
                     className="px-3 py-2 border border-neutral-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
                 >
                     <option value="">All Status</option>
@@ -93,8 +128,9 @@ const Evaluations = () => {
                 </select>
             </div>
 
-            <EvaluationTable
-                evaluations={filteredData}
+            {/* Evaluations Table - Memoized to prevent unnecessary re-renders */}
+            <MemoizedEvaluationTable
+                evaluations={evaluations}
                 isLoading={isLoading}
             />
         </MainLayout>

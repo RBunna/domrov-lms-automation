@@ -25,7 +25,7 @@ export const MAX_WIDTH_CONTAINER = 'max-w-7xl mx-auto';
 
 // Status Options
 export const USER_STATUSES = ['active', 'inactive'] as const;
-export const USER_ROLES = ['Admin', 'User'] as const;
+export const USER_ROLES = ['user', 'admin', 'superadmin'] as const;
 export const TRANSACTION_STATUSES = ['completed', 'pending', 'failed'] as const;
 export const EVALUATION_STATUSES = ['completed', 'pending', 'failed'] as const;
 
