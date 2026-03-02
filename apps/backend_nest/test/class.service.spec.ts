@@ -1,6 +1,5 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals';
-import 'jest-extended';
 import { Repository } from 'typeorm';
 import {
     NotFoundException,
@@ -245,7 +244,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
 
             it('CLASS_CREATE_005 - retries join code generation with retry logic on duplicate', async () => {
                 userRepoMock.findOneBy.mockResolvedValue(mockOwner);
-                
+
                 // Simulate retry: first code is duplicate, second is unique
                 classRepoMock.findOneBy
                     .mockResolvedValueOnce({ id: 999 } as any) // duplicate found
@@ -315,7 +314,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
 
             it('CLASS_CREATE_009 - calculates retry count correctly (1 initial + N retries)', async () => {
                 userRepoMock.findOneBy.mockResolvedValue(mockOwner);
-                
+
                 // Fail 5 times, succeed on 6th
                 classRepoMock.findOneBy
                     .mockResolvedValueOnce({ id: 1 } as any)
@@ -773,17 +772,17 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                 // Expected total: 85 + 90 + 100 = 275
                 enrollmentRepoMock.find.mockResolvedValue([mockStudentEnrollment]);
                 const mockQB = {
-                  leftJoin: jest.fn().mockReturnThis(),
-                  where: jest.fn().mockReturnThis(),
-                  andWhere: jest.fn().mockReturnThis(),
-                  select: jest.fn().mockReturnThis(),
-                  addSelect: jest.fn().mockReturnThis(),
-                  groupBy: jest.fn().mockReturnThis(),
-                  getRawMany: jest
-                    .fn()
-                    .mockImplementation(async () => [
-                      { userId: 2, totalScore: 275 },
-                    ]),
+                    leftJoin: jest.fn().mockReturnThis(),
+                    where: jest.fn().mockReturnThis(),
+                    andWhere: jest.fn().mockReturnThis(),
+                    select: jest.fn().mockReturnThis(),
+                    addSelect: jest.fn().mockReturnThis(),
+                    groupBy: jest.fn().mockReturnThis(),
+                    getRawMany: jest
+                        .fn()
+                        .mockImplementation(async () => [
+                            { userId: 2, totalScore: 275 },
+                        ]),
                 };
                 submissionRepoMock.createQueryBuilder.mockReturnValue(mockQB as any);
 
@@ -804,7 +803,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     select: jest.fn().mockReturnThis(),
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
-                    getRawMany: jest.fn().mockImplementation(async ()=>[
+                    getRawMany: jest.fn().mockImplementation(async () => [
                         { userId: '1', totalScore: '150' }, // DB returns strings
                     ]),
                 };
@@ -825,7 +824,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     select: jest.fn().mockReturnThis(),
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
-                    getRawMany: jest.fn().mockImplementation(async()=>[
+                    getRawMany: jest.fn().mockImplementation(async () => [
                         { userId: 2, totalScore: 0 }, // no submissions
                     ]),
                 };
@@ -845,7 +844,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     select: jest.fn().mockReturnThis(),
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
-                    getRawMany: jest.fn().mockImplementation(async()=>[
+                    getRawMany: jest.fn().mockImplementation(async () => [
                         { userId: 2, totalScore: 85.5 }, // decimal score
                     ]),
                 };
@@ -872,7 +871,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     select: jest.fn().mockReturnThis(),
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
-                    getRawMany: jest.fn().mockImplementation(async()=>[
+                    getRawMany: jest.fn().mockImplementation(async () => [
                         { userId: '1', totalScore: '950' }, // highest
                         { userId: '2', totalScore: '850' }, // middle
                         { userId: '3', totalScore: '750' }, // lowest
@@ -900,7 +899,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     select: jest.fn().mockReturnThis(),
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
-                    getRawMany: jest.fn().mockImplementation(async()=>[
+                    getRawMany: jest.fn().mockImplementation(async () => [
                         { userId: '1', totalScore: '950' },
                         { userId: '2', totalScore: '850' },
                         { userId: '3', totalScore: '750' },
@@ -929,7 +928,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     select: jest.fn().mockReturnThis(),
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
-                    getRawMany: jest.fn().mockImplementation(async()=>[
+                    getRawMany: jest.fn().mockImplementation(async () => [
                         { userId: '1', totalScore: '850' }, // tied
                         { userId: '2', totalScore: '850' }, // tied
                         { userId: '3', totalScore: '750' },
@@ -954,7 +953,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     select: jest.fn().mockReturnThis(),
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
-                    getRawMany: jest.fn().mockImplementation(async()=>[
+                    getRawMany: jest.fn().mockImplementation(async () => [
                         { userId: 2, totalScore: 850 },
                     ]),
                 };
@@ -979,7 +978,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                     select: jest.fn().mockReturnThis(),
                     addSelect: jest.fn().mockReturnThis(),
                     groupBy: jest.fn().mockReturnThis(),
-                    getRawMany: jest.fn().mockImplementation(async()=>[
+                    getRawMany: jest.fn().mockImplementation(async () => [
                         { userId: 2, totalScore: 850 },
                     ]),
                 };
@@ -997,15 +996,15 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
         describe('Error Handling', () => {
             it('CLASS_LEADERBOARD_010 - throws BadRequestException on query failure', async () => {
                 const mockQB = {
-                  leftJoin: jest.fn().mockReturnThis(),
-                  where: jest.fn().mockReturnThis(),
-                  andWhere: jest.fn().mockReturnThis(),
-                  select: jest.fn().mockReturnThis(),
-                  addSelect: jest.fn().mockReturnThis(),
-                  groupBy: jest.fn().mockReturnThis(),
-                  getRawMany: jest.fn().mockImplementation(async () => {
-                    throw new Error('query fail');
-                  }),
+                    leftJoin: jest.fn().mockReturnThis(),
+                    where: jest.fn().mockReturnThis(),
+                    andWhere: jest.fn().mockReturnThis(),
+                    select: jest.fn().mockReturnThis(),
+                    addSelect: jest.fn().mockReturnThis(),
+                    groupBy: jest.fn().mockReturnThis(),
+                    getRawMany: jest.fn().mockImplementation(async () => {
+                        throw new Error('query fail');
+                    }),
                 };
                 submissionRepoMock.createQueryBuilder.mockReturnValue(mockQB as any);
 
@@ -1098,7 +1097,7 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                 select: jest.fn().mockReturnThis(),
                 addSelect: jest.fn().mockReturnThis(),
                 groupBy: jest.fn().mockReturnThis(),
-                getRawMany: jest.fn().mockImplementation(async()=>[
+                getRawMany: jest.fn().mockImplementation(async () => [
                     { userId: '2', totalScore: '950' },
                     { userId: '3', totalScore: '850' },
                     { userId: '4', totalScore: '850' },

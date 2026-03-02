@@ -99,13 +99,20 @@ describe('WalletService - Enhanced Computation Tests', () => {
     // ============================================================================
 
     describe('addCredits - Detailed Computation Verification', () => {
-        const mockManager = {
-            save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
-        };
+        beforeEach(() => {
+            walletRepositoryMock.save.mockImplementation((entity: any) => Promise.resolve(entity));
+            transactionRepositoryMock.create.mockImplementation((dto: any) => ({
+                ...dto,
+                id: Math.floor(Math.random() * 10000),
+            }));
+        });
 
         it('WALLET_ADDCREDITS_COMPUTE_001 - verifies exact balance calculation: 100 + 50 = 150', async () => {
             const wallet = { ...mockExistingWallet, creditBalance: 100 };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             const addAmount = 50;
@@ -113,14 +120,17 @@ describe('WalletService - Enhanced Computation Tests', () => {
 
             const result = await walletService.addCredits(1, addAmount, TransactionReason.PURCHASE, 'Test');
 
-            expect(result.creditBalance).toBe(expectedNewBalance);
-            expect(result.creditBalance).toBe(150);
+            expect(result.wallet.creditBalance).toBe(expectedNewBalance);
+            expect(result.wallet.creditBalance).toBe(150);
         });
 
         it('WALLET_ADDCREDITS_COMPUTE_002 - verifies transaction balanceBefore equals wallet initial state', async () => {
             const initialBalance = 250;
             const wallet = { ...mockExistingWallet, creditBalance: initialBalance };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await walletService.addCredits(1, 100, TransactionReason.BONUS);
@@ -135,6 +145,9 @@ describe('WalletService - Enhanced Computation Tests', () => {
             const amount = 25;
             const wallet = { ...mockExistingWallet, creditBalance: balanceBefore };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await walletService.addCredits(1, amount, TransactionReason.PURCHASE);
@@ -149,11 +162,14 @@ describe('WalletService - Enhanced Computation Tests', () => {
             walletRepositoryMock.findOne.mockResolvedValue(null);
             walletRepositoryMock.create.mockReturnValue(createdWallet);
             walletRepositoryMock.save.mockResolvedValue(createdWallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             // First addition: 0 + 50
             let result = await walletService.addCredits(1, 50, TransactionReason.PURCHASE);
-            expect(result.creditBalance).toBe(50);
+            expect(result.wallet.creditBalance).toBe(50);
 
             // Reset for second addition
             const walletAfterFirst = { ...createdWallet, creditBalance: 50 };
@@ -161,33 +177,42 @@ describe('WalletService - Enhanced Computation Tests', () => {
 
             // Second addition: 50 + 75
             result = await walletService.addCredits(1, 75, TransactionReason.BONUS);
-            expect(result.creditBalance).toBe(125);
+            expect(result.wallet.creditBalance).toBe(125);
         });
 
         it('WALLET_ADDCREDITS_COMPUTE_005 - verifies decimal precision: 99.99 + 0.01 = 100.00', async () => {
             const wallet = { ...mockExistingWallet, creditBalance: 99.99 };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             const result = await walletService.addCredits(1, 0.01, TransactionReason.PURCHASE);
 
-            expect(result.creditBalance).toBeCloseTo(100, 2);
-            expect(result.creditBalance).toBe(100);
+            expect(result.wallet.creditBalance).toBeCloseTo(100, 2);
+            expect(result.wallet.creditBalance).toBe(100);
         });
 
         it('WALLET_ADDCREDITS_COMPUTE_006 - verifies large amount addition: 1000000 + 5000 = 1005000', async () => {
             const wallet = { ...mockExistingWallet, creditBalance: 1000000 };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             const result = await walletService.addCredits(1, 5000, TransactionReason.BONUS);
 
-            expect(result.creditBalance).toBe(1005000);
+            expect(result.wallet.creditBalance).toBe(1005000);
         });
 
         it('WALLET_ADDCREDITS_COMPUTE_007 - verifies transaction amount matches requested amount', async () => {
             const requestedAmount = 175.5;
             walletRepositoryMock.findOne.mockResolvedValue(mockExistingWallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await walletService.addCredits(1, requestedAmount, TransactionReason.PURCHASE);
@@ -198,6 +223,9 @@ describe('WalletService - Enhanced Computation Tests', () => {
 
         it('WALLET_ADDCREDITS_COMPUTE_008 - verifies type is always CREDIT for addCredits', async () => {
             walletRepositoryMock.findOne.mockResolvedValue(mockExistingWallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await walletService.addCredits(1, 50, TransactionReason.BONUS);
@@ -209,6 +237,9 @@ describe('WalletService - Enhanced Computation Tests', () => {
 
         it('WALLET_ADDCREDITS_COMPUTE_009 - verifies reason is preserved in transaction', async () => {
             walletRepositoryMock.findOne.mockResolvedValue(mockExistingWallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             const reason = TransactionReason.BONUS;
@@ -222,10 +253,12 @@ describe('WalletService - Enhanced Computation Tests', () => {
             const wallet = { ...mockExistingWallet, creditBalance: 100 };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
             const savedCalls: any[] = [];
-            mockManager.save.mockImplementation((entity: any) => {
-                savedCalls.push(entity);
-                return Promise.resolve(entity);
-            });
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => {
+                    savedCalls.push(entity);
+                    return Promise.resolve(entity);
+                }),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await walletService.addCredits(1, 50, TransactionReason.PURCHASE);
@@ -243,13 +276,20 @@ describe('WalletService - Enhanced Computation Tests', () => {
     // ============================================================================
 
     describe('deductCredits - Detailed Computation Verification', () => {
-        const mockManager = {
-            save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
-        };
+        beforeEach(() => {
+            walletRepositoryMock.save.mockImplementation((entity: any) => Promise.resolve(entity));
+            transactionRepositoryMock.create.mockImplementation((dto: any) => ({
+                ...dto,
+                id: Math.floor(Math.random() * 10000),
+            }));
+        });
 
         it('WALLET_DEDUCTCREDITS_COMPUTE_001 - verifies exact balance calculation: 200 - 45 = 155', async () => {
             const wallet = { ...mockExistingWallet, creditBalance: 200 };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             const deductAmount = 45;
@@ -257,14 +297,17 @@ describe('WalletService - Enhanced Computation Tests', () => {
 
             const result = await walletService.deductCredits(1, deductAmount, TransactionReason.AI_USAGE);
 
-            expect(result.creditBalance).toBe(expectedNewBalance);
-            expect(result.creditBalance).toBe(155);
+            expect(result.wallet.creditBalance).toBe(expectedNewBalance);
+            expect(result.wallet.creditBalance).toBe(155);
         });
 
         it('WALLET_DEDUCTCREDITS_COMPUTE_002 - verifies transaction balanceBefore equals wallet initial state', async () => {
             const initialBalance = 500;
             const wallet = { ...mockExistingWallet, creditBalance: initialBalance };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await walletService.deductCredits(1, 100, TransactionReason.AI_USAGE);
@@ -279,6 +322,9 @@ describe('WalletService - Enhanced Computation Tests', () => {
             const amount = 150;
             const wallet = { ...mockExistingWallet, creditBalance: balanceBefore };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await walletService.deductCredits(1, amount, TransactionReason.AI_USAGE);
@@ -291,21 +337,27 @@ describe('WalletService - Enhanced Computation Tests', () => {
         it('WALLET_DEDUCTCREDITS_COMPUTE_004 - verifies balance becomes zero: 100 - 100 = 0', async () => {
             const wallet = { ...mockExistingWallet, creditBalance: 100 };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             const result = await walletService.deductCredits(1, 100, TransactionReason.AI_USAGE);
 
-            expect(result.creditBalance).toBe(0);
+            expect(result.wallet.creditBalance).toBe(0);
         });
 
         it('WALLET_DEDUCTCREDITS_COMPUTE_005 - verifies sequential deductions: 1000 - 300 - 200 = 500', async () => {
             let wallet = { ...mockExistingWallet, creditBalance: 1000 };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             // First deduction: 1000 - 300
             let result = await walletService.deductCredits(1, 300, TransactionReason.AI_USAGE);
-            expect(result.creditBalance).toBe(700);
+            expect(result.wallet.creditBalance).toBe(700);
 
             // Setup for second deduction
             wallet = { ...mockExistingWallet, creditBalance: 700 };
@@ -313,21 +365,27 @@ describe('WalletService - Enhanced Computation Tests', () => {
 
             // Second deduction: 700 - 200
             result = await walletService.deductCredits(1, 200, TransactionReason.AI_USAGE);
-            expect(result.creditBalance).toBe(500);
+            expect(result.wallet.creditBalance).toBe(500);
         });
 
         it('WALLET_DEDUCTCREDITS_COMPUTE_006 - verifies decimal precision: 99.99 - 0.99 = 99.00', async () => {
             const wallet = { ...mockExistingWallet, creditBalance: 99.99 };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             const result = await walletService.deductCredits(1, 0.99, TransactionReason.AI_USAGE);
 
-            expect(result.creditBalance).toBeCloseTo(99.00, 2);
+            expect(result.wallet.creditBalance).toBeCloseTo(99.00, 2);
         });
 
         it('WALLET_DEDUCTCREDITS_COMPUTE_007 - verifies transaction type respects custom type parameter', async () => {
             walletRepositoryMock.findOne.mockResolvedValue(mockExistingWallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await walletService.deductCredits(1, 50, TransactionReason.AI_USAGE, 'desc', TransactionType.PURCHASE);
@@ -338,6 +396,9 @@ describe('WalletService - Enhanced Computation Tests', () => {
 
         it('WALLET_DEDUCTCREDITS_COMPUTE_008 - verifies default type is DEBIT when not specified', async () => {
             walletRepositoryMock.findOne.mockResolvedValue(mockExistingWallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await walletService.deductCredits(1, 50, TransactionReason.AI_USAGE);
@@ -349,9 +410,10 @@ describe('WalletService - Enhanced Computation Tests', () => {
         it('WALLET_DEDUCTCREDITS_COMPUTE_009 - verifies negative balance after deduction throws error', async () => {
             const wallet = { ...mockExistingWallet, creditBalance: 30 };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
-            dataSourceMock.transaction.mockImplementation(async (cb: any) => {
-                throw new Error('Insufficient funds');
-            });
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
+            dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await expect(walletService.deductCredits(1, 50, TransactionReason.AI_USAGE)).rejects.toThrow(
                 BadRequestException
@@ -361,6 +423,9 @@ describe('WalletService - Enhanced Computation Tests', () => {
         it('WALLET_DEDUCTCREDITS_COMPUTE_010 - verifies amount is preserved in transaction record', async () => {
             const deductAmount = 123.45;
             walletRepositoryMock.findOne.mockResolvedValue(mockExistingWallet);
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
 
             await walletService.deductCredits(1, deductAmount, TransactionReason.AI_USAGE);
@@ -639,33 +704,40 @@ describe('WalletService - Enhanced Computation Tests', () => {
     // ============================================================================
 
     describe('Complex Transaction Chains - Computation Integrity', () => {
-        const mockManager = {
-            save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
-        };
+        beforeEach(() => {
+            walletRepositoryMock.save.mockImplementation((entity: any) => Promise.resolve(entity));
+            transactionRepositoryMock.create.mockImplementation((dto: any) => ({
+                ...dto,
+                id: Math.floor(Math.random() * 10000),
+            }));
+        });
 
         it('WALLET_COMPLEX_COMPUTE_001 - maintains balance integrity: add 100, deduct 30, deduct 20 => final 50', async () => {
             let currentBalance = 0;
+            const mockManager = {
+                save: jest.fn().mockImplementation((entity: any) => Promise.resolve(entity)),
+            };
 
             // Add 100
             let wallet = { ...mockExistingWallet, creditBalance: currentBalance };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
             dataSourceMock.transaction.mockImplementation(async (cb: any) => cb(mockManager));
             let result = await walletService.addCredits(1, 100, TransactionReason.PURCHASE);
-            currentBalance = result.creditBalance;
+            currentBalance = result.wallet.creditBalance;
             expect(currentBalance).toBe(100);
 
             // Deduct 30
             wallet = { ...mockExistingWallet, creditBalance: currentBalance };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
             result = await walletService.deductCredits(1, 30, TransactionReason.AI_USAGE);
-            currentBalance = result.creditBalance;
+            currentBalance = result.wallet.creditBalance;
             expect(currentBalance).toBe(70);
 
             // Deduct 20
             wallet = { ...mockExistingWallet, creditBalance: currentBalance };
             walletRepositoryMock.findOne.mockResolvedValue(wallet);
             result = await walletService.deductCredits(1, 20, TransactionReason.AI_USAGE);
-            currentBalance = result.creditBalance;
+            currentBalance = result.wallet.creditBalance;
             expect(currentBalance).toBe(50);
         });
 
