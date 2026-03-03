@@ -13,6 +13,9 @@ import type {
 
 export type { DashboardStatsDto, RecentActivityResponseDto, ActivityItem, DailyGrowthData, DailyIncomeResponseDto };
 
+// Export individual types for components
+export type Activity = ActivityItem;
+
 class DashboardService {
   /**
    * Fetch dashboard statistics
@@ -42,7 +45,10 @@ class DashboardService {
     try {
       const response = await apiClient.dashboard.getRecentActivity();
       return {
-        activities: response.activities || [],
+        activities: (response.activities || []).map((activity: any) => ({
+          ...activity,
+          id: String(activity.id), // Convert id to string
+        })),
       };
     } catch (error) {
       console.error('Failed to fetch recent activity:', error);

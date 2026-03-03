@@ -1,24 +1,18 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Edit2, Trash2, Plus, Minus } from 'lucide-react';
+import { ArrowLeft, Plus, Minus } from 'lucide-react';
 import { MainLayout } from '../components/layout';
-import { BaseCard, BaseButton, BaseModal } from '../components/base';
+import { BaseCard, BaseButton } from '../components/base';
 import { userService } from '../services/userService';
-import { creditPackageService } from '../services/creditPackageService';
 import type { UserDetailDto } from '../types/admin-users';
-import type { TransactionResponseDto } from '../types/admin-wallet';
 import AddCreditModal from '../components/users/AddCreditModal';
 import DeductCreditModal from '../components/users/DeductCreditModal';
 import '../App.css';
 
-interface UserDetails extends UserDetailDto {
-  status?: string;
-}
-
 export default function UserDetail() {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const [user, setUser] = useState<UserDetails | null>(null);
+  const [user, setUser] = useState<UserDetailDto | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [showAddCreditModal, setShowAddCreditModal] = useState(false);
@@ -96,11 +90,11 @@ export default function UserDetail() {
     );
   }
 
-  const normalizeStatus = (status: string) => {
+  const normalizeStatus = (status: string | undefined) => {
     return status?.toLowerCase?.() || 'unknown';
   };
 
-  const getStatusColor = (status: string): string => {
+  const getStatusColor = (status: string | undefined): string => {
     const normalizedStatus = normalizeStatus(status);
     const statusMap: Record<string, string> = {
       active: 'bg-green-100 text-green-800',

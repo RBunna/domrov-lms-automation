@@ -10,7 +10,16 @@ interface CreditPackageModalProps {
     isOpen: boolean;
     pkg?: CreditPackageInput | null;
     onClose: () => void;
-    onSave: (pkg: CreditPackageInput) => void;
+    onSave: (pkg: {
+        name: string;
+        description: string;
+        credits: number;
+        price: number;
+        currency: string;
+        bonusCredits?: number;
+        sortOrder?: number;
+        isActive?: boolean;
+    }) => Promise<void> | void;
     isLoading?: boolean;
 }
 
@@ -55,7 +64,16 @@ const CreditPackageModal: React.FC<CreditPackageModalProps> = ({
             setFieldError('currency', 'Currency is required');
             return;
         }
-        onSave(values);
+        onSave(values as {
+            name: string;
+            description: string;
+            credits: number;
+            price: number;
+            currency: string;
+            bonusCredits?: number;
+            sortOrder?: number;
+            isActive?: boolean;
+        });
         resetForm();
     };
 

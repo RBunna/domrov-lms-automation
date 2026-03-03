@@ -142,7 +142,9 @@ const CreditPackages = () => {
         <CreditPackageTable
           packages={packages}
           isLoading={isLoading}
+          onEdit={() => { }}
           onToggle={handleToggle}
+          onDelete={() => { }}
         />
       </div>
 
@@ -151,8 +153,8 @@ const CreditPackages = () => {
         <CreditPackageModal
           isOpen={modalOpen}
           onClose={closeModal}
-          onSubmit={handleCreatePackage}
-          isSubmitting={isCreating}
+          onSave={handleCreatePackage}
+          isLoading={isCreating}
         />
       )}
 

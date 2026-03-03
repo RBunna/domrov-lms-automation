@@ -22,6 +22,7 @@ export interface UserTableItemDto {
   created: string;
 }
 
+
 export interface UserListTableResponseDto {
   data: UserTableItemDto[];
   total: number;

@@ -7,7 +7,7 @@ import type {
   CreateCreditPackageDto,
   AdminAdjustWalletDTO,
   TransactionResponseDto,
-  TransactionDetailsDto,
+  TransactionListResponseDto,
 } from '../types/admin-wallet';
 import { apiClient } from './api';
 
@@ -127,7 +127,7 @@ class WalletService {
     limit: number = 10,
     status?: string,
     search?: string
-  ): Promise<TransactionResponseDto> {
+  ): Promise<TransactionListResponseDto> {
     try {
       const response = await apiClient.wallet.getTransactions(
         page,
@@ -148,7 +148,7 @@ class WalletService {
    */
   async fetchTransactionDetails(
     transactionId: string | number
-  ): Promise<TransactionDetailsDto> {
+  ): Promise<TransactionResponseDto> {
     try {
       const response = await apiClient.wallet.getTransactionDetails(
         transactionId

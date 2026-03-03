@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Download } from 'lucide-react';
 import EvaluationTable from '../components/evaluations/EvaluationTable';
 import { BaseButton } from '../components/base';
@@ -7,17 +7,17 @@ import { evaluationService, type Evaluation } from '../services';
 
 // Custom debounce hook
 const useDebounce = <T,>(value: T, delay: number) => {
-  const [debouncedValue, setDebouncedValue] = useState(value);
+    const [debouncedValue, setDebouncedValue] = useState(value);
 
-  useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
 
-    return () => clearTimeout(handler);
-  }, [value, delay]);
+        return () => clearTimeout(handler);
+    }, [value, delay]);
 
-  return debouncedValue;
+    return debouncedValue;
 };
 
 // Memoized EvaluationTable to prevent unnecessary re-renders
@@ -27,14 +27,14 @@ const Evaluations = () => {
     // Data state
     const [evaluations, setEvaluations] = useState<Evaluation[]>([]);
     const [isLoading, setIsLoading] = useState(false);
-    
+
     // UI state (doesn't trigger table re-render)
     const [error, setError] = useState<string | null>(null);
-    
+
     // Filter state
     const [currentSearch, setCurrentSearch] = useState<string>('');
     const [currentStatus, setCurrentStatus] = useState<string>('');
-    
+
     // Debounced search (500ms delay)
     const debouncedSearch = useDebounce(currentSearch, 500);
 

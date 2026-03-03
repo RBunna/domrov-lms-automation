@@ -1,4 +1,4 @@
-import { Eye, FileText, CheckCircle, AlertCircle } from 'lucide-react';
+import { Eye, CheckCircle, AlertCircle } from 'lucide-react';
 import { type Transaction, type PaymentTransaction, type AdminAdjustmentTransaction } from '../../services';
 import { formatCurrency } from '../../utils';
 
@@ -66,11 +66,10 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                             </td>
                             <td className="px-6 py-4">
                                 <span
-                                    className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${
-                                        isAdminAdjustmentTransaction(t)
+                                    className={`inline-block px-2.5 py-1 rounded-full text-xs font-medium ${isAdminAdjustmentTransaction(t)
                                             ? 'bg-purple-100 text-purple-800'
                                             : 'bg-blue-100 text-blue-800'
-                                    }`}
+                                        }`}
                                 >
                                     {isAdminAdjustmentTransaction(t) ? 'Admin Adjustment' : 'Payment'}
                                 </span>
@@ -88,11 +87,10 @@ const TransactionTable: React.FC<TransactionTableProps> = ({
                                         )}
                                         <p className="text-xs text-gray-500">{t.method}</p>
                                         <span
-                                            className={`inline-flex items-center gap-1 mt-1 ${
-                                                t.status === 'paid'
+                                            className={`inline-flex items-center gap-1 mt-1 ${t.status === 'paid'
                                                     ? 'text-green-700'
                                                     : 'text-red-700'
-                                            }`}
+                                                }`}
                                         >
                                             {t.status === 'paid' ? (
                                                 <CheckCircle className="w-3 h-3" />

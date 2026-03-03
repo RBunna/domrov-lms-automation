@@ -48,6 +48,7 @@ export interface DetailedTransactionDto {
   balanceAfter: number;
   description: string;
   date: string;
+  status: 'COMPLETED' | 'PENDING' | 'FAILED';
 }
 
 export interface RecentTransactionDto {
@@ -67,7 +68,7 @@ export interface UserDetailDto {
   phoneNumber: string | null;
   profilePictureUrl: string | null;
   isVerified: boolean;
-  status: 'active' | 'inactive' | 'banned' | 'ACTIVE' | 'INACTIVE' | 'BANNED';
+  status?: 'active' | 'inactive' | 'banned' | 'ACTIVE' | 'INACTIVE' | 'BANNED';
   role: 'user' | 'admin' | 'superadmin' | 'User' | 'Admin' | 'SuperAdmin';
   credits: number;
   joinDate: string;

@@ -46,6 +46,9 @@ export interface AdminAdjustmentTransactionDto {
 // Union type for all transactions
 export type TransactionResponseDto = PaymentTransactionDto | AdminAdjustmentTransactionDto;
 
+// Alias for backward compatibility
+export type CreditPackageResponseDto = CreditPackageDto;
+
 export interface TransactionListResponseDto {
   data: TransactionResponseDto[];
   total: number;

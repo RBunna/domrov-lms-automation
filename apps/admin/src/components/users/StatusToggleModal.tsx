@@ -23,7 +23,6 @@ const StatusToggleModal: React.FC<StatusToggleModalProps> = ({
 
   if (!user) return null;
 
-  const isCurrentlyActive = user.status?.toLowerCase() === 'active';
   const statusOptions: Array<{ value: 'active' | 'inactive' | 'banned'; label: string; description: string; icon: React.ReactNode }> = [
     {
       value: 'active',
@@ -96,11 +95,10 @@ const StatusToggleModal: React.FC<StatusToggleModalProps> = ({
                 key={option.value}
                 onClick={() => setSelectedStatus(option.value)}
                 disabled={isSubmitting}
-                className={`w-full p-3 rounded-lg border-2 text-left transition-colors ${
-                  selectedStatus === option.value
+                className={`w-full p-3 rounded-lg border-2 text-left transition-colors ${selectedStatus === option.value
                     ? 'border-blue-500 bg-blue-50'
                     : 'border-gray-200 bg-white hover:border-gray-300'
-                }`}
+                  }`}
               >
                 <div className="flex items-start gap-3">
                   {option.icon}

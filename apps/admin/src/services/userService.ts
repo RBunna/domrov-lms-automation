@@ -29,18 +29,18 @@ export interface UserDetail extends UserDetailDto { }
 
 class UserService {
   private normalizeTransactionStatus(
-    status: string
-  ): UserDetailDto['recentTransactions'][number]['status'] {
-    const validStatuses: Array<UserDetailDto['recentTransactions'][number]['status']> = [
+    status: string | undefined
+  ): 'COMPLETED' | 'PENDING' | 'FAILED' {
+    const validStatuses: Array<'COMPLETED' | 'PENDING' | 'FAILED'> = [
       'PENDING',
       'COMPLETED',
       'FAILED',
     ];
 
     return validStatuses.includes(
-      status as UserDetailDto['recentTransactions'][number]['status']
+      status as 'COMPLETED' | 'PENDING' | 'FAILED'
     )
-      ? (status as UserDetailDto['recentTransactions'][number]['status'])
+      ? (status as 'COMPLETED' | 'PENDING' | 'FAILED')
       : 'PENDING';
   }
 
@@ -176,7 +176,7 @@ class UserService {
 
       const response = await apiClient.users.addCredits(userId, {
         amount,
-        reason,
+        reason: reason as any,
         adminNote,
       });
 
@@ -204,7 +204,7 @@ class UserService {
 
       const response = await apiClient.users.deductCredits(userId, {
         amount,
-        reason,
+        reason: reason as any,
         adminNote,
       });
 
