@@ -1,11 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { LogIn } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { BaseButton, BaseInput } from '../components/base';
 import { useForm } from '../hooks';
 import { validateEmail, validatePassword } from '../utils';
 import { useAuth } from '../context/authContext';
-import { APP_NAME } from '../constants/config';
+import { APP_NAME, ROUTES } from '../constants/config';
 
 interface LoginFormValues {
     email: string;
@@ -19,9 +19,11 @@ const Login = () => {
     const navigate = useNavigate();
 
     // Redirect if already authenticated
-    if (isAuthenticated) {
-        window.location.href = '/';
-    }
+    useEffect(() => {
+        if (isAuthenticated) {
+            navigate(ROUTES.DASHBOARD, { replace: true });
+        }
+    }, [isAuthenticated, navigate]);
 
     const { values, errors, handleChange, setFieldError, resetForm } =
         useForm<LoginFormValues>(
@@ -67,7 +69,7 @@ const Login = () => {
             setIsSubmitting(true);
             await login({ email: values.email, password: values.password });
             resetForm();
-            navigate('/');
+            navigate(ROUTES.DASHBOARD, { replace: true });
         } catch (err) {
             const errorMessage =
                 err instanceof Error

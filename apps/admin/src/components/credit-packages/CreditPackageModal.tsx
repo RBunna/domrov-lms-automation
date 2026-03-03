@@ -64,16 +64,20 @@ const CreditPackageModal: React.FC<CreditPackageModalProps> = ({
             setFieldError('currency', 'Currency is required');
             return;
         }
-        onSave(values as {
-            name: string;
-            description: string;
-            credits: number;
-            price: number;
-            currency: string;
-            bonusCredits?: number;
-            sortOrder?: number;
-            isActive?: boolean;
-        });
+
+        // Convert string values to numbers and prepare payload
+        const payload = {
+            name: values.name as string,
+            description: values.description || '',
+            credits: Number(values.credits),
+            price: Number(values.price),
+            currency: values.currency as string,
+            bonusCredits: values.bonusCredits ? Number(values.bonusCredits) : undefined,
+            sortOrder: values.sortOrder ? Number(values.sortOrder) : undefined,
+            isActive: values.isActive ?? true,
+        };
+
+        onSave(payload);
         resetForm();
     };
 
