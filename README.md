@@ -269,7 +269,8 @@ The system follows a distributed architecture composed of:
 
 ## Additional Documentation
 
-- [Project Website](https://domrov.app)  
+- [Project Website](https://domrov.app)
+- [Admin Panel](https://admin.domrov.app)  
 - [Open API Documentation](https://api.domrov.app/api-docs)  
 
 ---
