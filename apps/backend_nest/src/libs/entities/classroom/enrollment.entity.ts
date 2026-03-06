@@ -2,13 +2,13 @@ import {
   Entity,
   PrimaryGeneratedColumn,
   Column,
-  BaseEntity,
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
 import { User } from '../user/user.entity';
 import { Class } from './class.entity';
 import { UserRole } from '../../enums/Role';
+import { BaseEntity } from '../base.entity';
 
 @Entity({ name: 'enrollments' })
 export class Enrollment extends BaseEntity {

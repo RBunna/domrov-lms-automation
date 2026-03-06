@@ -422,7 +422,7 @@ export class ClassService {
         await this.enrollmentRepository.save(enrollment);
         return {
             classId,
-            className: classEntity.name,
+            className: classToJoin.name,
             joinedAt: enrollment.created_at
         };
     }

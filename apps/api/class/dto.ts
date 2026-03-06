@@ -61,8 +61,9 @@ export interface JoinClassByTokenDto {
 }
 
 export interface JoinClassResponseDto {
-  message: string;
   classId: number;
+  className: string;
+  joinedAt: Date;
 }
 
 export interface ClassMembersDto {
@@ -119,5 +120,4 @@ export interface LeaderboardItemDto {
     email: string;
   };
   totalScore: number;
-  submissionCount: number;
 }

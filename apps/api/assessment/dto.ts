@@ -114,7 +114,9 @@ export interface UpdateResourceDTO {
 }
 
 export interface UpdateRubricDTO {
-  // Define fields as per backend update-rubric.dto.ts
+  id?: number;
+  definition?: string;
+  totalScore?: number;
 }
 
 export interface UpdateAssessmentDto {
