@@ -48,8 +48,13 @@
     "@nestjs/platform-socket.io": "^11.1.14",
     "@nestjs/schedule": "^6.0.1",
     "@nestjs/swagger": "^11.2.1",
+    "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
     "@nestjs/websockets": "^11.1.14",
+    "@sentry/nestjs": "^10.42.0",
+    "@sentry/node": "^10.42.0",
+    "@sentry/profiling-node": "^10.42.0",
+    "@sentry/tracing": "^7.120.4",
     "archiver": "^7.0.1",
     "aws-sdk": "^1.18.0",
     "aws-sdk-v3-nest": "^1.0.1",
@@ -68,6 +73,7 @@
     "mime-types": "^3.0.2",
     "multer": "^2.0.2",
     "nanoid": "^3.3.11",
+    "nest-winston": "^1.10.2",
     "nodemailer": "^7.0.10",
     "passport": "^0.7.0",
     "passport-github2": "^0.1.12",
@@ -80,7 +86,9 @@
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "swagger-ui-express": "^5.0.1",
-    "typeorm": "^0.3.28"
+    "typeorm": "^0.3.28",
+    "winston": "^3.19.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.2.0",

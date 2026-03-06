@@ -1,3 +1,5 @@
+import "./common/logging/instrument";
+
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
@@ -5,13 +7,16 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import cookieParser from 'cookie-parser';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { join } from 'path';
+import { PerformanceSentryInterceptor } from './common/interceptor/PerformanceLoggingInterceptor';
+import * as Sentry from '@sentry/node';
+import { GlobalExceptionFilter } from "./common/exception/GlobalExceptionFilter";
 
 async function bootstrap() {
   // --- 1. HTTP app for Swagger / REST ---
   const app = await NestFactory.create(AppModule);
 
   app.use(cookieParser());
-
+  app.useGlobalInterceptors(new PerformanceSentryInterceptor());
   app.enableCors({
     origin: '*',
     credentials: true,
@@ -24,6 +29,12 @@ async function bootstrap() {
     transform: true,
     forbidUnknownValues: true,
   }));
+
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN,
+    tracesSampleRate: 1.0, // 0 to 1, 1 = capture all transactions
+  });
+
 
   const config = new DocumentBuilder()
     .setTitle('Domrov LMS-Automation')
@@ -43,16 +54,16 @@ async function bootstrap() {
   await app.listen(3000);
 
   // --- 2. gRPC microservice ---
-  const grpcApp = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule, 
+  const grpcApp = await NestFactory.createMicroservice<MicroserviceOptions>(AppModule,
     {
-    transport: Transport.GRPC,
-    options: {
-      package: ['evaluation','submission'],
-      protoPath: [join(__dirname,'./libs/protos/evaluate.proto'), join(__dirname, './libs/protos/submission.proto')],
-      url: '0.0.0.0:50052',
-      loader: { keepCase: true },
-    }
-  });
+      transport: Transport.GRPC,
+      options: {
+        package: ['evaluation', 'submission'],
+        protoPath: [join(__dirname, './libs/protos/evaluate.proto'), join(__dirname, './libs/protos/submission.proto')],
+        url: '0.0.0.0:50052',
+        loader: { keepCase: true },
+      }
+    });
 
   await grpcApp.listen();
 }
