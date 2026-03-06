@@ -1,28 +1,35 @@
 // /api/payment-flow/dto.ts
 
-export interface StartPaymentDto {
-  packageId: number;
-  paymentMethod?: string;
+import { Currency } from '../enums/Currency';
+
+export interface CheckTransactionByHashDto {
+  hash: string;
+  amount: number;
+  currency: Currency;
+}
+
+export interface TransactionDataDto {
+  hash: string;
+  fromAccountId: string;
+  toAccountId: string;
+  currency: string;
+  amount: number;
+  description: string;
+  createdDateMs: number;
+  acknowledgedDateMs: number;
+  trackingStatus?: string;
+  receiverBank?: string;
+  receiverBankAccount?: string;
+}
+
+export interface CheckTransactionResponseDto {
+  responseCode: number;
+  responseMessage: string;
+  data?: TransactionDataDto;
+  errorCode?: number;
 }
 
 export interface StartPaymentResponseDto {
+  paymentId: number;
   message: string;
-  paymentId: string;
-  packageId: number;
-  amount: number;
-  currency: string;
-  qrCodeUrl?: string;
-  paymentUrl?: string;
-  createdAt: Date;
-}
-
-export interface PaymentStatusResponseDto {
-  paymentId: string;
-  status: 'PENDING' | 'COMPLETED' | 'FAILED' | 'CANCELLED';
-  packageId: number;
-  amount: number;
-  currency: string;
-  createdAt: Date;
-  completedAt?: Date;
-  message?: string;
 }

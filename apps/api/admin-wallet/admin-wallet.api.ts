@@ -1,136 +1,218 @@
 // /api/admin-wallet/admin-wallet.api.ts
+
 import axiosInstance from '../axios';
-import {
-  CreatePackageDto,
-  PackageResponseDto,
-  UpdatePackageDto,
-  DeletePackageResponseDto,
-  AdjustWalletDto,
-  AdjustWalletResponseDto,
-  AdminWalletResponseDto
-} from './dto';
+import { TransactionType } from '../enums/TransactionType';
+import { TransactionReason } from '../enums/TransactionReason';
+import { Currency } from '../enums/Currency';
+
+export interface ApiResponse<T> {
+  success: true;
+  data: T;
+}
+
+export interface CreateCreditPackageDto {
+  name: string;
+  description?: string;
+  credits: number;
+  price: number;
+  currency?: Currency;
+  bonusCredits?: number;
+  sortOrder?: number;
+  isActive?: boolean;
+}
+
+export interface CreditPackageResponseDto {
+  id: number;
+  name: string;
+  description?: string;
+  credits: number;
+  bonusCredits: number;
+  price: number;
+  currency: Currency;
+  discountInPercent: number;
+  isActive: boolean;
+  sortOrder?: number;
+  created_at: Date;
+  updated_at: Date;
+}
+
+export interface AdminAdjustWalletDTO {
+  userId: number;
+  amount: number;
+  type: TransactionType;
+  reason: TransactionReason;
+  description: string;
+}
+
+export interface AdminAdjustWalletResponseDto {
+  id: number;
+  creditBalance: number;
+  updated_at: Date;
+}
+
+export interface AdminDeductResponseDto {
+  success: boolean;
+}
+
+export interface TransactionResponseDto {
+  id: number;
+  user: string;
+  userId: number | null;
+  amount: number;
+  currency?: string;
+  method?: string;
+  status?: string;
+  date: string;
+  transactionType: 'payment' | 'admin_adjustment';
+  adjustmentType?: 'credit' | 'debit' | 'purchase';
+  reason?: string;
+  balanceBefore?: number;
+  balanceAfter?: number;
+  description?: string;
+  metadata?: Record<string, any>;
+  userNote?: string | null;
+  proofImageUrl?: string | null;
+  verificationNote?: string | null;
+  creditPackage?: {
+    id: number;
+    name: string;
+    credits: number;
+    bonusCredits: number;
+  };
+}
+
+export interface TransactionListResponseDto {
+  data: TransactionResponseDto[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+export interface TransactionDetailDto {
+  id: number;
+  user: string;
+  userId: number | null;
+  amount: number;
+  currency?: string;
+  method?: string;
+  status?: string;
+  date: string;
+  transactionType: 'payment' | 'admin_adjustment';
+  transactionDetails?: Record<string, any>;
+  adjustmentType?: 'credit' | 'debit' | 'purchase';
+  reason?: string;
+  balanceBefore?: number;
+  balanceAfter?: number;
+  description?: string;
+  metadata?: Record<string, any>;
+  creditPackage?: {
+    id: number;
+    name: string;
+    credits: number;
+    bonusCredits: number;
+  };
+}
 
 /**
- * Create a new credit package (admin only)
+ * Create new credit package
  */
-export async function createPackage(data: CreatePackageDto): Promise<PackageResponseDto> {
+export async function createCreditPackage(data: CreateCreditPackageDto): Promise<ApiResponse<CreditPackageResponseDto>> {
   try {
-    const response = await axiosInstance.post<PackageResponseDto>(`/admin-wallet/packages`, data);
+    const response = await axiosInstance.post<ApiResponse<CreditPackageResponseDto>>('/admin/wallet/packages', data);
     return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to create credit package'
     );
   }
 }
 
 /**
- * Get all credit packages (admin only)
+ * Get all credit packages (active & inactive)
  */
-export async function getAllPackages(): Promise<PackageResponseDto[]> {
+export async function getAllCreditPackages(): Promise<ApiResponse<CreditPackageResponseDto[]>> {
   try {
-    const response = await axiosInstance.get<PackageResponseDto[]>(`/admin-wallet/packages`);
+    const response = await axiosInstance.get<ApiResponse<CreditPackageResponseDto[]>>('/admin/wallet/packages');
     return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to get credit packages'
     );
   }
 }
 
 /**
- * Update a credit package (admin only)
+ * Toggle credit package active status
  */
-export async function updatePackage(packageId: number, data: UpdatePackageDto): Promise<PackageResponseDto> {
+export async function toggleCreditPackage(packageId: number): Promise<ApiResponse<CreditPackageResponseDto>> {
   try {
-    const response = await axiosInstance.patch<PackageResponseDto>(
-      `/admin-wallet/packages/${packageId}`,
-      data
-    );
+    const response = await axiosInstance.patch<ApiResponse<CreditPackageResponseDto>>(`/admin/wallet/packages/${packageId}/toggle`);
     return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to toggle credit package'
     );
   }
 }
 
 /**
- * Delete a credit package (admin only)
+ * Manually adjust user wallet balance
  */
-export async function deletePackage(packageId: number): Promise<DeletePackageResponseDto> {
+export async function adjustWalletBalance(data: AdminAdjustWalletDTO): Promise<ApiResponse<AdminAdjustWalletResponseDto | AdminDeductResponseDto>> {
   try {
-    const response = await axiosInstance.delete<DeletePackageResponseDto>(
-      `/admin-wallet/packages/${packageId}`
-    );
+    const response = await axiosInstance.post<ApiResponse<AdminAdjustWalletResponseDto | AdminDeductResponseDto>>('/admin/wallet/adjust', data);
     return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to adjust wallet balance'
     );
   }
 }
 
 /**
- * Add credits to user wallet (admin only)
+ * Get all transactions with pagination and filtering
  */
-export async function addCreditsToWallet(userId: number, data: AdjustWalletDto): Promise<AdjustWalletResponseDto> {
+export async function getAllTransactions(
+  page: number = 1,
+  limit: number = 10,
+  status: string = 'all',
+  transactionType: string = 'all',
+  search: string = ''
+): Promise<ApiResponse<TransactionListResponseDto>> {
   try {
-    const response = await axiosInstance.post<AdjustWalletResponseDto>(
-      `/admin-wallet/adjust-wallet/${userId}`,
-      data
-    );
+    const response = await axiosInstance.get<ApiResponse<TransactionListResponseDto>>('/admin/wallet/transactions', {
+      params: { page, limit, status, transactionType, search }
+    });
     return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
+      'Failed to get transactions'
     );
   }
 }
 
 /**
- * Deduct credits from user wallet (admin only)
+ * Get transaction details by ID
  */
-export async function deductCreditsFromWallet(userId: number, data: AdjustWalletDto): Promise<AdjustWalletResponseDto> {
+export async function getTransactionDetails(transactionId: string): Promise<ApiResponse<TransactionDetailDto>> {
   try {
-    const response = await axiosInstance.patch<AdjustWalletResponseDto>(
-      `/admin-wallet/deduct/${userId}`,
-      data
-    );
+    const response = await axiosInstance.get<ApiResponse<TransactionDetailDto>>(`/admin/wallet/transactions/${transactionId}`);
     return response.data;
   } catch (error: any) {
     throw new Error(
       error?.response?.data?.message ||
       error?.message ||
-      'Unknown API error'
-    );
-  }
-}
-
-/**
- * Get wallet details (admin only)
- */
-export async function getAdminWalletDetails(userId: number): Promise<AdminWalletResponseDto> {
-  try {
-    const response = await axiosInstance.get<AdminWalletResponseDto>(
-      `/admin-wallet/${userId}`
-    );
-    return response.data;
-  } catch (error: any) {
-    throw new Error(
-      error?.response?.data?.message ||
-      error?.message ||
-      'Unknown API error'
+      'Failed to get transaction details'
     );
   }
 }

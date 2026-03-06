@@ -75,9 +75,16 @@ export class ClassController {
           id: 1,
           name: 'Introduction to TypeScript',
           description: 'Learn the basics of TypeScript',
-          coverImage: 'https://example.com/image.jpg',
+          coverImageUrl: 'https://example.com/image.jpg',
           joinCode: 'ABC123',
           status: 'ACTIVE',
+          owner: {
+            id: 1,
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com'
+          },
+          role: 'teacher',
           createdAt: '2026-03-01T10:00:00Z',
         },
       },
@@ -107,9 +114,16 @@ export class ClassController {
             id: 1,
             name: 'Introduction to TypeScript',
             description: 'Learn the basics of TypeScript',
-            coverImage: 'https://example.com/image.jpg',
+            coverImageUrl: 'https://example.com/image.jpg',
             joinCode: 'ABC123',
             status: 'ACTIVE',
+            owner: {
+              id: 1,
+              firstName: 'John',
+              lastName: 'Doe',
+              email: 'john.doe@example.com'
+            },
+            role: 'teacher',
             createdAt: '2026-03-01T10:00:00Z',
           },
         ],
@@ -140,9 +154,16 @@ export class ClassController {
           id: 1,
           name: 'Introduction to TypeScript',
           description: 'Learn the basics of TypeScript',
-          coverImage: 'https://example.com/image.jpg',
+          coverImageUrl: 'https://example.com/image.jpg',
           joinCode: 'ABC123',
           status: 'ACTIVE',
+          owner: {
+            id: 1,
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john.doe@example.com'
+          },
+          role: 'teacher',
           createdAt: '2026-03-01T10:00:00Z',
         },
       },
@@ -300,9 +321,10 @@ export class ClassController {
         data: [
           {
             id: 5,
-            name: 'John Doe',
+            firstName: 'John',
+            lastName: 'Doe',
             email: 'john@example.com',
-            createdAt: '2026-03-01T10:00:00Z',
+            profilePictureUrl: 'https://example.com/avatar.jpg',
           },
         ],
       },
@@ -460,8 +482,13 @@ export class ClassController {
         success: true,
         data: [
           {
-            studentId: 5,
-            studentName: 'John Doe',
+            user: {
+              id: 5,
+              firstName: 'John',
+              lastName: 'Doe',
+              email: 'john@example.com',
+              profilePictureUrl: 'https://example.com/avatar.jpg'
+            },
             totalScore: 95,
             rank: 1,
           },

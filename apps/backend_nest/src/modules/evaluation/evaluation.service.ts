@@ -126,10 +126,8 @@ export class EvaluationService implements OnModuleInit {
         }),
       );
 
-      // 2. Return consistent success structure
+      // 2. Return folder structure
       return {
-        success: true,
-        message: 'Folder structure fetched',
         folder_structure: result.folder_structure
           ? JSON.parse(result.folder_structure)
           : {},
@@ -199,7 +197,7 @@ export class EvaluationService implements OnModuleInit {
     if (!res.success) {
       throw new BadRequestException(res.message);
     }
-    return res;
+    return { message: res.message };
   } catch (err) {
     if (err instanceof BadRequestException) {
       throw err;

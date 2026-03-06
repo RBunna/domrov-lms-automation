@@ -139,7 +139,9 @@ export class UserController {
             profilePictureUrl: 'https://example.com/new-avatar.jpg',
             isVerified: true,
             isTwoFactorEnable: false,
-            status: 'ACTIVE'
+            status: 'ACTIVE',
+            created_at: '2024-01-01T00:00:00Z',
+            updated_at: '2024-02-15T10:30:00Z'
           }
         }
       }
@@ -256,7 +258,9 @@ export class UserController {
             lastName: 'Doe',
             email: 'john@example.com',
             phoneNumber: '0123456789',
-            profilePictureUrl: 'https://example.com/avatar.jpg'
+            profilePictureUrl: 'https://example.com/avatar.jpg',
+            status: 'ACTIVE',
+            isVerified: true
           }
         ]
       }

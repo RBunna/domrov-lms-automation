@@ -1,5 +1,10 @@
 // /api/class/dto.ts
 
+export interface ApiResponse<T> {
+  success: true;
+  data: T;
+}
+
 import { ClassStatus } from '../enums/ClassStatus';
 import { UserRole } from '../enums/UserRole';
 
@@ -29,7 +34,6 @@ export interface ClassResponseDto {
   role?: UserRole;
   joinCode?: string;
   createdAt: Date;
-  updatedAt: Date;
 }
 
 export interface GetMyClassesResponseDto extends ClassResponseDto {

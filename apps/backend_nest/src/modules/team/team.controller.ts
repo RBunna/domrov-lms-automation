@@ -62,12 +62,16 @@ export class TeamController {
         data: {
           id: 1,
           name: 'Team A',
-          classId: 1,
-          leaderId: 5,
-          leaderName: 'John Doe',
           joinCode: 'ABC123',
-          members: [],
-          createdAt: '2026-03-01T10:00:00Z',
+          maxMember: 5,
+          leader: {
+            id: 5,
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john@example.com',
+            profilePictureUrl: null
+          },
+          members: []
         },
       },
     },
@@ -99,12 +103,16 @@ export class TeamController {
             {
               id: 1,
               name: 'Team A',
-              classId: 1,
-              leaderId: 5,
-              leaderName: 'John Doe',
               joinCode: 'ABC123',
-              members: [],
-              createdAt: '2026-03-01T10:00:00Z',
+              maxMember: 5,
+              leader: {
+                id: 5,
+                firstName: 'John',
+                lastName: 'Doe',
+                email: 'john@example.com',
+                profilePictureUrl: null
+              },
+              members: []
             },
           ],
         },
@@ -206,12 +214,16 @@ export class TeamController {
           {
             id: 1,
             name: 'Team A',
-            classId: 1,
-            leaderId: 5,
-            leaderName: 'John Doe',
             joinCode: 'ABC123',
-            members: [],
-            createdAt: '2026-03-01T10:00:00Z',
+            maxMember: 5,
+            leader: {
+              id: 5,
+              firstName: 'John',
+              lastName: 'Doe',
+              email: 'john@example.com',
+              profilePictureUrl: null
+            },
+            members: []
           },
         ],
       },
@@ -242,12 +254,16 @@ export class TeamController {
         data: {
           id: 1,
           name: 'Team A',
-          classId: 1,
-          leaderId: 5,
-          leaderName: 'John Doe',
           joinCode: 'ABC123',
-          members: [],
-          createdAt: '2026-03-01T10:00:00Z',
+          maxMember: 5,
+          leader: {
+            id: 5,
+            firstName: 'John',
+            lastName: 'Doe',
+            email: 'john@example.com',
+            profilePictureUrl: null
+          },
+          members: []
         },
       },
     },

@@ -1,32 +1,35 @@
 // /api/evaluation/dto.ts
 
-export interface FileContentResponseDto {
-  filePath: string;
-  content: string;
-  contentType: string;
-  size: number;
+export interface ApiResponse<T> {
+  success: true;
+  data: T;
 }
 
-export interface FolderItemDto {
+export interface FileContentDto {
+  type: 'file';
   name: string;
-  type: 'file' | 'directory';
-  size?: number;
   path: string;
-  children?: FolderItemDto[];
+  content: string[];
+}
+
+export interface ProcessSubmissionResponseDto {
+  file: FileContentDto;
+}
+
+export interface FolderNodeDto {
+  name: string;
+  type: 'file' | 'folder';
+  children?: FolderNodeDto[];
 }
 
 export interface FolderStructureResponseDto {
-  submissionId: number;
-  structure: FolderItemDto[];
+  folder_structure: FolderNodeDto;
 }
 
 export interface AddToQueueDto {
-  submissionId: number;
-  evaluationType?: 'AI' | 'MANUAL';
+  submission_id: string;
 }
 
 export interface AddToQueueResponseDto {
   message: string;
-  evaluationId: number;
-  status: string;
 }

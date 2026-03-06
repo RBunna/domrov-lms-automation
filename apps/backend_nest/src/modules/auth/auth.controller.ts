@@ -23,7 +23,7 @@ import { JwtAuthGuard } from './jwt-auth.guard';
 import { ResendOtpDTO, VerifyOtpDTO } from '../../libs/dtos/user/email-verification.dto';
 import { SignUpResponseDto } from '../../libs/dtos/auth/sign-up-response.dto';
 import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto';
-import { OAuthProfileDecorator, User as UserDecorator } from '../../common/decorators/user.decorator';
+import { OAuthProfileDecorator} from '../../common/decorators/user.decorator';
 import { DynamicOAuthGuard, OAuthProvider } from '../../common/decorators/oauth.decorator';
 import type { OAuthProfile } from '../../libs/dtos/auth/oauth-profile.interface';
 

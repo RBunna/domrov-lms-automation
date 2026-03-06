@@ -28,7 +28,7 @@ export class FileService {
       if (!filename || !contentType) throw new NotFoundException('Filename and content type are required');
       const key = `${userId}/${parentType}/${parentId}/${filename}`;
       const { uploadUrl } = await this.r2Service.getUploadUrl(key, contentType);
-      return { uploadUrl, key };
+      return { presignedUrl: uploadUrl, key };
     } catch (err) {
       throw new NotFoundException('Failed to generate presigned URL');
     }
@@ -51,7 +51,8 @@ export class FileService {
         url: key,
         owner: `${userId}`,
       });
-      return await this.resourceRepo.save(resource);
+      await this.resourceRepo.save(resource);
+      return { message: 'Resource saved successfully' };
     } catch (err) {
       throw new NotFoundException('Failed to notify upload success');
     }

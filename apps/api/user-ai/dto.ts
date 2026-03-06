@@ -1,5 +1,10 @@
 // /api/user-ai/dto.ts
 
+export interface ApiResponse<T> {
+  success: true;
+  data: T;
+}
+
 export interface CreateUserAIKeyDto {
   provider: string;
   model?: string;
@@ -19,34 +24,24 @@ export interface UpdateUserAIKeyDto {
 
 export interface UserAIKeyResponseDto {
   id: number;
+  userId: number;
   provider: string;
   model?: string;
-  apiKey: string;
-  apiEndpoint?: string;
-  label?: string;
   isActive: boolean;
   isValid: boolean;
+  label?: string;
   createdAt: Date;
   updatedAt: Date;
-  userId: number;
 }
 
-export interface UserAILogsResponseDto {
+export interface AIUsageLogResponseDto {
   id: number;
-  keyId: number;
-  model: string;
-  prompt: string;
-  completion: string;
-  totalTokens: number;
-  costUSD: number;
+  title: string;
+  usingDate: Date;
+  inputTokenCount: number;
+  outputTokenCount: number;
+  userId: number;
+  userAiKeyId?: number;
   createdAt: Date;
-}
-
-export interface UserAILogByModelResponseDto {
-  model: string;
-  totalCalls: number;
-  totalTokens: number;
-  totalCostUSD: number;
-  averageTokensPerCall: number;
-  lastUsedAt: Date;
+  updatedAt: Date;
 }

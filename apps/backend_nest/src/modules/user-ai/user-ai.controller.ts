@@ -23,6 +23,7 @@ import {
 } from '@nestjs/swagger';
 import { CreateUserAIKeyDto } from '../../libs/dtos/user/create-user-ai-key.dto';
 import { UpdateUserAIKeyDto } from '../../libs/dtos/user/update-user-ai-key.dto';
+import { UserAIKeyResponseDto, AIUsageLogResponseDto } from '../../libs/dtos/user-ai/user-ai-response.dto';
 import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
 import { AIUsageLog } from '../../libs/entities/ai/ai-usage-log.entity';
 import { UserId } from '../../common/decorators/user.decorator';
@@ -51,10 +52,13 @@ export class UserAiController {
         data: {
           id: 1,
           userId: 101,
-          keyName: 'My AI Key',
-          keyValue: 'sk-...',
           provider: 'OpenAI',
+          model: 'gpt-4',
+          isActive: true,
+          isValid: true,
+          label: 'My AI Key',
           createdAt: '2026-03-01T10:00:00Z',
+          updatedAt: '2026-03-01T10:00:00Z',
         },
       },
     },
@@ -62,8 +66,19 @@ export class UserAiController {
   async create(
     @Body() createUserAIKeyDto: CreateUserAIKeyDto,
     @UserId() userId: number,
-  ): Promise<{ success: true; data: UserAIKey }> {
-    const data = await this.userAIService.create(userId, createUserAIKeyDto);
+  ): Promise<{ success: true; data: UserAIKeyResponseDto }> {
+    const entity = await this.userAIService.create(userId, createUserAIKeyDto);
+    const data: UserAIKeyResponseDto = {
+      id: entity.id,
+      userId: entity.userId,
+      provider: entity.provider,
+      model: entity.model,
+      isActive: entity.isActive,
+      isValid: entity.isValid,
+      label: entity.label,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    };
     return { success: true, data };
   }
 
@@ -77,17 +92,31 @@ export class UserAiController {
           {
             id: 1,
             userId: 101,
-            keyName: 'My AI Key',
-            keyValue: 'sk-...',
             provider: 'OpenAI',
+            model: 'gpt-4',
+            isActive: true,
+            isValid: true,
+            label: 'My AI Key',
             createdAt: '2026-03-01T10:00:00Z',
+            updatedAt: '2026-03-01T10:00:00Z',
           },
         ],
       },
     },
   })
-  async findAll(@UserId() userId: number): Promise<{ success: true; data: UserAIKey[] }> {
-    const data = await this.userAIService.findAll(userId);
+  async findAll(@UserId() userId: number): Promise<{ success: true; data: UserAIKeyResponseDto[] }> {
+    const entities = await this.userAIService.findAll(userId);
+    const data = entities.map(entity => ({
+      id: entity.id,
+      userId: entity.userId,
+      provider: entity.provider,
+      model: entity.model,
+      isActive: entity.isActive,
+      isValid: entity.isValid,
+      label: entity.label,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    }));
     return { success: true, data };
   }
 
@@ -101,17 +130,31 @@ export class UserAiController {
         data: {
           id: 1,
           userId: 101,
-          keyName: 'My AI Key',
-          keyValue: 'sk-...',
           provider: 'OpenAI',
+          model: 'gpt-4',
+          isActive: true,
+          isValid: true,
+          label: 'My AI Key',
           createdAt: '2026-03-01T10:00:00Z',
+          updatedAt: '2026-03-01T10:00:00Z',
         },
       },
     },
   })
   @ApiNotFoundResponse({ description: 'User AI key not found' })
-  async findOne(@Param('id', ParseIntPipe) id: number, @UserId() userId: number): Promise<{ success: true; data: UserAIKey }> {
-    const data = await this.userAIService.findOne(userId, id);
+  async findOne(@Param('id', ParseIntPipe) id: number, @UserId() userId: number): Promise<{ success: true; data: UserAIKeyResponseDto }> {
+    const entity = await this.userAIService.findOne(userId, id);
+    const data: UserAIKeyResponseDto = {
+      id: entity.id,
+      userId: entity.userId,
+      provider: entity.provider,
+      model: entity.model,
+      isActive: entity.isActive,
+      isValid: entity.isValid,
+      label: entity.label,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    };
     return { success: true, data };
   }
 
@@ -126,10 +169,13 @@ export class UserAiController {
         data: {
           id: 1,
           userId: 101,
-          keyName: 'My AI Key',
-          keyValue: 'sk-...',
           provider: 'OpenAI',
+          model: 'gpt-4',
+          isActive: true,
+          isValid: true,
+          label: 'My AI Key',
           createdAt: '2026-03-01T10:00:00Z',
+          updatedAt: '2026-03-01T10:00:00Z',
         },
       },
     },
@@ -139,8 +185,19 @@ export class UserAiController {
     @Param('id', ParseIntPipe) id: number,
     @Body() updateUserAIKeyDto: UpdateUserAIKeyDto,
     @UserId() userId: number,
-  ): Promise<{ success: true; data: UserAIKey }> {
-    const data = await this.userAIService.update(userId, id, updateUserAIKeyDto);
+  ): Promise<{ success: true; data: UserAIKeyResponseDto }> {
+    const entity = await this.userAIService.update(userId, id, updateUserAIKeyDto);
+    const data: UserAIKeyResponseDto = {
+      id: entity.id,
+      userId: entity.userId,
+      provider: entity.provider,
+      model: entity.model,
+      isActive: entity.isActive,
+      isValid: entity.isValid,
+      label: entity.label,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    };
     return { success: true, data };
   }
 
@@ -175,12 +232,14 @@ export class UserAiController {
         data: [
           {
             id: 1,
+            title: 'AI Evaluation - Submission 123',
+            usingDate: '2026-03-01T10:00:00Z',
+            inputTokenCount: 150,
+            outputTokenCount: 200,
             userId: 101,
-            model: 'gpt-4',
-            inputTokens: 150,
-            outputTokens: 200,
-            totalTokens: 350,
+            userAiKeyId: 1,
             createdAt: '2026-03-01T10:00:00Z',
+            updatedAt: '2026-03-01T10:00:00Z',
           },
         ],
       },
@@ -190,8 +249,19 @@ export class UserAiController {
     @UserId() userId: number,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
-  ): Promise<{ success: true; data: AIUsageLog[] }> {
-    const data = await this.aiLogService.getUserLogs(userId, limit ? +limit : 50, offset ? +offset : 0);
+  ): Promise<{ success: true; data: AIUsageLogResponseDto[] }> {
+    const entities = await this.aiLogService.getUserLogs(userId, limit ? +limit : 50, offset ? +offset : 0);
+    const data = entities.map(entity => ({
+      id: entity.id,
+      title: entity.title,
+      usingDate: entity.usingDate,
+      inputTokenCount: entity.inputTokenCount,
+      outputTokenCount: entity.outputTokenCount,
+      userId: entity.user.id,
+      userAiKeyId: entity.userKey?.id,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    }));
     return { success: true, data };
   }
 
@@ -207,12 +277,14 @@ export class UserAiController {
         data: [
           {
             id: 1,
+            title: 'AI Evaluation - Submission 123',
+            usingDate: '2026-03-01T10:00:00Z',
+            inputTokenCount: 150,
+            outputTokenCount: 200,
             userId: 101,
-            model: 'gpt-4',
-            inputTokens: 150,
-            outputTokens: 200,
-            totalTokens: 350,
+            userAiKeyId: 1,
             createdAt: '2026-03-01T10:00:00Z',
+            updatedAt: '2026-03-01T10:00:00Z',
           },
         ],
       },
@@ -222,8 +294,19 @@ export class UserAiController {
     @Param('keyId', ParseIntPipe) keyId: number,
     @Query('limit') limit?: number,
     @Query('offset') offset?: number,
-  ): Promise<{ success: true; data: AIUsageLog[] }> {
-    const data = await this.aiLogService.getLogsByModel(keyId, limit ? +limit : 50, offset ? +offset : 0);
+  ): Promise<{ success: true; data: AIUsageLogResponseDto[] }> {
+    const entities = await this.aiLogService.getLogsByModel(keyId, limit ? +limit : 50, offset ? +offset : 0);
+    const data = entities.map(entity => ({
+      id: entity.id,
+      title: entity.title,
+      usingDate: entity.usingDate,
+      inputTokenCount: entity.inputTokenCount,
+      outputTokenCount: entity.outputTokenCount,
+      userId: entity.user.id,
+      userAiKeyId: entity.userKey?.id,
+      createdAt: entity.created_at,
+      updatedAt: entity.updated_at,
+    }));
     return { success: true, data };
   }
 }

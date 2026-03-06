@@ -4,16 +4,16 @@ import {
   CreateUserAIKeyDto,
   UserAIKeyResponseDto,
   UpdateUserAIKeyDto,
-  UserAILogsResponseDto,
-  UserAILogByModelResponseDto
+  AIUsageLogResponseDto,
+  ApiResponse
 } from './dto';
 
 /**
  * Create a new AI key for the user
  */
-export async function createUserAIKey(data: CreateUserAIKeyDto): Promise<UserAIKeyResponseDto> {
+export async function createUserAIKey(data: CreateUserAIKeyDto): Promise<ApiResponse<UserAIKeyResponseDto>> {
   try {
-    const response = await axiosInstance.post<UserAIKeyResponseDto>(`/user-ai`, data);
+    const response = await axiosInstance.post<ApiResponse<UserAIKeyResponseDto>>(`/user-ai`, data);
     return response.data;
   } catch (error: any) {
     throw new Error(
@@ -27,9 +27,9 @@ export async function createUserAIKey(data: CreateUserAIKeyDto): Promise<UserAIK
 /**
  * Get all AI keys for the user
  */
-export async function getAllUserAIKeys(): Promise<UserAIKeyResponseDto[]> {
+export async function getAllUserAIKeys(): Promise<ApiResponse<UserAIKeyResponseDto[]>> {
   try {
-    const response = await axiosInstance.get<UserAIKeyResponseDto[]>(`/user-ai`);
+    const response = await axiosInstance.get<ApiResponse<UserAIKeyResponseDto[]>>(`/user-ai`);
     return response.data;
   } catch (error: any) {
     throw new Error(
@@ -43,9 +43,9 @@ export async function getAllUserAIKeys(): Promise<UserAIKeyResponseDto[]> {
 /**
  * Get a specific AI key by ID
  */
-export async function getUserAIKey(keyId: number): Promise<UserAIKeyResponseDto> {
+export async function getUserAIKey(keyId: number): Promise<ApiResponse<UserAIKeyResponseDto>> {
   try {
-    const response = await axiosInstance.get<UserAIKeyResponseDto>(`/user-ai/${keyId}`);
+    const response = await axiosInstance.get<ApiResponse<UserAIKeyResponseDto>>(`/user-ai/${keyId}`);
     return response.data;
   } catch (error: any) {
     throw new Error(
@@ -62,9 +62,9 @@ export async function getUserAIKey(keyId: number): Promise<UserAIKeyResponseDto>
 export async function updateUserAIKey(
   keyId: number,
   data: UpdateUserAIKeyDto
-): Promise<UserAIKeyResponseDto> {
+): Promise<ApiResponse<UserAIKeyResponseDto>> {
   try {
-    const response = await axiosInstance.patch<UserAIKeyResponseDto>(`/user-ai/${keyId}`, data);
+    const response = await axiosInstance.patch<ApiResponse<UserAIKeyResponseDto>>(`/user-ai/${keyId}`, data);
     return response.data;
   } catch (error: any) {
     throw new Error(
@@ -78,9 +78,9 @@ export async function updateUserAIKey(
 /**
  * Delete an AI key
  */
-export async function deleteUserAIKey(keyId: number): Promise<{ message: string }> {
+export async function deleteUserAIKey(keyId: number): Promise<ApiResponse<any>> {
   try {
-    const response = await axiosInstance.delete<{ message: string }>(`/user-ai/${keyId}`);
+    const response = await axiosInstance.delete<ApiResponse<any>>(`/user-ai/${keyId}`);
     return response.data;
   } catch (error: any) {
     throw new Error(
@@ -94,9 +94,11 @@ export async function deleteUserAIKey(keyId: number): Promise<{ message: string 
 /**
  * Get usage logs for the user's AI keys
  */
-export async function getUserAIUsageLogs(): Promise<UserAILogsResponseDto[]> {
+export async function getUserAIUsageLogs(limit?: number, offset?: number): Promise<ApiResponse<AIUsageLogResponseDto[]>> {
   try {
-    const response = await axiosInstance.get<UserAILogsResponseDto[]>(`/user-ai/user/logs`);
+    const response = await axiosInstance.get<ApiResponse<AIUsageLogResponseDto[]>>(`/user-ai/user/logs`, {
+      params: { limit, offset }
+    });
     return response.data;
   } catch (error: any) {
     throw new Error(
@@ -110,11 +112,11 @@ export async function getUserAIUsageLogs(): Promise<UserAILogsResponseDto[]> {
 /**
  * Get usage logs for a specific AI model
  */
-export async function getAIModelUsageLogs(keyId: number): Promise<UserAILogByModelResponseDto[]> {
+export async function getAIModelUsageLogs(keyId: number, limit?: number, offset?: number): Promise<ApiResponse<AIUsageLogResponseDto[]>> {
   try {
-    const response = await axiosInstance.get<UserAILogByModelResponseDto[]>(
-      `/user-ai/model/${keyId}`
-    );
+    const response = await axiosInstance.get<ApiResponse<AIUsageLogResponseDto[]>>(`/user-ai/model/${keyId}`, {
+      params: { limit, offset }
+    });
     return response.data;
   } catch (error: any) {
     throw new Error(

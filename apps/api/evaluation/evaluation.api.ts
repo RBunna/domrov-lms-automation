@@ -2,10 +2,11 @@
 
 import axiosInstance from '../axios';
 import {
-  FileContentResponseDto,
+  ProcessSubmissionResponseDto,
   FolderStructureResponseDto,
   AddToQueueDto,
   AddToQueueResponseDto,
+  ApiResponse
 } from './dto';
 
 /**
@@ -14,11 +15,11 @@ import {
 export async function getSubmissionFileContent(
   submissionId: number,
   filePath: string
-): Promise<FileContentResponseDto> {
+): Promise<ApiResponse<{ message: string; data: ProcessSubmissionResponseDto }>> {
   try {
-    const response = await axiosInstance.get<FileContentResponseDto>(
+    const response = await axiosInstance.get<ApiResponse<{ message: string; data: ProcessSubmissionResponseDto }>>(
       `/evaluations/submission/${submissionId}/file`,
-      { params: { filePath } }
+      { params: { file_path: filePath } }
     );
     return response.data;
   } catch (error: any) {
@@ -35,9 +36,9 @@ export async function getSubmissionFileContent(
  */
 export async function getSubmissionFolderStructure(
   submissionId: number
-): Promise<FolderStructureResponseDto> {
+): Promise<ApiResponse<{ message: string; data: FolderStructureResponseDto }>> {
   try {
-    const response = await axiosInstance.get<FolderStructureResponseDto>(
+    const response = await axiosInstance.get<ApiResponse<{ message: string; data: FolderStructureResponseDto }>>(
       `/evaluations/submission/${submissionId}/folder-structure`
     );
     return response.data;
@@ -55,9 +56,9 @@ export async function getSubmissionFolderStructure(
  */
 export async function addToEvaluationQueue(
   data: AddToQueueDto
-): Promise<AddToQueueResponseDto> {
+): Promise<ApiResponse<AddToQueueResponseDto>> {
   try {
-    const response = await axiosInstance.post<AddToQueueResponseDto>(
+    const response = await axiosInstance.post<ApiResponse<AddToQueueResponseDto>>(
       `/evaluations/queue`,
       data
     );

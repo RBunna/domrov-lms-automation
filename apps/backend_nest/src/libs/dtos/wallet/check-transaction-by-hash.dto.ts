@@ -8,13 +8,6 @@ enum Currency {
 
 export class CheckTransactionByHashDto {
     @ApiProperty({
-        example: 1,
-        description: 'User ID',
-    })
-    @IsNumber()
-    userId: number;
-
-    @ApiProperty({
         example: '8465d722',
         description: '8 characters transaction hash',
         minLength: 8,

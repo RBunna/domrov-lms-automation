@@ -21,12 +21,6 @@ export class FileContentDto {
 }
 
 export class ProcessSubmissionResponseDto {
-    @ApiProperty({ description: 'Operation success status', example: true })
-    success: boolean;
-
-    @ApiProperty({ description: 'Status message', example: 'File processed' })
-    message: string;
-
     @ApiProperty({ description: 'File details with content', type: FileContentDto })
     file: FileContentDto;
 }
@@ -43,12 +37,6 @@ export class FolderNodeDto {
 }
 
 export class FolderStructureResponseDto {
-    @ApiProperty({ description: 'Operation success status', example: true })
-    success: boolean;
-
-    @ApiProperty({ description: 'Status message', example: 'Folder structure fetched' })
-    message: string;
-
     @ApiProperty({ description: 'Folder structure tree', type: FolderNodeDto })
     folder_structure: FolderNodeDto;
 }
@@ -56,9 +44,6 @@ export class FolderStructureResponseDto {
 // ==================== QUEUE DTOs ====================
 
 export class AddQueueResponseDto {
-    @ApiProperty({ description: 'Operation success status', example: true })
-    success: boolean;
-
     @ApiProperty({ description: 'Status message', example: 'Task queued successfully' })
     message: string;
 }

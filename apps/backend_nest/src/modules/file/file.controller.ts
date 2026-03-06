@@ -1,20 +1,10 @@
 import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
-import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse, ApiParam } from '@nestjs/swagger';
 import { UserId } from '../../common/decorators/user.decorator';
 import { FileService } from './file.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import express from 'express';
-import { IsNotEmpty, IsString } from 'class-validator';
-
-export class NotifyUploadDto {
-  @IsString()
-  @IsNotEmpty()
-  key: string;
-
-  @IsString()
-  @IsNotEmpty()
-  filename: string;
-}
+import { NotifyUploadDto, PresignedUrlResponseDto, NotifyUploadResponseDto } from '../../libs/dtos/file/file-response.dto';
 
 @ApiTags('Files')
 @ApiBearerAuth('JWT-auth')
@@ -42,7 +32,8 @@ export class FileController {
       example: {
         success: true,
         data: {
-          presignedUrl: 'https://example.r2.com/presigned-url'
+          presignedUrl: 'https://example.r2.com/presigned-url',
+          key: '123/module/456/file.pdf'
         }
       }
     }
@@ -53,7 +44,7 @@ export class FileController {
     @Query('resourceType') resourceType: 'module' | 'topic' | 'assessment' | 'class' | 'submission',
     @Query('resourceId') resourceId: number,
     @UserId() userId: number
-  ): Promise<{ success: true; data: any }> {
+  ): Promise<{ success: true; data: PresignedUrlResponseDto }> {
     if (!filename || !contentType || !resourceType || !resourceId) {
       throw new Error('Missing required query params');
     }
@@ -82,7 +73,7 @@ export class FileController {
   async notifyUpload(
     @UserId() userId: number,
     @Body() body: NotifyUploadDto
-  ): Promise<{ success: true; data: any }> {
+  ): Promise<{ success: true; data: NotifyUploadResponseDto }> {
     const { key, filename } = body;
     if (!key || !filename) {
       throw new Error('Missing required body params');
@@ -94,6 +85,8 @@ export class FileController {
 
   @Get('download/:resourceId')
   @UseGuards(JwtAuthGuard)
+  @ApiOperation({ summary: 'Download a resource file' })
+  @ApiParam({ name: 'resourceId', type: Number, description: 'ID of the resource to download' })
   async download(
     @Param('resourceId') resourceId: number,
     @Res() res: express.Response,

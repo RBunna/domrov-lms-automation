@@ -360,10 +360,10 @@ export class AssessmentController {
           user_exclude_files: ['node_modules/', '.git/', 'test/', 'android/', 'ios/', 'build/', 'dist/'],
           user_include_files: ['src/**/*.ts', 'src/**/*.cpp', 'main.py'],
           rubrics: [
-            { criterion: 'Code Quality & Structure', weight: 25 },
-            { criterion: 'Correctness & Functionality', weight: 50 },
-            { criterion: 'Documentation & Comments', weight: 15 },
-            { criterion: 'Error Handling', weight: 10 }
+            { definition: 'Code Quality & Structure', totalScore: 25 },
+            { definition: 'Correctness & Functionality', totalScore: 50 },
+            { definition: 'Documentation & Comments', totalScore: 15 },
+            { definition: 'Error Handling', totalScore: 10 }
           ],
           resources: [{ resourceId: 12 }]
         }
@@ -384,9 +384,9 @@ export class AssessmentController {
           maxScore: 100,
           dueDate: '2026-02-15T23:59:59Z',
           rubrics: [
-            { criterion: 'Code Quality', weight: 30 },
-            { criterion: 'Functionality', weight: 50 },
-            { criterion: 'Documentation', weight: 20 }
+            { definition: 'Code Quality', totalScore: 30 },
+            { definition: 'Functionality', totalScore: 50 },
+            { definition: 'Documentation', totalScore: 20 }
           ]
         }
       },
@@ -534,14 +534,32 @@ export class AssessmentController {
   @ApiParam({ name: 'id', type: Number, description: 'Assessment ID', example: 1 })
   @ApiOkResponse({
     description: 'Tracking data retrieved successfully',
-    schema: {
-      example: {
-        success: true,
-        data: [
-          { teamId: 1, name: 'Team Alpha', status: 'GRADED', score: 85 },
-          { teamId: 2, name: 'Team Beta', status: 'SUBMITTED', score: null },
-          { teamId: 3, name: 'Team Gamma', status: 'NOT_SUBMITTED', score: null }
-        ]
+    content: {
+      'application/json': {
+        examples: {
+          teamTracking: {
+            summary: 'Team assessment tracking',
+            value: {
+              success: true,
+              data: [
+                { teamId: 1, name: 'Team Alpha', status: 'GRADED', score: 85 },
+                { teamId: 2, name: 'Team Beta', status: 'SUBMITTED', score: null },
+                { teamId: 3, name: 'Team Gamma', status: 'NOT_SUBMITTED', score: null }
+              ]
+            }
+          },
+          individualTracking: {
+            summary: 'Individual assessment tracking',
+            value: {
+              success: true,
+              data: [
+                { studentId: 1, name: 'John Doe', status: 'GRADED', score: 90 },
+                { studentId: 2, name: 'Jane Smith', status: 'SUBMITTED', score: null },
+                { studentId: 3, name: 'Bob Johnson', status: 'NOT_SUBMITTED', score: null }
+              ]
+            }
+          }
+        }
       }
     }
   })

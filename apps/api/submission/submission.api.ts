@@ -1,28 +1,26 @@
 // /api/submission/submission.api.ts  
 import axiosInstance from '../axios';
 import {
-  SubmissionDetailTeacherDto,
-  SubmissionDetailStudentDto,
-  ApproveSubmissionResponseDto,
-  SaveDraftResponseDto,
-  FinalSubmitResponseDto,
+  SubmissionStatusItemDto,
   MySubmissionResponseDto,
-  SubmissionStatusResponseDto,
-  RosterResponseDto,
-  SubmissionStatsResponseDto,
+  TeamRosterItemDto,
+  IndividualRosterItemDto,
+  AssessmentStatsResponseDto,
+  EvaluationResponseDto,
   AddFeedbackResponseDto,
   UpdateFeedbackResponseDto,
   FeedbackItemDto,
-  SaveSubmissionDraftDto
+  GradeSubmissionDTO
 } from './dto';
+import { ApiResponse } from '../assessment/dto';
 
 /**
- * Get submission details for teacher view
+ * Get my submission status for all assessments in a class (Student)
  */
-export async function getSubmissionTeacherView(submissionId: number): Promise<SubmissionDetailTeacherDto> {
+export async function getMySubmissionStatusInClass(classId: number): Promise<ApiResponse<SubmissionStatusItemDto[]>> {
   try {
-    const response = await axiosInstance.get<SubmissionDetailTeacherDto>(
-      `/submissions/${submissionId}/teacher`
+    const response = await axiosInstance.get<ApiResponse<SubmissionStatusItemDto[]>>(
+      `/submissions/class/${classId}/my-status`
     );
     return response.data;
   } catch (error: any) {
@@ -35,12 +33,12 @@ export async function getSubmissionTeacherView(submissionId: number): Promise<Su
 }
 
 /**
- * Get submission details for student view
+ * Get my submission status for a specific assessment (Student)
  */
-export async function getSubmissionStudentView(submissionId: number): Promise<SubmissionDetailStudentDto> {
+export async function getMySubmissionStatus(assessmentId: number): Promise<ApiResponse<MySubmissionResponseDto>> {
   try {
-    const response = await axiosInstance.get<SubmissionDetailStudentDto>(
-      `/submissions/${submissionId}/student`
+    const response = await axiosInstance.get<ApiResponse<MySubmissionResponseDto>>(
+      `/submissions/${assessmentId}/my-status`
     );
     return response.data;
   } catch (error: any) {
@@ -53,15 +51,48 @@ export async function getSubmissionStudentView(submissionId: number): Promise<Su
 }
 
 /**
- * Save submission as draft
+ * Get submission roster for an assessment (Teacher)
  */
-export async function saveSubmissionDraft(
-  assessmentId: number,
-  data: SaveSubmissionDraftDto
-): Promise<SaveDraftResponseDto> {
+export async function getSubmissionRoster(assessmentId: number): Promise<ApiResponse<(TeamRosterItemDto | IndividualRosterItemDto)[]>> {
   try {
-    const response = await axiosInstance.patch<SaveDraftResponseDto>(
-      `/submissions/${assessmentId}/submit`,
+    const response = await axiosInstance.get<ApiResponse<(TeamRosterItemDto | IndividualRosterItemDto)[]>>(
+      `/submissions/assessment/${assessmentId}/roster`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Unknown API error'
+    );
+  }
+}
+
+/**
+ * Get submission statistics for an assessment (Teacher)
+ */
+export async function getSubmissionStats(assessmentId: number): Promise<ApiResponse<AssessmentStatsResponseDto>> {
+  try {
+    const response = await axiosInstance.get<ApiResponse<AssessmentStatsResponseDto>>(
+      `/submissions/assessment/${assessmentId}/stats`
+    );
+    return response.data;
+  } catch (error: any) {
+    throw new Error(
+      error?.response?.data?.message ||
+      error?.message ||
+      'Unknown API error'
+    );
+  }
+}
+
+/**
+ * Grade a submission (Teacher)
+ */
+export async function gradeSubmission(submissionId: number, data: GradeSubmissionDTO): Promise<ApiResponse<EvaluationResponseDto>> {
+  try {
+    const response = await axiosInstance.post<ApiResponse<EvaluationResponseDto>>(
+      `/submissions/${submissionId}/grade`,
       data
     );
     return response.data;
@@ -75,129 +106,11 @@ export async function saveSubmissionDraft(
 }
 
 /**
- * Submit final submission for assessment
+ * Add line-by-line feedback to a submission (Teacher)
  */
-export async function submitFinalSubmission(
-  assessmentId: number,
-  data?: SaveSubmissionDraftDto
-): Promise<FinalSubmitResponseDto> {
+export async function addFeedback(submissionId: number, data: FeedbackItemDto): Promise<ApiResponse<AddFeedbackResponseDto>> {
   try {
-    const response = await axiosInstance.post<FinalSubmitResponseDto>(
-      `/submissions/${assessmentId}/submit`,
-      data || {}
-    );
-    return response.data;
-  } catch (error: any) {
-    throw new Error(
-      error?.response?.data?.message ||
-      error?.message ||
-      'Unknown API error'
-    );
-  }
-}
-
-/**
- * Get current user's submission for an assessment
- */
-export async function getMySubmission(assessmentId: number): Promise<MySubmissionResponseDto> {
-  try {
-    const response = await axiosInstance.get<MySubmissionResponseDto>(
-      `/submissions/${assessmentId}/my-submission`
-    );
-    return response.data;
-  } catch (error: any) {
-    throw new Error(
-      error?.response?.data?.message ||
-      error?.message ||
-      'Unknown API error'
-    );
-  }
-}
-
-/**
- * Get submission status for assessment
- */
-export async function getSubmissionStatus(assessmentId: number): Promise<SubmissionStatusResponseDto> {
-  try {
-    const response = await axiosInstance.get<SubmissionStatusResponseDto>(
-      `/submissions/${assessmentId}/status`
-    );
-    return response.data;
-  } catch (error: any) {
-    throw new Error(
-      error?.response?.data?.message ||
-      error?.message ||
-      'Unknown API error'
-    );
-  }
-}
-
-/**
- * Get submission roster (team or individual)
- */
-export async function getSubmissionRoster(
-  assessmentId: number,
-  type: 'team' | 'individual'
-): Promise<RosterResponseDto> {
-  try {
-    const response = await axiosInstance.get<RosterResponseDto>(
-      `/submissions/${assessmentId}/roster/${type}`
-    );
-    return response.data;
-  } catch (error: any) {
-    throw new Error(
-      error?.response?.data?.message ||
-      error?.message ||
-      'Unknown API error'
-    );
-  }
-}
-
-/**
- * Get submission statistics
- */
-export async function getSubmissionStats(assessmentId: number): Promise<SubmissionStatsResponseDto> {
-  try {
-    const response = await axiosInstance.get<SubmissionStatsResponseDto>(
-      `/submissions/${assessmentId}/stats`
-    );
-    return response.data;
-  } catch (error: any) {
-    throw new Error(
-      error?.response?.data?.message ||
-      error?.message ||
-      'Unknown API error'
-    );
-  }
-}
-
-/**
- * Approve a submission
- */
-export async function approveSubmission(submissionId: number): Promise<ApproveSubmissionResponseDto> {
-  try {
-    const response = await axiosInstance.patch<ApproveSubmissionResponseDto>(
-      `/submissions/approve/${submissionId}`
-    );
-    return response.data;
-  } catch (error: any) {
-    throw new Error(
-      error?.response?.data?.message ||
-      error?.message ||
-      'Unknown API error'
-    );
-  }
-}
-
-/**
- * Add feedback to a submission
- */
-export async function addFeedback(
-  submissionId: number,
-  data: FeedbackItemDto
-): Promise<AddFeedbackResponseDto> {
-  try {
-    const response = await axiosInstance.post<AddFeedbackResponseDto>(
+    const response = await axiosInstance.post<ApiResponse<AddFeedbackResponseDto>>(
       `/submissions/${submissionId}/feedback`,
       data
     );
@@ -212,16 +125,12 @@ export async function addFeedback(
 }
 
 /**
- * Update feedback on a submission
+ * Update a feedback item (Teacher)
  */
-export async function updateFeedback(
-  submissionId: number,
-  feedbackId: number,
-  data: FeedbackItemDto
-): Promise<UpdateFeedbackResponseDto> {
+export async function updateFeedback(feedbackId: string, data: FeedbackItemDto): Promise<ApiResponse<UpdateFeedbackResponseDto>> {
   try {
-    const response = await axiosInstance.patch<UpdateFeedbackResponseDto>(
-      `/submissions/${submissionId}/feedback/${feedbackId}`,
+    const response = await axiosInstance.patch<ApiResponse<UpdateFeedbackResponseDto>>(
+      `/submissions/feedback/${feedbackId}`,
       data
     );
     return response.data;

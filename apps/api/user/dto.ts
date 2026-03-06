@@ -1,5 +1,12 @@
 // /api/user/dto.ts
 
+import { UserStatus } from '../enums/UserStatus';
+
+export interface ApiResponse<T> {
+  success: true;
+  data: T;
+}
+
 export interface UserResponseDto {
   id: number;
   firstName: string;
@@ -34,7 +41,7 @@ export interface UserProfileResponseDto {
   profilePictureUrl?: string;
   isVerified: boolean;
   isTwoFactorEnable: boolean;
-  status: string;
+  status: UserStatus;
   created_at: Date;
   updated_at: Date;
 }
@@ -46,15 +53,15 @@ export interface UpdateProfileResponseDto {
 
 export interface ChangePasswordResponseDto {
   message: string;
-  status: string;
 }
 
-export interface SharedUserResponseDto {
+export interface UserListItemDto {
   id: number;
   firstName: string;
-  lastName: string;
+  lastName?: string;
   email: string;
-  profilePictureUrl?: string | null;
+  phoneNumber?: string;
+  profilePictureUrl?: string;
+  status: UserStatus;
+  isVerified: boolean;
 }
-
-export interface SearchUsersResponseDto extends SharedUserResponseDto {}

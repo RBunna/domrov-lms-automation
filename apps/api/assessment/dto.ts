@@ -1,5 +1,10 @@
 // /api/assessment/dto.ts
 
+export interface ApiResponse<T> {
+  success: true;
+  data: T;
+}
+
 import { SubmissionType } from '../enums/SubmissionType';
 import { SubmissionMethod } from '../enums/SubmissionMethod';
 import { AIModelSelectionMode } from '../enums/AIModelSelectionMode';

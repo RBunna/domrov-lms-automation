@@ -28,6 +28,9 @@ export class ClassResponseDto {
     @ApiPropertyOptional({ example: 'A1B2C3', description: 'The join code for the class (only visible to teachers)' })
     joinCode?: string;
 
+    @ApiProperty({ example: '2026-03-01T10:00:00Z', description: 'The creation timestamp of the class' })
+    createdAt: Date;
+
     static fromEntity(cls: any, role?: UserRole): ClassResponseDto {
         return {
             id: cls.id,
@@ -43,6 +46,7 @@ export class ClassResponseDto {
             },
             role,
             joinCode: role === UserRole.Teacher ? cls.joinCode : undefined,
+            createdAt: cls.created_at,
         };
     }
 }

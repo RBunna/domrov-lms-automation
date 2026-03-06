@@ -1,4 +1,9 @@
 // /api/auth/dto.ts
+export interface ApiResponse<T> {
+  success: true;
+  data: T;
+}
+
 export interface RegisterUserDTO {
   firstName: string;
   lastName: string;
@@ -34,7 +39,6 @@ export interface SignUpResponseDto {
 
 export interface LoginResponseDto {
   accessToken: string;
-  refreshToken: string;
 }
 
 export interface RefreshTokenResponseDto {
@@ -45,6 +49,10 @@ export interface RefreshTokenResponseDto {
 
 export interface AuthMessageResponseDto {
   status: string;
+  message: string;
+}
+
+export interface MessageResponseDto {
   message: string;
 }
 

@@ -4,15 +4,16 @@ import {
   PresignedUrlRequestDto,
   PresignedUrlResponseDto,
   NotifyUploadDto,
-  NotifyUploadResponseDto
+  NotifyUploadResponseDto,
+  ApiResponse
 } from './dto';
 
 /**
  * Get presigned URL for file upload
  */
-export async function getPresignedUrl(data: PresignedUrlRequestDto): Promise<PresignedUrlResponseDto> {
+export async function getPresignedUrl(data: PresignedUrlRequestDto): Promise<ApiResponse<PresignedUrlResponseDto>> {
   try {
-    const response = await axiosInstance.get<PresignedUrlResponseDto>(`/file/presigned-url`, {
+    const response = await axiosInstance.get<ApiResponse<PresignedUrlResponseDto>>(`/file/presigned-url`, {
       params: data
     });
     return response.data;
@@ -28,9 +29,9 @@ export async function getPresignedUrl(data: PresignedUrlRequestDto): Promise<Pre
 /**
  * Notify backend that file has been uploaded
  */
-export async function notifyUpload(data: NotifyUploadDto): Promise<NotifyUploadResponseDto> {
+export async function notifyUpload(data: NotifyUploadDto): Promise<ApiResponse<NotifyUploadResponseDto>> {
   try {
-    const response = await axiosInstance.post<NotifyUploadResponseDto>(`/file/notify-upload`, data);
+    const response = await axiosInstance.post<ApiResponse<NotifyUploadResponseDto>>(`/file/notify-upload`, data);
     return response.data;
   } catch (error: any) {
     throw new Error(

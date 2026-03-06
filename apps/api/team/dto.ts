@@ -1,4 +1,9 @@
 // /api/team/dto.ts
+
+export interface ApiResponse<T> {
+  success: true;
+  data: T;
+}
 export interface CreateTeamDto {
   name: string;
   maxMember: number;

@@ -60,9 +60,14 @@ export class EvaluationController {
     schema: {
       example: {
         success: true,
+        message: 'File processed successfully',
         data: {
-          fileContent: 'file content here',
-          fileName: 'main.cpp'
+          file: {
+            type: 'file',
+            name: 'main.cpp',
+            path: '1a502673e8870d73/main.cpp',
+            content: ['#include <iostream>', 'int main() {', '    return 0;', '}']
+          }
         }
       }
     }
@@ -73,10 +78,10 @@ export class EvaluationController {
   async processSubmission(
     @Param('submission_id', new ValidationPipe({ transform: true })) submission_id: number,
     @Query(new ValidationPipe({ transform: true })) query: GetFilesSubmissionDto
-  ): Promise<{ success: true; data: ProcessSubmissionResponseDto }> {
+  ): Promise<{ success: true; message: string; data: ProcessSubmissionResponseDto }> {
     const { file_path } = query;
     const data = await this.evaluationService.processSubmission(String(submission_id), file_path);
-    return { success: true, data };
+    return { success: true, message: 'File processed successfully', data };
   }
 
   // ==================== GET FOLDER STRUCTURE ====================
@@ -96,10 +101,13 @@ export class EvaluationController {
     schema: {
       example: {
         success: true,
+        message: 'Folder structure retrieved successfully',
         data: {
-          folderName: 'root',
-          files: [],
-          subfolders: []
+          folder_structure: {
+            name: 'root',
+            type: 'folder',
+            children: []
+          }
         }
       }
     }
@@ -109,9 +117,9 @@ export class EvaluationController {
   })
   async getSubmissionFolderStructure(
     @Param('submission_id', new ValidationPipe({ transform: true })) submission_id: number,
-  ): Promise<{ success: true; data: FolderStructureResponseDto }> {
+  ): Promise<{ success: true; message: string; data: FolderStructureResponseDto }> {
     const data = await this.evaluationService.getSubmissionFolderStructure(String(submission_id));
-    return { success: true, data };
+    return { success: true, message: 'Folder structure retrieved successfully', data };
   }
 
   // ==================== ADD TO AI EVALUATION QUEUE ====================
@@ -150,7 +158,6 @@ export class EvaluationController {
       example: {
         success: true,
         data: {
-          success: true,
           message: 'Task queued successfully'
         }
       }

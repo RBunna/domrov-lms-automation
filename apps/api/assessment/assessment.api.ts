@@ -11,15 +11,18 @@ import {
   AssessmentStatsResponseDto,
   CompleteAssessmentResponseDto,
   CreateAssessmentDto,
-  UpdateAssessmentDto
+  UpdateAssessmentDto,
+  ApiResponse,
+  TeamTrackingItemDto,
+  IndividualTrackingItemDto
 } from './dto';
 
 /**
  * Get assessments for a specific class
  */
-export async function getAssessmentsByClass(classId: number): Promise<AssessmentListItemDto[]> {
+export async function getAssessmentsByClass(classId: number): Promise<ApiResponse<AssessmentListItemDto[]>> {
   try {
-    const response = await axiosInstance.get<AssessmentListItemDto[]>(
+    const response = await axiosInstance.get<ApiResponse<AssessmentListItemDto[]>>(
       `/assessments/class/${classId}`
     );
     return response.data;
@@ -74,11 +77,11 @@ export async function getAssessmentDetails(assessmentId: number): Promise<Assess
 /**
  * Create a new assessment draft
  */
-export async function createAssessmentDraft(data: CreateAssessmentDto): Promise<CreateDraftResponseDto> {
+export async function createAssessmentDraft(classId: number, session: number): Promise<ApiResponse<CreateDraftResponseDto>> {
   try {
-    const response = await axiosInstance.post<CreateDraftResponseDto>(
-      `/assessments`,
-      data
+    const response = await axiosInstance.post<ApiResponse<CreateDraftResponseDto>>(
+      `/assessments/class/${classId}/draft`,
+      { session }
     );
     return response.data;
   } catch (error: any) {
@@ -96,9 +99,9 @@ export async function createAssessmentDraft(data: CreateAssessmentDto): Promise<
 export async function updateAssessment(
   assessmentId: number,
   data: UpdateAssessmentDto
-): Promise<UpdateAssessmentResponseDto> {
+): Promise<ApiResponse<UpdateAssessmentResponseDto>> {
   try {
-    const response = await axiosInstance.patch<UpdateAssessmentResponseDto>(
+    const response = await axiosInstance.patch<ApiResponse<UpdateAssessmentResponseDto>>(
       `/assessments/${assessmentId}`,
       data
     );
@@ -115,9 +118,9 @@ export async function updateAssessment(
 /**
  * Publish an assessment
  */
-export async function publishAssessment(assessmentId: number): Promise<PublishAssessmentResponseDto> {
+export async function publishAssessment(assessmentId: number): Promise<ApiResponse<PublishAssessmentResponseDto>> {
   try {
-    const response = await axiosInstance.patch<PublishAssessmentResponseDto>(
+    const response = await axiosInstance.patch<ApiResponse<PublishAssessmentResponseDto>>(
       `/assessments/${assessmentId}/publish`
     );
     return response.data;
@@ -133,9 +136,9 @@ export async function publishAssessment(assessmentId: number): Promise<PublishAs
 /**
  * Delete an assessment
  */
-export async function deleteAssessment(assessmentId: number): Promise<DeleteAssessmentResponseDto> {
+export async function deleteAssessment(assessmentId: number): Promise<ApiResponse<DeleteAssessmentResponseDto>> {
   try {
-    const response = await axiosInstance.delete<DeleteAssessmentResponseDto>(
+    const response = await axiosInstance.delete<ApiResponse<DeleteAssessmentResponseDto>>(
       `/assessments/${assessmentId}`
     );
     return response.data;
@@ -170,12 +173,11 @@ export async function completeAssessment(classId: number, assessmentId: number):
  * Get assessment tracking information (team or individual)
  */
 export async function getAssessmentTracking(
-  assessmentId: number,
-  type: 'team' | 'individual'
-): Promise<AssessmentTrackingResponseDto> {
+  assessmentId: number
+): Promise<ApiResponse<TeamTrackingItemDto[] | IndividualTrackingItemDto[]>> {
   try {
-    const response = await axiosInstance.get<AssessmentTrackingResponseDto>(
-      `/assessments/${assessmentId}/tracking/${type}`
+    const response = await axiosInstance.get<ApiResponse<TeamTrackingItemDto[] | IndividualTrackingItemDto[]>>(
+      `/assessments/${assessmentId}/tracking`
     );
     return response.data;
   } catch (error: any) {

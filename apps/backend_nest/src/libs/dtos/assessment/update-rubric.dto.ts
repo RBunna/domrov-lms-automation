@@ -7,14 +7,14 @@ export class UpdateRubricDTO {
     @IsNumber()
     id?: number;
 
-    @ApiPropertyOptional({ example: 'Code Quality', description: 'Criterion name' })
+    @ApiPropertyOptional({ example: 'Code Quality', description: 'Criterion definition' })
     @IsOptional()
     @IsString()
-    criterion?: string;
+    definition?: string;
 
-    @ApiPropertyOptional({ example: 40, description: 'Weight percentage for this criterion' })
+    @ApiPropertyOptional({ example: 40, description: 'Total score for this criterion' })
     @IsOptional()
     @IsNumber()
-    weight?: number;
+    totalScore?: number;
 
 }

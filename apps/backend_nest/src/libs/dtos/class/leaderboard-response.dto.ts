@@ -7,4 +7,7 @@ export class LeaderboardItemDto {
 
     @ApiProperty({ example: 850, description: 'Total score of the user in this class' })
     totalScore: number;
+
+    @ApiProperty({ example: 1, description: 'Rank of the user in the leaderboard' })
+    rank: number;
 }

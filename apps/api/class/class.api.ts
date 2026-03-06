@@ -13,15 +13,16 @@ import {
   TransferOwnershipDto,
   AssignTADto,
   CompleteClassResponseDto,
-  GetMyClassesResponseDto
+  GetMyClassesResponseDto,
+  ApiResponse
 } from './dto';
 
 /**
  * Create a new class
  */
-export async function createClass(data: CreateClassDto): Promise<ClassResponseDto> {
+export async function createClass(data: CreateClassDto): Promise<ApiResponse<ClassResponseDto>> {
   try {
-    const response = await axiosInstance.post<ClassResponseDto>(`/class`, data);
+    const response = await axiosInstance.post<ApiResponse<ClassResponseDto>>(`/class`, data);
     return response.data;
   } catch (error: any) {
     throw new Error(
