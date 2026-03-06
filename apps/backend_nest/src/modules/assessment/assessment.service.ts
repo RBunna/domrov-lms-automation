@@ -200,8 +200,8 @@ export class AssessmentService {
 
           const rubricEntities = rubrics.map((rubricDto) =>
             manager.create(Rubrics, {
-              definition: rubricDto.criterion, // Mapping DTO 'criterion' to Entity 'definition'
-              totalScore: rubricDto.weight,    // Mapping DTO 'weight' to Entity 'totalScore'
+              definition: rubricDto.definition, // Mapping DTO 'definition' to Entity 'definition'
+              totalScore: rubricDto.totalScore, // Mapping DTO 'totalScore' to Entity 'totalScore'
               assessment,
             })
           );

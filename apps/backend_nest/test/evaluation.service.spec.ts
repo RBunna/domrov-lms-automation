@@ -235,8 +235,6 @@ describe('EvaluationService', () => {
             const result = await service.getSubmissionFolderStructure(submissionId);
 
             expect(result).toEqual({
-                success: true,
-                message: 'Folder structure fetched',
                 folder_structure: folderStructure,
             });
         });
@@ -346,7 +344,7 @@ describe('EvaluationService', () => {
 
             const result = await service.addTaskToQueue(submission_id);
 
-            expect(result).toEqual(mockResponse);
+            expect(result).toEqual({ message: 'Task queued' });
             expect(mockTasksQueueService.AddQueue).toHaveBeenCalledWith({ submission_id });
         });
 

@@ -32,32 +32,51 @@ export class AuthService {
     private readonly mailerService: MailerService,
   ) { }
 
-  async signUp(signUpUserDto: RegisterUserDTO): Promise<SignUpResponseDto> {
-    // Check if email already exists
-    const existingUser = await this.userService.findByEmail(signUpUserDto.email);
-    if (existingUser) {
-      throw new ConflictException('Email already registered');
+      async signUp(signUpUserDto: RegisterUserDTO): Promise<SignUpResponseDto> {
+        if (!signUpUserDto) throw new BadRequestException('Registration data is required')
+        if (!signUpUserDto?.email || !signUpUserDto?.password)
+          throw new BadRequestException('Email and password are required');
+        const existingUser = await this.userService.findByEmail(
+          signUpUserDto.email,
+        );
+        if (existingUser)
+          throw new ConflictException('Email already registered');
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(signUpUserDto.email))
+          throw new BadRequestException('Invalid email format');
+        if (!signUpUserDto?.firstName)
+          throw new BadRequestException('First name is required');
+        if (!signUpUserDto?.lastName)
+          throw new BadRequestException('Last name is required');
+
+        // Password strength validation
+        if (signUpUserDto.password.length < 8)
+          throw new BadRequestException(
+            'Password must be at least 8 characters',
+          );
+        if (!/[A-Z]/.test(signUpUserDto.password))
+          throw new BadRequestException('Password must contain uppercase');
+        if (!/[0-9]/.test(signUpUserDto.password))
+          throw new BadRequestException('Password must contain number/digit');
+        if (
+          !/[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?]/.test(signUpUserDto.password)
+        )
+          throw new BadRequestException(
+            'Password must contain special character',
+          );
+        
+        const { confirmPassword, ...userData } = signUpUserDto
+        // Hash the password before creating the user
+        userData.password = await Encryption.hashPassword(userData.password)
+        const createdUser = await this.userService.create(userData)
+        return {
+            userId: createdUser.id,
+            firstName: createdUser.firstName,
+            lastName: createdUser.lastName,
+            email: createdUser.email,
+        }
     }
-    const { confirmPassword, ...userData } = signUpUserDto;
-    try {
-      const createdUser = await this.userService.create(userData);
-      return {
-        userId: createdUser.id,
-        firstName: createdUser.firstName,
-        lastName: createdUser.lastName,
-        email: createdUser.email
-      };
-    } catch (error) {
-      const errorCode = (error as any).code;
-      if (errorCode === '23505' || errorCode === 11000) {
-        throw new ConflictException('Email already registered');
-      } else if ((error as any).name === 'ValidationError') {
-        throw new BadRequestException('Validation failed. Please check your input.');
-      } else {
-        throw new InternalServerErrorException('Failed to create user. Please try again later.');
-      }
-    }
-  }
+
 
   async login(login: LoginUserDTO): Promise<LoginResponseDto> {
     if (!login?.email || !login?.password) throw new BadRequestException('Email and password are required')

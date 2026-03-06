@@ -179,7 +179,11 @@ export class ClassService {
         });
 
         await this.enrollmentRepository.save(enrollment);
-        return { message: 'Successfully joined class', classId };
+        return {
+            classId: classToJoin.id,
+            className: classToJoin.name,
+            joinedAt: enrollment.created_at
+        };
     }
 
     async getClassesForUser(userId: number): Promise<ClassResponseDto[]> {
@@ -328,7 +332,11 @@ export class ClassService {
                 user: UserResponseDto.toDto(en.user),
                 totalScore: scoreMap.get(en.user.id) || 0,
             }))
-            .sort((a, b) => b.totalScore - a.totalScore);
+            .sort((a, b) => b.totalScore - a.totalScore)
+            .map((item, index) => ({
+                ...item,
+                rank: index + 1
+            }));
         return leaderboard;
     }
 
@@ -413,8 +421,9 @@ export class ClassService {
         });
         await this.enrollmentRepository.save(enrollment);
         return {
-            message: 'Successfully joined the class',
             classId,
+            className: classEntity.name,
+            joinedAt: enrollment.created_at
         };
     }
 

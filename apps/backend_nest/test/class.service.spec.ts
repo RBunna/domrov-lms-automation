@@ -631,8 +631,9 @@ describe('ClassService - Comprehensive Testing with Detailed Logic Verification'
                 const result = await classService.joinClassWithCode('TEST12', 2);
 
                 expect(result).toEqual({
-                    message: 'Successfully joined class',
                     classId: 100,
+                    className: 'Advanced NestJS',
+                    joinedAt: mockStudentEnrollment.created_at,
                 });
             });
 
