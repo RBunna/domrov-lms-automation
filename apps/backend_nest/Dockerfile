@@ -17,8 +17,8 @@ WORKDIR /app
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
 
-# Create logs directory and give permission to node user
-RUN mkdir -p /app/logs && chown -R node:node /app
+# Create external logs directory (outside code)
+RUN mkdir -p /logs && chown -R node:node /logs
 
 # Switch to non-root user
 USER node

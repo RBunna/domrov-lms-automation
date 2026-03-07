@@ -9,7 +9,6 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { join } from 'path';
 import { PerformanceSentryInterceptor } from './common/interceptor/PerformanceLoggingInterceptor';
 import * as Sentry from '@sentry/node';
-import { GlobalExceptionFilter } from "./common/exception/GlobalExceptionFilter";
 
 async function bootstrap() {
   // --- 1. HTTP app for Swagger / REST ---

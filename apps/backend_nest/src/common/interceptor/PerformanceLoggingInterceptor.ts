@@ -18,8 +18,11 @@ export class PerformanceSentryInterceptor implements NestInterceptor {
     private readonly consoleLogger = new Logger('PERF'); // use unique context
 
     constructor() {
-        const logDir = path.resolve('logs');
-        if (!fs.existsSync(logDir)) fs.mkdirSync(logDir);
+        const logDir = '/logs';
+
+        if (!fs.existsSync(logDir)) {
+            fs.mkdirSync(logDir, { recursive: true });
+        }
 
         const transport = new winston.transports.DailyRotateFile({
             filename: path.join(logDir, 'perf-%DATE%.log'),
