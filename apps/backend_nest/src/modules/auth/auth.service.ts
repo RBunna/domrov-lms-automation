@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException } from '@nestjs/common'
+import { BadRequestException, ConflictException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException, UseGuards } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { UserRefreshToken } from '../../libs/entities/user/user-refresh-token.entity'
@@ -76,7 +76,6 @@ export class AuthService {
             email: createdUser.email,
         }
     }
-
 
   async login(login: LoginUserDTO): Promise<LoginResponseDto> {
     if (!login?.email || !login?.password) throw new BadRequestException('Email and password are required')

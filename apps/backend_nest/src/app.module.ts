@@ -31,6 +31,7 @@ import { UserAiModule } from './modules/user-ai/user-ai.module';
 import { NotificationService } from './services/notification.service';
 import { Assessment } from './libs/entities/assessment/assessment.entity';
 import { Notification } from './libs/entities/user/notification.entity';    
+import { RateLimiterService } from './services/rate-limiter.service';
 
 @Module({
     imports: [
@@ -52,7 +53,8 @@ import { Notification } from './libs/entities/user/notification.entity';
         TypeOrmModule.forFeature([Payment, CreditPackage, UserCreditBalance, WalletTransaction, Notification,Assessment,]),
     ],
     controllers: [AppController],
-    providers: [AppService, PaymentService, RedisService, PaymentFlowService, PaymentGateway, NotificationService],
+    providers: [AppService, PaymentService, RedisService, PaymentFlowService, PaymentGateway, NotificationService, RateLimiterService,
+],
     exports: [NotificationService], 
 })
 export class AppModule {}

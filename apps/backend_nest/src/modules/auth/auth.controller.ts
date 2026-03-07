@@ -26,6 +26,7 @@ import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto'
 import { OAuthProfileDecorator} from '../../common/decorators/user.decorator';
 import { DynamicOAuthGuard, OAuthProvider } from '../../common/decorators/oauth.decorator';
 import type { OAuthProfile } from '../../libs/dtos/auth/oauth-profile.interface';
+import { RateLimiterGuard } from '../../common/security/guards/custom-throttler.guard';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -102,6 +103,7 @@ export class AuthController {
 
     // ==================== LOGIN ====================
     @Post('login')
+    @UseGuards(RateLimiterGuard)
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
         summary: 'Login to the system',

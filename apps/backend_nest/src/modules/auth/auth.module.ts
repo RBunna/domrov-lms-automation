@@ -15,10 +15,12 @@ import { ConfigModule } from '@nestjs/config';
 import { GoogleStrategy } from './stragies/google.stragies';
 import { UserModule } from '../user/user.module';
 import { GithubStrategy } from './stragies/github.strategy';
+import { RateLimiterService } from '../../services/rate-limiter.service';
+import { RedisService } from '../../services/redis.service';
 
 @Module({
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, RefreshTokenStrategy, GoogleStrategy,GithubStrategy],
+  providers: [AuthService, JwtStrategy, RefreshTokenStrategy, GoogleStrategy, GithubStrategy, RateLimiterService,RedisService],
   imports: [
     TypeOrmModule.forFeature([User, UserRefreshToken, UserEmailOtp]),
     AccessJwtConfigModule,
@@ -27,9 +29,9 @@ import { GithubStrategy } from './stragies/github.strategy';
     ConfigModule.forFeature(google_oauthConfig),
     UserModule
   ],
-  exports: [TypeOrmModule, 
+  exports: [TypeOrmModule,
     AuthService,
-     AuthService,        
+    AuthService,
     AccessJwtConfigModule,
   ],
 })

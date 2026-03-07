@@ -9,6 +9,8 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { join } from 'path';
 import { PerformanceSentryInterceptor } from './common/interceptor/PerformanceLoggingInterceptor';
 import * as Sentry from '@sentry/node';
+import session from 'express-session';
+
 
 async function bootstrap() {
   // --- 1. HTTP app for Swagger / REST ---
@@ -22,7 +24,14 @@ async function bootstrap() {
     exposedHeaders: ['Content-Disposition'],
 
   });
-  app.useGlobalPipes(new ValidationPipe({
+  app.use(
+    session({
+      secret: 'my-secret',
+      resave: false,
+      saveUninitialized: false,
+    }),
+  );
+    app.useGlobalPipes(new ValidationPipe({
     whitelist: true,
     forbidNonWhitelisted: true,
     transform: true,

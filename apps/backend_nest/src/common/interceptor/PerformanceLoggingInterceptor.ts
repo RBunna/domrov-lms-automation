@@ -48,6 +48,12 @@ export class PerformanceSentryInterceptor implements NestInterceptor {
             const diff = process.hrtime(startHrTime);
             const durationMs = diff[0] * 1000 + diff[1] / 1e6;
 
+            const ip = req.headers['x-forwarded-for']?.toString().split(',')[0]?.trim() ||
+                req.ip ||
+                req.connection?.remoteAddress ||
+                req.socket?.remoteAddress ||
+                'unknown';
+
             const logData = {
                 timestamp: new Date().toISOString(),
                 method: req.method,
@@ -55,6 +61,7 @@ export class PerformanceSentryInterceptor implements NestInterceptor {
                 status: res.statusCode,
                 responseTimeMs: durationMs.toFixed(2),
                 userId: req.user?.id || 'N/A',
+                ip,
             };
 
             // 1️⃣ Log to Winston
@@ -62,7 +69,7 @@ export class PerformanceSentryInterceptor implements NestInterceptor {
 
             // 2️⃣ Log to console
             this.consoleLogger.log(
-                `${logData.method} ${logData.route} - ${logData.status} - ${logData.responseTimeMs}ms - User: ${logData.userId}`
+                `${logData.method} ${logData.route} - ${logData.status} - ${logData.responseTimeMs}ms - User: ${logData.userId} - IP: ${logData.ip}`
             );
 
             // 3️⃣ Send to Sentry if:
@@ -70,7 +77,7 @@ export class PerformanceSentryInterceptor implements NestInterceptor {
             // - Slow request (optional threshold, e.g., >100ms)
             if (res.statusCode >= 500 || durationMs > 100) {
                 Sentry.captureMessage(
-                    `Request ${logData.method} ${logData.route} - Status: ${logData.status} - ${logData.responseTimeMs}ms`,
+                    `Request ${logData.method} ${logData.route} - Status: ${logData.status} - ${logData.responseTimeMs}ms - IP: ${logData.ip}`,
                     res.statusCode >= 500 ? 'error' : 'warning'
                 );
             }
