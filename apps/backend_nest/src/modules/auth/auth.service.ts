@@ -81,8 +81,6 @@ export class AuthService {
     if (!login?.email || !login?.password) throw new BadRequestException('Email and password are required')
     const user = await this.userService.findByEmail(login.email)
     if (!user) throw new UnauthorizedException('User not found with this email')
-    console.log('User found:', user.password)
-    console.log('User found:', login.password)
     const passwordMatches = await Encryption.verifyPassword(user.password, login.password)
     if (!passwordMatches) throw new UnauthorizedException('Password Incorrect Please Try Again')
     const payload = { sub: user.id, email: user.email, role: user.role }

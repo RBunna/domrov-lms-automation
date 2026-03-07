@@ -17,8 +17,8 @@ import { TeamAssessment } from '../classroom/team-assessment.entity';
 
 
 @Entity({ name: 'assessments' })
-// Index for finding all assessments in a class (assessment.service.ts lines 302, 320, 255+)
-@Index(['classId'])
+// Index for listing assessments by class (2+ queries in assessment.service)
+@Index(['class'])
 export class Assessment extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

@@ -5,6 +5,7 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { UserCreditBalance } from './user-credit-balance.entity';
@@ -24,6 +25,8 @@ export enum TransactionReason {
 }
 
 @Entity({ name: 'wallet_transactions' })
+// Index for wallet transaction history lookups
+@Index(['wallet'])
 export class WalletTransaction extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

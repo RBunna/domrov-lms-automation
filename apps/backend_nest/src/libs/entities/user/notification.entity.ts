@@ -1,4 +1,4 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, CreateDateColumn, UpdateDateColumn, Index } from 'typeorm';
 import { User } from './user.entity';
 
 export enum NotificationType {
@@ -13,6 +13,8 @@ export enum NotificationStatus {
 }
 
 @Entity({ name: 'notifications' })
+// Composite index for unread notification queries (user + status filters)
+@Index(['user', 'status'])
 export class Notification {
     @PrimaryGeneratedColumn()
     id: number;

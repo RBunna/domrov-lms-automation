@@ -116,14 +116,14 @@ export class AuthController {
             example1: {
                 summary: 'Teacher login',
                 value: {
-                    email: 'sophea.heng0@example.com',
+                    email: 'teacher.vannak.chhun1@example.com',
                     password: 'password123'
                 }
             },
             example2: {
                 summary: 'Student login',
                 value: {
-                    email: 'vannak.chhun1@example.com',
+                    email: 'student.mara.leang17@example.com',
                     password: 'password123'
                 }
             },

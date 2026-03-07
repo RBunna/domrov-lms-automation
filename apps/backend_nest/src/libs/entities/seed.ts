@@ -129,50 +129,70 @@ export async function seed() {
 
         // Create Teachers
         for (let i = 0; i < teacherCount; i++) {
-            const user = new User();
             const firstName = khmerFirstNames[i % khmerFirstNames.length];
             const lastName = khmerLastNames[i % khmerLastNames.length];
+            const email = `teacher.${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`;
+
+            // Check if user already exists, update if exists
+            let user = await queryRunner.manager.findOne(User, { where: { email } });
+
+            if (!user) {
+                user = new User();
+                user.password = userHashes[i];
+            }
 
             user.firstName = firstName;
             user.lastName = `${lastName}_Teacher`;
-            user.gender = faker.datatype.boolean() ? 'male' : 'female';
-            user.dob = faker.date.birthdate({ min: 35, max: 60, mode: 'age' });
-            user.phoneNumber = `855${faker.number.int({ min: 10000000, max: 99999999 })}`;
+            user.gender = i % 2 === 0 ? 'male' : 'female'; // Deterministic
+            user.dob = new Date(1985 + Math.floor(i / 6), i % 12, 1); // Deterministic based on index
+            user.phoneNumber = `855${String(10000000 + i).padStart(8, '0')}`; // Deterministic
             user.status = i === teacherCount - 1 ? UserStatus.BANNED : UserStatus.ACTIVE;
             user.role = SystemRole.User;
             user.isVerified = true;
-            user.isTwoFactorEnable = faker.datatype.boolean();
-            user.email = `teacher.${firstName.toLowerCase()}.${lastName.toLowerCase()}${i}@example.com`;
-            user.password = userHashes[i];
+            user.isTwoFactorEnable = i % 3 === 0; // Deterministic
+            user.email = email;
 
             usersData.push(await queryRunner.manager.save(user));
         }
 
         // Create Students
         for (let i = 0; i < studentCount; i++) {
-            const user = new User();
             const firstName = khmerFirstNames[(teacherCount + i) % khmerFirstNames.length];
             const lastName = khmerLastNames[(teacherCount + i) % khmerLastNames.length];
+            const email = `student.${firstName.toLowerCase()}.${lastName.toLowerCase()}${teacherCount + i}@example.com`;
+
+            // Check if user already exists, update if exists
+            let user = await queryRunner.manager.findOne(User, { where: { email } });
+
+            if (!user) {
+                user = new User();
+                user.password = userHashes[teacherCount + i];
+            }
 
             user.firstName = firstName;
             user.lastName = `${lastName}_Student`;
-            user.gender = faker.datatype.boolean() ? 'male' : 'female';
-            user.dob = faker.date.birthdate({ min: 18, max: 25, mode: 'age' });
-            user.phoneNumber = `855${faker.number.int({ min: 10000000, max: 99999999 })}`;
+            user.gender = (teacherCount + i) % 2 === 0 ? 'male' : 'female'; // Deterministic
+            user.dob = new Date(2001 + Math.floor(i / 30), i % 12, (i % 28) + 1); // Deterministic based on index
+            user.phoneNumber = `855${String(20000000 + i).padStart(8, '0')}`; // Deterministic
             user.status = UserStatus.ACTIVE;
             user.role = SystemRole.User;
-            user.isVerified = faker.datatype.boolean(0.85);
-            user.isTwoFactorEnable = faker.datatype.boolean(0.3);
-            user.email = `student.${firstName.toLowerCase()}.${lastName.toLowerCase()}${teacherCount + i}@example.com`;
-            user.password = userHashes[teacherCount + i];
+            user.isVerified = i % 7 <= 5; // Deterministic (85% verified)
+            user.isTwoFactorEnable = i % 10 <= 2; // Deterministic (30% enabled)
+            user.email = email;
 
             usersData.push(await queryRunner.manager.save(user));
         }
 
         // Fixed Super Admin
-        const superAdmin = new User();
-        superAdmin.email = 'cpf.cadt@gmail.com';
-        superAdmin.password = await Encryption.hashPassword('Admin@123');
+        const superAdminEmail = 'cpf.cadt@gmail.com';
+        let superAdmin = await queryRunner.manager.findOne(User, { where: { email: superAdminEmail } });
+
+        if (!superAdmin) {
+            superAdmin = new User();
+            superAdmin.password = await Encryption.hashPassword('Admin@123');
+        }
+
+        superAdmin.email = superAdminEmail;
         superAdmin.firstName = 'Super';
         superAdmin.lastName = 'Admin';
         superAdmin.status = UserStatus.ACTIVE;

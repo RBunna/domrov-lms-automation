@@ -12,8 +12,8 @@ import { UserRole } from '../../enums/Role';
 import { BaseEntity } from '../base.entity';
 
 @Entity({ name: 'enrollments' })
-// Composite index for permission checks: find enrollment by user+class (authorization in class.service.ts line 410)
-@Index(['userId', 'classId'])
+// Composite index for authorization: verify if user is enrolled in class (5+ queries in class.service)
+@Index(['user', 'class'])
 export class Enrollment extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

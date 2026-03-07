@@ -17,10 +17,10 @@ import { SubmissionStatus } from '../../enums/Status';
 import { SubmissionResource } from '../resource/submission-resource.entity';
 
 @Entity({ name: 'submissions' })
-// Critical composite index: (assessmentId, userId) used 6+ times in submission.service for finding user submissions
-@Index(['assessmentId', 'userId'])
-// Composite index for team-based submissions (4+ occurrences in submission.service)
-@Index(['assessmentId', 'teamId'])
+// Composite index for critical student submission lookup (3+ queries in submission.service)
+@Index(['assessment', 'user'])
+// Composite index for team submission operations (3+ queries in submission.service)
+@Index(['assessment', 'team'])
 export class Submission extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

@@ -6,12 +6,15 @@ import {
   OneToOne,
   JoinColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { User } from '../user/user.entity';
 import { WalletTransaction } from './wallet-transaction.entity';
 
 @Entity({ name: 'user_credit_balances' })
+// Index for user wallet lookups (critical path for wallet operations)
+@Index(['user'])
 export class UserCreditBalance extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

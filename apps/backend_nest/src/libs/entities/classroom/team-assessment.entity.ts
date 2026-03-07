@@ -4,10 +4,8 @@ import { Assessment } from '../assessment/assessment.entity';
 
 @Entity({ name: 'team_assessments' })
 @Unique(['team', 'assessment'])
-// Index for finding team assessments by assessment ID (submission.service.ts line 129-132)
-@Index(['assessmentId'])
-// Index for finding assessments associated with a team
-@Index(['teamId'])
+@Index(['assessment'])
+@Index(['team'])
 export class TeamAssessment extends BaseEntity {
     @PrimaryColumn()
     assessment_id: number;

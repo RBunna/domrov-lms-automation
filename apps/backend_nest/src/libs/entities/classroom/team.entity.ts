@@ -8,6 +8,7 @@ import {
     OneToMany,
     JoinTable,
     ManyToMany,
+    Index,
 } from 'typeorm';
 import { User } from '../user/user.entity';
 import { Class } from './class.entity';
@@ -16,6 +17,8 @@ import { Assessment } from '../assessment/assessment.entity';
 import { TeamAssessment } from './team-assessment.entity';
 
 @Entity({ name: 'teams' })
+// Index for listing teams by class (2+ queries in team.service)
+@Index(['class'])
 export class Team extends BaseEntity {
     @PrimaryGeneratedColumn()
     id: number;
@@ -36,7 +39,7 @@ export class Team extends BaseEntity {
     @ManyToOne(() => Class, (cls) => cls.teams, { onDelete: 'CASCADE' })
     @JoinColumn()
     class: Class;
-    
+
     @OneToMany(() => TeamAssessment, (ta) => ta.team)
     teamAssessments: TeamAssessment[];
 

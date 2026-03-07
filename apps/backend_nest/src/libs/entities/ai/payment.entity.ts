@@ -5,6 +5,7 @@ import {
   Column,
   ManyToOne,
   JoinColumn,
+  Index,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { User } from '../user/user.entity';
@@ -13,6 +14,8 @@ import { Currency, PaymentMethod } from '../../enums/Payment';
 import { PaymentStatus } from '../../enums/Status';
 
 @Entity({ name: 'payments' })
+// Index for user payment history lookups (wallet.service payment tracking)
+@Index(['user'])
 export class Payment extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;
