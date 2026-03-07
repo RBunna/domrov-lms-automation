@@ -5,6 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Resource } from '../../libs/entities/resource/resource.entity';
 import { Readable } from 'stream';
+import { CloudinaryService } from '../../services/cloudinary.service';
 
 @Injectable()
 export class FileService {
@@ -12,7 +13,7 @@ export class FileService {
     private readonly r2Service: R2Service,
     @InjectRepository(Resource)
     private readonly resourceRepo: Repository<Resource>,
-
+    private readonly cloudinaryService: CloudinaryService,
   ) { }
 
   async generatePresignedUrl(
@@ -33,6 +34,16 @@ export class FileService {
       throw new NotFoundException('Failed to generate presigned URL');
     }
   }
+
+  async getPresignedUrlForCloudinary() {
+    try {
+      return await this.cloudinaryService.getPresignedUrl();
+    } catch (err) {
+      throw new NotFoundException('Failed to generate Cloudinary presigned URL');
+    }
+  }
+
+
 
   async notifyUploadSuccess(
     userId: number,

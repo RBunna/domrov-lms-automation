@@ -4,13 +4,14 @@ import { FileService } from './file.service';
 import { FileController } from './file.controller';
 import { R2Service } from '../../services/r2.service';
 import { Resource } from '../../libs/entities/resource/resource.entity';
+import { CloudinaryService } from '../../services/cloudinary.service';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([Resource]),
   ],
   controllers: [FileController],
-  providers: [FileService, R2Service],
+  providers: [FileService, R2Service,CloudinaryService],
   exports: [FileService],
 })
 export class FileModule { }

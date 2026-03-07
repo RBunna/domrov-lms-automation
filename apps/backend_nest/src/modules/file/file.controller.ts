@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res, UseGuards, NotFoundException } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiQuery, ApiResponse, ApiTags, ApiBody, ApiOkResponse, ApiParam } from '@nestjs/swagger';
 import { UserId } from '../../common/decorators/user.decorator';
 import { FileService } from './file.service';
@@ -38,6 +38,7 @@ export class FileController {
       }
     }
   })
+
   async getPresignedUrl(
     @Query('filename') filename: string,
     @Query('contentType') contentType: string,
@@ -106,5 +107,83 @@ export class FileController {
         .on('finish', resolve)
         .on('error', reject);
     });
+  }
+
+  /**
+   * GET /file/cloudinary-presigned-url
+   * Returns a presigned URL for uploading files directly to Cloudinary
+   *
+   * This endpoint provides the necessary parameters to upload files directly to Cloudinary.
+   * After uploading with these parameters, Cloudinary will return a response with the following structure:
+   */
+  @Get('cloudinary-presigned-url')
+  @ApiOperation({
+    summary: 'Get presigned URL parameters for uploading a file to Cloudinary',
+    description: `
+    Returns the required parameters to upload files directly to Cloudinary.
+    Use these parameters in a POST request to https://api.cloudinary.com/v1_1/{cloud_name}/image/upload
+
+    **Cloudinary Upload Response Format:**
+    After successful upload, Cloudinary returns detailed information about the uploaded image:
+
+    \`\`\`json
+    {
+      "asset_id": "162fa300e3a0f2467ecd14876499212d",
+      "public_id": "domrov-pictures/domrov-pictures/1772881965_448",
+      "version": 1772881967,
+      "version_id": "4277fa360933a70a6a51289d5ca26e21",
+      "signature": "797c81df038c67d2d59851c59b148264b98fbd15",
+      "width": 1559,
+      "height": 1079,
+      "format": "png",
+      "resource_type": "image",
+      "created_at": "2026-03-07T11:12:47Z",
+      "tags": [],
+      "bytes": 616260,
+      "type": "upload",
+      "etag": "d46b0ff99f14b099e9ef181c0bc2a79b",
+      "placeholder": false,
+      "url": "http://res.cloudinary.com/dmddfnsun/image/upload/v1772881967/domrov-pictures/domrov-pictures/1772881965_448.png",
+      "secure_url": "https://res.cloudinary.com/dmddfnsun/image/upload/v1772881967/domrov-pictures/domrov-pictures/1772881965_448.png",
+      "asset_folder": "domrov-pictures",
+      "display_name": "1772881965_448",
+      "original_filename": "Screenshot 2025-08-01 143740",
+      "api_key": "617577115125841"
+    }
+    \`\`\`
+
+    **Key Properties:**
+    - \`secure_url\`: HTTPS URL for the uploaded image (recommended for production)
+    - \`public_id\`: Unique identifier for the image in your Cloudinary account
+    - \`asset_id\`: Cloudinary's internal asset identifier
+    - \`width\`, \`height\`: Image dimensions in pixels
+    - \`bytes\`: File size in bytes
+    - \`format\`: Image format (png, jpg, etc.)
+    - \`created_at\`: Upload timestamp in ISO format
+    `
+  })
+  @ApiOkResponse({
+    description: 'Presigned URL parameters for Cloudinary upload',
+    schema: {
+      example: {
+        success: true,
+        data: {
+          signature: 'b0b6ab42079c788dc71bf64776575d423db5087b',
+          timestamp: 1772881860,
+          folder: 'domrov-pictures',
+          public_id: 'domrov-pictures/1772881860_781',
+          cloud_name: 'dmddfnsun',
+          api_key: '617577115125841'
+        }
+      }
+    }
+  })
+  async getPresignedUrlForCloudinary() {
+    try {
+      const data = await this.fileService.getPresignedUrlForCloudinary();
+      return { success: true, data };
+    } catch (err) {
+      throw new NotFoundException('Failed to generate Cloudinary presigned URL');
+    }
   }
 }

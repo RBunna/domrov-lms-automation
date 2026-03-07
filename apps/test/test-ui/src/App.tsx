@@ -8,9 +8,10 @@ import GitHubOAuthButton from "./components/GitHubOAuthButton";
 import PaymentComponent from "./components/Payment";
 import { FileUploader } from "./components/FileUploader";
 import { FileDownloader } from "./components/FIleDownloader";
+import { ImageUpdate } from "./components/ImageUpdate";
 
 
-type TestUI = "payment" | "uploader" | "downloader" | "oauth";
+type TestUI = "payment" | "uploader" | "downloader" | "oauth" | "imageUpdate";
 
 const App: React.FC = () => {
 
@@ -53,6 +54,7 @@ const App: React.FC = () => {
             <option value="payment">Payment</option>
             <option value="uploader">File Uploader</option>
             <option value="downloader">File Downloader</option>
+            <option value="imageUpdate">Image Update</option>
             <option value="oauth">OAuth Login</option>
           </select>
         </label>
@@ -78,6 +80,17 @@ const App: React.FC = () => {
             resourceId={3}
             downloadEndpoint="http://localhost:3000/file/download/"
             token={token}
+          />
+        </div>
+      )}
+      {selectedUI === "imageUpdate" && (
+        <div>
+          <h1>Update Image to Cloudinary</h1>
+          <ImageUpdate
+            token={token}
+            baseUrl="http://localhost:3000/file/cloudinary-presigned-url"
+            onSuccess={(result) => console.log("Image uploaded successfully:", result)}
+            onError={(error) => console.error("Image upload failed:", error)}
           />
         </div>
       )}
