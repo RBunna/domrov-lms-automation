@@ -134,7 +134,13 @@ export const ImageUpdate: React.FC<ImageUpdateProps> = ({
 
             setProgress(100);
             setSuccess("Image uploaded successfully!");
-      setCloudinaryResponse(result);
+            setCloudinaryResponse(result);
+
+            // Reset form
+            setSelectedFile(null);
+            setPreview("");
+            if (fileInputRef.current) {
+                fileInputRef.current.value = "";
             }
 
             // Call success callback
@@ -158,7 +164,9 @@ export const ImageUpdate: React.FC<ImageUpdateProps> = ({
         setPreview("");
         setError("");
         setSuccess("");
-    setCloudinaryResponse(null);
+        setCloudinaryResponse(null);
+    };
+
     return (
         <div style={{
             maxWidth: "500px",
