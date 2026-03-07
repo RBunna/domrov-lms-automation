@@ -6,6 +6,7 @@ import {
   JoinColumn,
   OneToOne,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { User } from '../user/user.entity';
@@ -16,6 +17,10 @@ import { SubmissionStatus } from '../../enums/Status';
 import { SubmissionResource } from '../resource/submission-resource.entity';
 
 @Entity({ name: 'submissions' })
+// Critical composite index: (assessmentId, userId) used 6+ times in submission.service for finding user submissions
+@Index(['assessmentId', 'userId'])
+// Composite index for team-based submissions (4+ occurrences in submission.service)
+@Index(['assessmentId', 'teamId'])
 export class Submission extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

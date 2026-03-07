@@ -5,6 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { AIModelSelectionMode, SubmissionMethod, SubmissionType } from '../../enums/Assessment';
@@ -16,6 +17,8 @@ import { TeamAssessment } from '../classroom/team-assessment.entity';
 
 
 @Entity({ name: 'assessments' })
+// Index for finding all assessments in a class (assessment.service.ts lines 302, 320, 255+)
+@Index(['classId'])
 export class Assessment extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

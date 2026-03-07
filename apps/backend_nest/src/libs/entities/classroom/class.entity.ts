@@ -6,6 +6,7 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
+  Index,
 } from 'typeorm';
 import { User } from '../user/user.entity';
 import { Enrollment } from './enrollment.entity';
@@ -13,6 +14,8 @@ import { Team } from './team.entity';
 import { Assessment } from '../assessment/assessment.entity';
 import { ClassStatus } from '../../enums/Status';
 @Entity({ name: 'classes' })
+// Index for finding classes owned by a user (class.service.ts line 190: find owned classes)
+@Index(['ownerId'])
 export class Class extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

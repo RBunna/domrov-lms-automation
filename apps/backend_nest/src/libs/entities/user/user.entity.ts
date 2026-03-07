@@ -4,6 +4,7 @@ import {
   Column,
   OneToMany,
   OneToOne,
+  Index,
 } from 'typeorm';
 import { UserStatus } from '../../enums/Status';
 import { Class } from '../classroom/class.entity';
@@ -24,6 +25,8 @@ import { BaseEntity } from '../base.entity';
 import { SystemRole } from '../../enums/Role';
 
 @Entity({ name: 'users' })
+// Index for email lookups in authentication (5+ queries in auth.service.ts and user.service.ts)
+@Index(['email'])
 export class User extends BaseEntity {
   @PrimaryGeneratedColumn()
   id: number;

@@ -1,9 +1,11 @@
-import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import { Entity, PrimaryGeneratedColumn, Column, ManyToOne, JoinColumn, OneToMany, Index } from 'typeorm';
 import { BaseEntity } from '../base.entity';
 import { User } from '../user/user.entity';
 import { AIUsageLog } from './ai-usage-log.entity';
 
 @Entity({ name: 'user_ai_keys' })
+// Composite index for critical AI operations: finding active+valid keys (evaluation.service.ts line 393)
+@Index(['userId', 'isActive', 'isValid'])
 export class UserAIKey extends BaseEntity {
     @PrimaryGeneratedColumn()
     id: number;
