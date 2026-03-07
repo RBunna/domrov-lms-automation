@@ -12,7 +12,8 @@ import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.en
 import { WalletTransaction } from '../../libs/entities/ai/wallet-transaction.entity';
 import { Payment } from '../../libs/entities/ai/payment.entity';
 import { CreditPackage } from '../../libs/entities/ai/credit-package.entity';
-import { Submission } from '../../libs/entities/assessment/submission.entity';
+import { Evaluation } from '../../libs/entities/assessment/evaluation.entity';
+import { AIUsageLog } from '../../libs/entities/ai/ai-usage-log.entity';
 import { WalletModule } from '../wallet/wallet.module';
 
 @Module({
@@ -23,7 +24,8 @@ import { WalletModule } from '../wallet/wallet.module';
       WalletTransaction,
       Payment,
       CreditPackage,
-      Submission,
+      Evaluation,
+      AIUsageLog,
     ]),
     HttpModule.register({}),
     WalletModule,
