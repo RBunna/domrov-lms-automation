@@ -12,8 +12,16 @@ RUN npm run build
 
 FROM node:20-alpine AS production
 WORKDIR /app
+
+# Copy build files
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/node_modules ./node_modules
+
+# Create logs directory and give permission to node user
+RUN mkdir -p /app/logs && chown -R node:node /app
+
+# Switch to non-root user
 USER node
+
 EXPOSE 3000
 CMD ["node", "dist/src/main"]
