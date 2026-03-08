@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { JwtModule } from '@nestjs/jwt';
+import { JwtModule, JwtService } from '@nestjs/jwt';
 
 @Module({
     imports: [
@@ -9,13 +9,17 @@ import { JwtModule } from '@nestjs/jwt';
             imports: [ConfigModule],
             useFactory: async (configService: ConfigService) => ({
                 secret: configService.get('JWT_REFRESH_TOKEN_SECRET'),
-                signOptions: {
-                    expiresIn: '1d',
-                },
+                signOptions: { expiresIn: '7d' },
             }),
             inject: [ConfigService],
         }),
     ],
-    exports: [JwtModule],
+    providers: [
+        {
+            provide: 'REFRESH_JWT_SERVICE',
+            useExisting: JwtService,
+        },
+    ],
+    exports: ['REFRESH_JWT_SERVICE'],
 })
 export class RefreshJwtConfigModule { }

@@ -19,7 +19,7 @@ import { User } from '../../libs/entities/user/user.entity';
 import { UserCreditBalance } from '../../libs/entities/ai/user-credit-balance.entity';
 import { CreditPackage } from '../../libs/entities/ai/credit-package.entity';
 import { PaymentController } from './payment.controller';
-
+import { RedisService } from '../../services/redis.service';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -38,6 +38,7 @@ import { PaymentController } from './payment.controller';
     PaymentGateway,
     PaymentFlowService,
     PaymentService,
+    RedisService
   ],
   exports: [WalletService, CreditPackageService, PaymentFlowService],
 })

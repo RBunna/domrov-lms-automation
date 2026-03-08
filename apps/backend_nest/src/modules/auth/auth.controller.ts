@@ -37,6 +37,7 @@ export class AuthController {
 
     // ==================== SIGN UP ====================
     @Post('sign-up')
+    @UseGuards(RateLimiterGuard)
     @ApiOperation({
         summary: 'Register a new user',
         description: 'Creates a new user account with the provided credentials. Email must be unique.'
@@ -172,6 +173,7 @@ export class AuthController {
 
     // ==================== REFRESH TOKEN ====================
     @Post('refresh-token')
+    @UseGuards(RateLimiterGuard)
     @UseGuards(AuthGuard('refresh-jwt'))
     @HttpCode(HttpStatus.OK)
     @ApiCookieAuth('refresh_token')
@@ -256,7 +258,7 @@ export class AuthController {
         await this.authService.logout(user.id, refreshToken);
         res.clearCookie('refresh_token', {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: true,
             sameSite: 'strict',
         });
         const data = { status: 'success', message: 'Logged out from current device' };
@@ -265,6 +267,7 @@ export class AuthController {
 
     // ==================== VERIFY EMAIL ====================
     @Post('verify-email')
+    @UseGuards(RateLimiterGuard)
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
         summary: 'Verify user email with OTP',
@@ -345,6 +348,7 @@ export class AuthController {
 
     // ==================== RESEND VERIFICATION OTP ====================
     @Post('resend-verification')
+    @UseGuards(RateLimiterGuard)
     @HttpCode(HttpStatus.OK)
     @ApiOperation({
         summary: 'Resend OTP email for verification',
@@ -430,9 +434,10 @@ export class AuthController {
         });
 
         console.log(`Logged in via provider: ${profile.provider}, email: ${profile.email}`);
+        const safeEmail = JSON.stringify(profile.email);
         return res.send(`
             <script>
-                window.opener.postMessage({ type: 'OAUTH_SUCCESS', payload: { email: '${profile.email}' } }, 'http://localhost:5173');
+                window.opener.postMessage({ type: 'OAUTH_SUCCESS', payload: { email: '${safeEmail}' } }, '${process.env.FRONTEND_URL || 'http://localhost:5173'}');
                 window.close();
             </script>
         `);

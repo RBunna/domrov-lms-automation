@@ -6,6 +6,8 @@ import { Repository } from 'typeorm';
 import { Resource } from '../../libs/entities/resource/resource.entity';
 import { Readable } from 'stream';
 import { CloudinaryService } from '../../services/cloudinary.service';
+import { SubmissionService } from '../assessment/submission.service';
+import { AssessmentService } from '../assessment/assessment.service';
 
 @Injectable()
 export class FileService {
@@ -14,6 +16,8 @@ export class FileService {
     @InjectRepository(Resource)
     private readonly resourceRepo: Repository<Resource>,
     private readonly cloudinaryService: CloudinaryService,
+    private readonly submissionService: SubmissionService,
+    private readonly assessmentService: AssessmentService,
   ) { }
 
   async generatePresignedUrl(
@@ -27,7 +31,8 @@ export class FileService {
       if (!userId) throw new NotFoundException('User ID is required');
       if (!parentType || !parentId) throw new NotFoundException('Parent type and ID are required');
       if (!filename || !contentType) throw new NotFoundException('Filename and content type are required');
-      const key = `${userId}/${parentType}/${parentId}/${filename}`;
+      const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, '_');
+      const key = `${userId}/${parentType}/${parentId}/${safeName}`;
       const { uploadUrl } = await this.r2Service.getUploadUrl(key, contentType);
       return { presignedUrl: uploadUrl, key };
     } catch (err) {
@@ -78,7 +83,8 @@ export class FileService {
       if (!userId || !resourceId) throw new NotFoundException('User ID and resource ID are required');
       const resource = await this.resourceRepo.findOne({ where: { id: resourceId } });
       if (!resource) throw new NotFoundException('Resource not found');
-      if (resource.owner !== `${userId}` && !this.canAccess(userId, resource)) {
+      const canAccess = await this.canAccess(userId, resource);
+      if (resource.owner !== `${userId}` && !canAccess) {
         throw new ForbiddenException('Unauthorized');
       }
       const { stream, contentType } = await this.r2Service.streamFile(resource.url);
@@ -94,13 +100,20 @@ export class FileService {
   }
 
   // Dummy permission check — implement your logic
-  canAccess(userId: number, resource: Resource): boolean {
-    // e.g., check if resource is shared with user
-    return true;
+  async canAccess(userId: number, resource: Resource): Promise<boolean> {
+    resource.owner = resource.owner.trim();
+    if (resource.owner === `${userId}`) return true;
+    if (resource.url.includes('/submission/')) {
+      const submissionId = parseInt(resource.url.split('/submission/')[1].split('/')[0]);
+      return await this.submissionService.isSubmissionAccessibleByUser(submissionId, userId);
+    } else if (resource.url.includes('/assessment/')) {
+      const assessmentId = parseInt(resource.url.split('/assessment/')[1].split('/')[0]);
+      return await this.assessmentService.isAssessmentAccessibleByUser(assessmentId, userId);
+    } else {
+      return false;
+    }
   }
-
 }
-
 function getResourceTypeFromFilename(filename: string): ResourceType {
   const ext = filename.split('.').pop()?.toLowerCase() || '';
   if (['jpg', 'jpeg', 'png', 'gif'].includes(ext)) return ResourceType.IMAGE;

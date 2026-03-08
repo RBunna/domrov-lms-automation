@@ -25,7 +25,7 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
             lastName: profile.displayName?.split(' ')[1] || '',
             avatar: profile.photos?.[0]?.value,
         };
-        this.authService.validateOAuthUser(githubProfile);     
+        await this.authService.validateOAuthUser(githubProfile);     
         return githubProfile;
     }
 }

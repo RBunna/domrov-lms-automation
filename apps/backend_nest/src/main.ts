@@ -10,6 +10,7 @@ import { join } from 'path';
 import { PerformanceSentryInterceptor } from './common/interceptor/PerformanceLoggingInterceptor';
 import * as Sentry from '@sentry/node';
 import session from 'express-session';
+import helmet from 'helmet';
 
 
 async function bootstrap() {
@@ -24,11 +25,14 @@ async function bootstrap() {
     exposedHeaders: ['Content-Disposition'],
 
   });
+  app.use(helmet());
+
   app.use(
     session({
-      secret: 'my-secret',
+      secret: process.env.DOMROV_SECRET_KEY || 'default_secret',
       resave: false,
       saveUninitialized: false,
+      cookie: { secure: true, httpOnly: true, sameSite: 'strict' }
     }),
   );
     app.useGlobalPipes(new ValidationPipe({
@@ -37,7 +41,6 @@ async function bootstrap() {
     transform: true,
     forbidUnknownValues: true,
   }));
-
   Sentry.init({
     dsn: process.env.SENTRY_DSN,
     tracesSampleRate: 1.0, // 0 to 1, 1 = capture all transactions

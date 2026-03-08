@@ -157,6 +157,22 @@ export class SubmissionService {
       );
     }
   }
+  async isSubmissionAccessibleByUser(submissionId: number, userId: number): Promise<boolean> {
+    try {
+      const submission = await this.submissionRepo.findOne({
+        where: { id: submissionId },
+        relations: ['team', 'team.members', 'team.members.user'],
+      });
+      if (!submission) return false;
+      if (submission.team) {
+        return submission.team.members.some(m => m.user.id === userId);
+      }
+      return false;
+    } catch (error) {
+      console.error('Error checking submission access:', error);
+      return false;
+    }
+  }
   // Save or update draft assignment (PATCH)
   async saveDraftAssignment(
     userId: number,

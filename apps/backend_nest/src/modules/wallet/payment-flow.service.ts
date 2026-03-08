@@ -1,7 +1,7 @@
 // payment-flow.service.ts (updated to use float numbers instead of string)
 import { Injectable, BadRequestException, NotFoundException, OnModuleInit, Logger } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { InjectRepository, InjectDataSource } from '@nestjs/typeorm';
+import { Repository, DataSource } from 'typeorm';
 
 import { PaymentGateway } from './payment.gateway';
 import { PaymentService, TransactionData } from '../../services/payment.service';
@@ -36,6 +36,9 @@ export class PaymentFlowService implements OnModuleInit {
 
     @InjectRepository(WalletTransaction)
     private readonly walletRepo: Repository<WalletTransaction>,
+
+    @InjectDataSource()
+    private readonly dataSource: DataSource,
   ) { }
 
   onModuleInit() { }
@@ -90,7 +93,7 @@ export class PaymentFlowService implements OnModuleInit {
           const response = await this.paymentService.checkPayment(md5);
           this.gateway.sendStatus(userId, response.responseCode === 0 ? 'PAID' : 'UNPAID');
           if (response.responseCode === 0) {
-            await this.handleSuccess(paymentId);
+            await this.handleSuccess(paymentId, response.data);
             return;
           }
         } catch (err) {
@@ -104,7 +107,7 @@ export class PaymentFlowService implements OnModuleInit {
     }
   }
 
-  private async handleSuccess(paymentId: number, paymentData?: TransactionData) {
+  private async handleSuccess(paymentId: number, paymentData: TransactionData) {
     try {
       if (!paymentId) throw new BadRequestException('Payment ID is required');
       const payment = await this.paymentRepo.findOne({
@@ -115,36 +118,49 @@ export class PaymentFlowService implements OnModuleInit {
       const { creditPackage, user } = payment;
       if (!creditPackage || !user) throw new BadRequestException('Invalid payment data');
       const totalCredits = creditPackage.credits + (creditPackage.bonusCredits || 0);
-      let userWallet = await this.balanceRepo.findOne({
-        where: { user: { id: user.id } },
-        relations: ['user'],
-      });
-      if (!userWallet) {
-        userWallet = this.balanceRepo.create({
-          user,
-          creditBalance: 0,
+
+      await this.dataSource.transaction(async (manager) => {
+        // Find or create user wallet with pessimistic write lock
+        let userWallet = await manager.findOne(UserCreditBalance, {
+          where: { user: { id: user.id } },
+          relations: ['user'],
+          lock: { mode: 'pessimistic_write' },
         });
-        userWallet = await this.balanceRepo.save(userWallet);
-      }
-      const balanceBefore = userWallet.creditBalance;
-      const balanceAfter = balanceBefore + totalCredits;
-      userWallet.creditBalance = balanceAfter;
-      await this.balanceRepo.save(userWallet);
-      await this.walletRepo.save({
-        wallet: userWallet,
-        type: TransactionType.CREDIT,
-        reason: TransactionReason.PURCHASE,
-        amount: totalCredits,
-        balanceBefore,
-        balanceAfter,
-        description: `Purchased credit package: ${creditPackage.name}`,
-        metadata: { paymentId: payment.id, packageId: creditPackage.id },
+
+        if (!userWallet) {
+          userWallet = manager.create(UserCreditBalance, {
+            user,
+            creditBalance: 0,
+          });
+          userWallet = await manager.save(UserCreditBalance, userWallet);
+        }
+
+        const balanceBefore = userWallet.creditBalance;
+        userWallet.creditBalance = balanceBefore + totalCredits;
+
+        await manager.save(UserCreditBalance, userWallet);
+
+        // Create wallet transaction record
+        await manager.save(WalletTransaction, {
+          wallet: userWallet,
+          type: TransactionType.CREDIT,
+          reason: TransactionReason.PURCHASE,
+          amount: totalCredits,
+          balanceBefore,
+          balanceAfter: userWallet.creditBalance,
+          description: `Purchased credit package: ${creditPackage.name}`,
+          metadata: { paymentId: payment.id, packageId: creditPackage.id },
+        });
+
+        // Update payment status
+        payment.status = PaymentStatus.COMPLETED;
+        if (paymentData) {
+          payment.transactionId = paymentData.hash;
+          payment.transactionDetails = paymentData;
+        }
+        await manager.save(Payment, payment);
       });
-      //payment data store
-      payment.status = PaymentStatus.COMPLETED;
-      payment.transactionId = paymentData.hash;
-      payment.transactionDetails = paymentData;
-      await this.paymentRepo.save(payment);
+
       this.logger.log(
         `Payment ${paymentId} completed. Credited ${totalCredits} credits to user ${user.id}.`,
       );
@@ -263,7 +279,6 @@ export class PaymentFlowService implements OnModuleInit {
         throw new BadRequestException('Package ID must be a positive number');
       }
 
-      // ✅ 2. Prevent duplicate payment
       const existingTransaction = await this.paymentRepo.findOne({
         where: { transactionId: paymentHash },
       });
@@ -272,7 +287,6 @@ export class PaymentFlowService implements OnModuleInit {
         throw new BadRequestException('Payment already used');
       }
 
-      // ✅ 3. Load the package
       const pkg = await this.packageRepo.findOne({
         where: { id: packageId },
       });
@@ -281,7 +295,6 @@ export class PaymentFlowService implements OnModuleInit {
         throw new NotFoundException('Credit package not found');
       }
 
-      // ✅ 4. Call Bakong verification
       const bakongResponse = await this.paymentService.checkPaymentByHash(
         paymentHash,
         pkg.price,
@@ -298,7 +311,6 @@ export class PaymentFlowService implements OnModuleInit {
         throw new BadRequestException('No transaction data returned from Bakong');
       }
 
-      // ✅ 5. Validate amount matches package (CRITICAL SECURITY CHECK)
       const bakongAmount = bakongResponse.data.amount;
       const bakongCurrency = bakongResponse.data.currency;
       const packageAmount = pkg.price;
@@ -332,7 +344,7 @@ export class PaymentFlowService implements OnModuleInit {
         currency: bakongCurrency,
         paymentMethod: PaymentMethod.BAKOGN,
         status: PaymentStatus.COMPLETED,
-        imgProof: imageUrl, 
+        imgProof: imageUrl,
         // Store the Cloudinary image URL as proof
         transactionDetails: {
           ...bakongResponse.data,

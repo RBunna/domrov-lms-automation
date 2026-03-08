@@ -35,27 +35,15 @@ import { getDelayFromNow } from '../../libs/utils/CustomDateTime';
 // Services
 @Injectable()
 export class AssessmentService {
-  private scheduledAssessments = new Map<number, NodeJS.Timeout>();
-
   constructor(
     @InjectRepository(Assessment)
     private assessmentRepo: Repository<Assessment>,
-    @InjectRepository(Resource)
-    private resourceRepo: Repository<Resource>,
-    @InjectRepository(AssessmentResource)
-    private assessResRepo: Repository<AssessmentResource>,
     @InjectRepository(Enrollment)
     private enrollmentRepo: Repository<Enrollment>,
-    @InjectRepository(Rubrics)
-    private rubricsRepo: Repository<Rubrics>,
     @InjectRepository(Submission)
     private submissionRepo: Repository<Submission>,
     @InjectRepository(Team)
     private teamRepo: Repository<Team>,
-
-    @InjectRepository(TeamAssessment)
-    private teamAssessmentRepo: Repository<TeamAssessment>,
-
     private readonly submissionService: SubmissionService,
     private readonly taskService: TasksService,
     private readonly dataSource: DataSource,
@@ -343,5 +331,14 @@ export class AssessmentService {
     }
 
     return await this.assessmentRepo.remove(context.assessmentEntity);
+  }
+  async isAssessmentAccessibleByUser(assessmentId: number, userId: number): Promise<boolean> { 
+    const assessment = await this.assessmentRepo.findOne({
+      where: { id: assessmentId },
+      relations: ['class', 'class.enrollments', 'class.enrollments.user'],
+    });
+    if (!assessment) return false;
+    const isEnrolled = assessment.class.enrollments.some(enrollment => enrollment.user.id === userId);
+    return isEnrolled;    
   }
 }

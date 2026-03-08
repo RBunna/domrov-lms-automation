@@ -203,8 +203,6 @@ export class PaymentService {
                     headers: { Authorization: `Bearer ${this.token}` },
                 }),
             );
-            console.log('CHECK PAYMENT RESPONSE:', res.data);
-            // return res.data?.responseCode === 0 ? 'PAID' : 'UNPAID';
             return res.data;
         } catch (err) {
             throw new HttpException(this.extractError(err), 400);

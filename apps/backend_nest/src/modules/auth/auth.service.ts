@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException, UseGuards } from '@nestjs/common'
+import { BadRequestException, ConflictException, Inject, Injectable, InternalServerErrorException, NotFoundException, UnauthorizedException, UseGuards } from '@nestjs/common'
 import { InjectRepository } from '@nestjs/typeorm'
 import { Repository } from 'typeorm'
 import { UserRefreshToken } from '../../libs/entities/user/user-refresh-token.entity'
@@ -15,6 +15,7 @@ import { RefreshTokenResponseDto } from '../../libs/dtos/auth/refresh-token-resp
 import { MessageResponseDto } from '../../libs/dtos/common/message-response.dto'
 import { OAuthProfile } from '../../libs/dtos/auth/oauth-profile.interface'
 import { UserService } from '../user/user.service'
+import { randomBytes, randomInt } from 'crypto'
 
 @Injectable()
 export class AuthService {
@@ -27,8 +28,13 @@ export class AuthService {
     @InjectRepository(UserRefreshToken)
     private readonly userRefreshTokenRepository: Repository<UserRefreshToken>,
 
+    @Inject('ACCESS_JWT_SERVICE')
     private readonly accessJwtService: JwtService,
+
+    @Inject('REFRESH_JWT_SERVICE')
     private readonly refreshJwtService: JwtService,
+
+    
     private readonly mailerService: MailerService,
   ) { }
 
@@ -92,6 +98,7 @@ export class AuthService {
     return { accessToken, refreshToken }
   }
 
+
   async oauthLogin(user: Partial<OAuthProfile>): Promise<LoginResponseDto> {
     if (!user?.email) throw new BadRequestException('OAuth user must have an email');
 
@@ -100,7 +107,7 @@ export class AuthService {
 
     // If user doesn't exist, create a new one with random password
     if (!existingUser) {
-      const randomPassword = Math.random().toString(36).slice(-12); // random string
+      const randomPassword = randomBytes(24).toString('base64url');
       existingUser = await this.userService.create({
         firstName: user.firstName ?? 'OAuthUser',
         lastName: user.lastName ?? '',
@@ -135,7 +142,7 @@ export class AuthService {
 
   async refreshToken(id: string, email: string): Promise<RefreshTokenResponseDto> {
     if (!id || !email) throw new BadRequestException('User ID and email are required')
-    const accessToken = await this.refreshJwtService.signAsync({ sub: id, email })
+    const accessToken = await this.accessJwtService.signAsync({ sub: id, email })
     return { accessToken, status: 'success', issuedAt: Date.now() }
   }
 
@@ -150,7 +157,7 @@ export class AuthService {
     const user = await this.userService.findByEmail(email)
     if (!user) throw new NotFoundException('User with this email not found')
     if (user.isVerified) throw new BadRequestException('Email is already verified')
-    const otp = Math.floor(100000 + Math.random() * 900000).toString()
+    const otp = randomInt(100000, 999999).toString();
     const expiresAt = new Date()
     expiresAt.setMinutes(expiresAt.getMinutes() + 10)
     let userOtp = await this.userEmailOtpRepository.findOne({ where: { user: { id: user.id } } })
