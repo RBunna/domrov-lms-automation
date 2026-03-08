@@ -1,27 +1,48 @@
-FROM node:20-alpine AS deps
-WORKDIR /app
-RUN apk add --no-cache python3 make g++
-COPY package*.json ./
-RUN npm ci
+# ==================== Stage 1: Builder ====================
+FROM python:3.11-alpine AS builder
 
-FROM node:20-alpine AS build
+RUN apk add --no-cache gcc musl-dev libffi-dev
+
 WORKDIR /app
-COPY --from=deps /app/node_modules ./node_modules
+
+# Create virtual environment
+RUN python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
+
+COPY requirements.txt .
+
+RUN pip install --no-cache-dir -r requirements.txt
+
+
+# ==================== Stage 2: Production ====================
+FROM python:3.11-alpine
+
+# Only runtime dependencies
+RUN apk add --no-cache tzdata
+
+ENV TZ=Asia/Phnom_Penh
+ENV PATH="/venv/bin:$PATH"
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Copy venv from builder
+COPY --from=builder /venv /venv
+
+# Copy application
 COPY . .
-RUN npm run build
 
-FROM node:20-alpine AS production
-WORKDIR /app
+# Create runtime cache directory
+RUN mkdir -p /files_cache
 
-# Copy build files
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/node_modules ./node_modules
+# Create non-root user
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
-# Create external logs directory (outside code)
-RUN mkdir -p /logs && chown -R node:node /logs
+RUN chown -R appuser:appgroup /app /files_cache
 
-# Switch to non-root user
-USER node
+USER appuser
 
-EXPOSE 3000
-CMD ["node", "dist/src/main"]
+EXPOSE 50051
+
+CMD ["python", "main.py"]
