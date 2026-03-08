@@ -73,7 +73,6 @@ export class AuthService {
         
         const { confirmPassword, ...userData } = signUpUserDto
         // Hash the password before creating the user
-        userData.password = await Encryption.hashPassword(userData.password)
         const createdUser = await this.userService.create(userData)
         return {
             userId: createdUser.id,
