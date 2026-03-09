@@ -5,7 +5,7 @@ inside the `frontend_next` project.
 
 Please do the following:
 
-1. Move all APIs from `app/api` into `app/domrov_client/app/api` as **Next.js API routes**.
+1. Move all APIs from `app/api` into `app/client_next/app/api` as **Next.js API routes**.
 2. Create **one folder per feature** with `route.ts`, `service.ts`, and `dto.ts`.
 3. In `service.ts`, implement external API calls using a **shared axios instance** (`/lib/axiosInstance.ts`).
 4. DTOs (`dto.ts`) must define TypeScript interfaces for request and response payloads.

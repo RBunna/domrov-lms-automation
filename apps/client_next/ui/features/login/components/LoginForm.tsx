@@ -7,8 +7,19 @@ import PrimaryButton from "@/ui/design-system/primitives/PrimaryButton";
 import GoogleOAuthButton from "@/ui/features/login/components/GoogleOAuthButton";
 import GitHubOAuthButton from "@/ui/features/login/components/GitHubOAuthButton";
 
+// API client for internal Next.js API routes
+import { authAPI } from '@/lib/apiClient';
+// DTOs for proper typing
+import type { LoginUserDTO } from '@/app/api/auth/dto';
+
 /**
  * LoginForm - Login form component with API integration.
+ * 
+ * Refactored to use internal Next.js API routes:
+ * - POST /api/auth?action=login
+ * - Uses LoginUserDTO from @/app/api/auth/dto.ts for type safety
+ * - All API calls go through /lib/apiClient.ts
+ * 
  * Authenticates user credentials and redirects to dashboard on success.
  */
 export default function LoginForm() {
@@ -18,7 +29,7 @@ export default function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const validate = () => {
+  const validate = (): boolean => {
     if (!email || !password) {
       setError("Please fill in all fields");
       return false;
@@ -30,6 +41,10 @@ export default function LoginForm() {
     return true;
   };
 
+  /**
+   * Handle form submission
+   * Calls POST /api/auth?action=login via authAPI
+   */
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError(null);
@@ -38,39 +53,35 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
-      const payload = {
+      // Construct payload matching LoginUserDTO from @/app/api/auth/dto.ts
+      const payload: LoginUserDTO = {
         email,
         password,
       };
 
-      const res = await fetch("https://api.domrov.app/auth/login", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
+      // Call internal Next.js API route via apiClient
+      // POST /api/auth?action=login
+      // Returns: ApiResponse<LoginResponseDto> with accessToken
+      const response = await authAPI.login(payload);
 
-      if (!res.status) {
-        const errorData = await res.json().catch(() => ({}));
-        throw new Error(
-          errorData.message || "Login failed. Please check your credentials."
-        );
-      }
+      console.log('Login response:', response);
 
-      const data = await res.json();
-      console.log('Login response:', data);
+      // Extract token from response
+      // API returns { success: boolean, data: { accessToken: string } }
+      const token = response.data?.accessToken;
 
-      // Extract token from data.data.accessToken
-      const token = data.data.accessToken;
       if (!token) {
         throw new Error("Invalid response from server. Missing authentication token.");
       }
 
-      // Store token
+      // Store token - using authToken key (consistent with apiClient)
       localStorage.setItem("authToken", token);
 
       router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "An error occurred. Please try again.");
+    } catch (err: unknown) {
+      // Extract error message from API response
+      const errorMessage = err instanceof Error ? err.message : "An error occurred. Please try again.";
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

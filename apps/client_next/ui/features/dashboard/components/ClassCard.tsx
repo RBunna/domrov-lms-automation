@@ -26,12 +26,14 @@ export default function ClassCard({ classItem, onOpen, onDelete }: ClassCardProp
       {/* Gradient header with avatar initials */}
       <div className="flex items-center gap-4 px-5 py-4 bg-linear-to-r from-blue-500 via-purple-500 to-indigo-500 text-white rounded-t-2xl">
         <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-white/20 text-white text-xl font-bold shadow-md">
-          {classItem.name
-            .split(' ')
-            .map(w => w[0])
-            .join('')
-            .toUpperCase()
-            .slice(0, 2)}
+          {classItem.name && classItem.name.length > 0
+            ? classItem.name
+              .split(' ')
+              .map(w => w[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 2)
+            : 'CL'}
         </div>
         <div className="flex-1 min-w-0">
           <h3 className="text-lg font-semibold truncate drop-shadow-sm">{classItem.name}</h3>

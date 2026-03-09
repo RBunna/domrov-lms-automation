@@ -18,9 +18,10 @@ export function useDashboardFilters(
   const [activeTerm, setActiveTerm] = useState<Term>("All");
 
   const filteredClasses = useMemo(() => {
-    if (activeTerm === "All") return classes;
-    return classes.filter((item) => item.term === activeTerm);
-  }, [activeTerm, classes]);
+    // Note: API response doesn't include 'term' field, so we show all classes
+    // TODO: Once term field is added to API, implement proper filtering
+    return classes;
+  }, [classes]);
 
   return {
     activeTerm,
