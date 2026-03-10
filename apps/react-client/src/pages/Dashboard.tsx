@@ -1,0 +1,17 @@
+import MainNavigation from "@/components/navigation/Navigation";
+import { DashboardClient } from "@/features/dashboard";
+
+/**
+ * Dashboard - Main dashboard page component.
+ * Uses portal layout with sidebar navigation.
+ */
+export default function Dashboard() {
+  return (
+    <div className="flex min-h-screen bg-slate-50">
+      <MainNavigation activeId="classes" />
+      <div className="flex-1 flex flex-col min-w-0">
+        <DashboardClient />
+      </div>
+    </div>
+  );
+}
