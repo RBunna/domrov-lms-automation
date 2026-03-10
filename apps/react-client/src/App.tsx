@@ -7,6 +7,7 @@ import Landing from '@/pages/Landing';
 import Dashboard from '@/pages/Dashboard';
 import Login from '@/pages/Login';
 import ClassDashboard from '@/pages/ClassDashboard';
+import CreateClass from '@/pages/CreateClass';
 import Docs from '@/pages/Docs';
 import About from '@/pages/About';
 import Pricing from '@/pages/Pricing';
@@ -26,6 +27,7 @@ const AppRoutes: React.FC = () => {
 
       {/* Protected pages - require authentication */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/class/create" element={<ProtectedRoute><CreateClass /></ProtectedRoute>} />
       <Route path="/class/:id" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>} />
       <Route path="/assignment/:id" element={<ProtectedRoute><AssignmentDetail /></ProtectedRoute>} />
     </Routes>
