@@ -1,28 +1,28 @@
-import type { Term } from "@/types/classCard";
+import type { StatusFilter } from "@/types/classCard";
 
-interface TermFiltersProps {
-  activeTerm: Term;
-  onChange: (term: Term) => void;
+interface StatusFiltersProps {
+  activeStatus: StatusFilter;
+  onChange: (status: StatusFilter) => void;
 }
 
-const terms: Term[] = ["All", "Term1", "Term2", "Term3"];
+const statuses: StatusFilter[] = ["All", "Active", "End"];
 
-export default function TermFilters({
-  activeTerm,
+export default function StatusFilters({
+  activeStatus,
   onChange,
-}: TermFiltersProps) {
+}: StatusFiltersProps) {
   return (
     <div className="flex flex-wrap gap-2">
-      {terms.map((term) => (
+      {statuses.map((status) => (
         <button
-          key={term}
-          onClick={() => onChange(term)}
-          className={`px-3 py-1 rounded-full text-sm border transition-colors ${activeTerm === term
-              ? "bg-primary text-white border-primary"
-              : "bg-white text-slate-700 border-slate-200 hover:border-primary"
+          key={status}
+          onClick={() => onChange(status)}
+          className={`px-3 py-1 rounded-full text-sm border transition-colors ${activeStatus === status
+            ? "bg-primary text-white border-primary"
+            : "bg-white text-slate-700 border-slate-200 hover:border-primary"
             }`}
         >
-          {term}
+          {status}
         </button>
       ))}
     </div>

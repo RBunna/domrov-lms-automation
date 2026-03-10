@@ -1,31 +1,34 @@
 /**
- * useDashboardFilters - Manages term filter state for dashboard.
- * Extracts filtering logic from dashboard page for reusability.
+ * useDashboardFilters - Manages status filter state for dashboard.
+ * Filters classes by their status (All, Active, End).
  */
 
 import { useMemo, useState } from "react";
-import type { Term, ClassCard } from "../types";
+import type { StatusFilter, ClassCard } from "../types";
 
 interface UseDashboardFiltersReturn {
-  activeTerm: Term;
-  setActiveTerm: (term: Term) => void;
+  activeStatus: StatusFilter;
+  setActiveStatus: (status: StatusFilter) => void;
   filteredClasses: ClassCard[];
 }
 
 export function useDashboardFilters(
   classes: ClassCard[],
 ): UseDashboardFiltersReturn {
-  const [activeTerm, setActiveTerm] = useState<Term>("All");
+  const [activeStatus, setActiveStatus] = useState<StatusFilter>("All");
 
   const filteredClasses = useMemo(() => {
-    // Note: API response doesn't include 'term' field, so we show all classes
-    // TODO: Once term field is added to API, implement proper filtering
-    return classes;
-  }, [classes]);
+    if (activeStatus === "All") {
+      return classes;
+    }
+    return classes.filter(
+      (c) => c.status?.toUpperCase() === activeStatus.toUpperCase()
+    );
+  }, [classes, activeStatus]);
 
   return {
-    activeTerm,
-    setActiveTerm,
+    activeStatus,
+    setActiveStatus,
     filteredClasses,
   };
 }

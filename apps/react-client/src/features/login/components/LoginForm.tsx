@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { FormField } from "@/components";
 import { PrimaryButton } from "@/components/primitives";
+import { useAuth } from "@/context/AuthContext";
 import GoogleOAuthButton from "./GoogleOAuthButton";
 
 export default function LoginForm() {
@@ -8,6 +10,9 @@ export default function LoginForm() {
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { login } = useAuth();
+  const navigate = useNavigate();
 
   const validate = (): boolean => {
     if (!email || !password) {
@@ -33,7 +38,8 @@ export default function LoginForm() {
 
     setLoading(true);
     try {
-
+      await login({ email, password });
+      navigate("/dashboard");
     } catch (err: unknown) {
       // Extract error message from API response
       const errorMessage = err instanceof Error ? err.message : "An error occurred. Please try again.";

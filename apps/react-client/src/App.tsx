@@ -1,5 +1,8 @@
 
 import { Routes, Route } from 'react-router-dom';
+import { AuthProvider } from '@/context/AuthContext';
+import ProtectedRoute from '@/components/ProtectedRoute';
+import PublicRoute from '@/components/PublicRoute';
 import Landing from '@/pages/Landing';
 import Dashboard from '@/pages/Dashboard';
 import Login from '@/pages/Login';
@@ -12,21 +15,28 @@ import AssignmentDetail from '@/pages/AssignmentDetail';
 const AppRoutes: React.FC = () => {
   return (
     <Routes>
+      {/* Public pages - accessible to everyone */}
       <Route path="/" element={<Landing />} />
-      <Route path="/dashboard" element={<Dashboard />} />
-      <Route path="/login" element={<Login />} />
-      <Route path="/class/:id" element={<ClassDashboard />} />
       <Route path="/docs" element={<Docs />} />
       <Route path="/about" element={<About />} />
       <Route path="/pricing" element={<Pricing />} />
-      <Route path="/assignment/:id" element={<AssignmentDetail />} />
+
+      {/* Auth pages - redirect to dashboard if already logged in */}
+      <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
+
+      {/* Protected pages - require authentication */}
+      <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+      <Route path="/class/:id" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>} />
+      <Route path="/assignment/:id" element={<ProtectedRoute><AssignmentDetail /></ProtectedRoute>} />
     </Routes>
   );
 };
 
 const App: React.FC = () => {
   return (
-    <AppRoutes />
+    <AuthProvider>
+      <AppRoutes />
+    </AuthProvider>
   );
 };
 

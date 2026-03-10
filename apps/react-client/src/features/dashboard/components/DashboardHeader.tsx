@@ -1,11 +1,11 @@
 "use client";
 
 import { ProfileDropdown } from "@/components/data-display";
-import type { Term } from "@/types/classCard";
+import type { StatusFilter } from "@/types/classCard";
 
 interface DashboardHeaderProps {
-  activeTerm: Term;
-  onChangeTerm: (term: Term) => void;
+  activeStatus: StatusFilter;
+  onChangeStatus: (status: StatusFilter) => void;
   onCreateClass?: () => void;
   onJoinClass?: () => void;
 }

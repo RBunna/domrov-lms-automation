@@ -1,4 +1,4 @@
-export type Term = "All" | "Term1" | "Term2" | "Term3";
+export type StatusFilter = "All" | "Active" | "End";
 
 export interface ClassOwner {
   id: number;
