@@ -1,3 +1,4 @@
+import { Link } from "react-router-dom";
 import StatusBadge from "@/components/primitives/StatusBadge";
 import { ClipboardIcon } from "./icons";
 
@@ -21,7 +22,6 @@ interface AssignmentCardProps {
  * Redesigned to match the reference design with better visual hierarchy.
  */
 export default function AssignmentCard({ assignment }: AssignmentCardProps) {
-
   const getStatusBadges = () => {
     if (!assignment.status) return null;
 
@@ -36,9 +36,9 @@ export default function AssignmentCard({ assignment }: AssignmentCardProps) {
   };
 
   return (
-    <div
-      onClick={() => { }}
-      className="bg-white border border-slate-300 rounded-xl p-5 hover:shadow-lg hover:border-slate-400 transition-all cursor-pointer"
+    <Link
+      to={`/assignment/${assignment.id}`}
+      className="block bg-white border border-slate-300 rounded-xl p-5 hover:shadow-lg hover:border-slate-400 transition-all"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 space-y-3">
@@ -53,6 +53,6 @@ export default function AssignmentCard({ assignment }: AssignmentCardProps) {
         </div>
         {getStatusBadges()}
       </div>
-    </div>
+    </Link>
   );
 }
