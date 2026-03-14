@@ -20,11 +20,23 @@ const navItems = [
 ];
 
 interface MainNavigationProps {
-  activeId: string;
+  activeId?: string;
 }
 
 const MainNavigation: React.FC<MainNavigationProps> = ({ activeId }) => {
   const navigate = useNavigate();
+  const pathname = window.location.pathname;
+  // Map pathname to nav id
+  const pathToId = (path: string) => {
+    if (path === "/") return "home";
+    if (path === "/profile") return "profile";
+    if (path === "/bookmarks") return "bookmark";
+    if (path === "/starred") return "star";
+    if (path === "/notifications") return "bell";
+    if (path === "/pricing") return "lock";
+    return "";
+  };
+  const currentId = activeId || pathToId(pathname);
   return (
     <aside className="w-16 bg-white border-r border-slate-200 flex flex-col items-center py-6 space-y-6 min-h-screen">
       <div className="h-10 w-10 rounded-xl bg-[#0B1531] flex items-center justify-center text-white font-black text-sm mb-2">
@@ -33,7 +45,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({ activeId }) => {
       <nav className="flex flex-col items-center space-y-5">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const isActive = item.id === activeId;
+          const isActive = item.id === currentId;
           return (
             <button
               key={item.id}

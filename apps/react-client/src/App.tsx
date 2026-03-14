@@ -32,12 +32,14 @@ const AppRoutes: React.FC = () => {
       <Route path="/class/create" element={<ProtectedRoute><CreateClass /></ProtectedRoute>} />
       <Route path="/class/:id" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>} />
       <Route path="/assignment/:id" element={<ProtectedRoute><AssignmentDetail /></ProtectedRoute>} />
+      <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
       <Route path="/creditPurchase" element={<ProtectedRoute><CreditPurchasePage /></ProtectedRoute>} />
       <Route path="/ai-evaluation" element={<ProtectedRoute><AIEvaluationPage /></ProtectedRoute>} />
     </Routes>
   );
 };
 
+import UserProfilePage from '@/pages/profile';
 const App: React.FC = () => {
   return (
     <AuthProvider>
