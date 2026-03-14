@@ -15,6 +15,7 @@ import {
   FilesTab,
   GradesTab,
 } from "@/features/classDashboard";
+import TeacherAssignmentTab from "@/features/classDashboard/tabs/TeacherAssignmentTab";
 import { useParams, useLocation } from "react-router-dom";
 
 type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
@@ -26,8 +27,8 @@ export default function ClassDashboardClient() {
   const { isLoading: authLoading } = useAuth();
   const location = useLocation();
   const [activeTab, setActiveTab] = useState<TabId>("general");
-  // Get role from location.state (passed from ClassCard)
-  const role = (location.state && location.state.role) || null;
+  // Get role from location.state (passed from ClassCard) or default to Teacher
+  const role = (location.state && location.state.role) || UserRole.Teacher;
   const [error] = useState<string | null>(null);
 
   const renderTabContent = () => {
@@ -36,7 +37,7 @@ export default function ClassDashboardClient() {
         case "general":
           return <GeneralTab classId={classId} />;
         case "assignment":
-          return <AssignmentTab classId={classId} />;
+          return <TeacherAssignmentTab classId={classId} />;
         case "posts":
           return <PostsTab classId={classId} />;
         case "students":
@@ -88,7 +89,7 @@ export default function ClassDashboardClient() {
   if (!role) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-lg text-red-600">You do not have permission to view this class. (No role found)</div>
+        <div className="text-lg text-red-600">Unable to load class. Please try again.</div>
       </div>
     );
   }

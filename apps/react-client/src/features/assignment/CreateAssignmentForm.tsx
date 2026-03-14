@@ -1,6 +1,5 @@
-"use client";
-
 import { useState, useEffect } from "react";
+import { Upload, Link2, FileText, Video, Package, X, Eye } from "lucide-react";
 
 interface CreateAssignmentData {
   title: string;
@@ -117,136 +116,88 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm p-8">
-        <form onSubmit={handleSubmit} className="space-y-8">
-          {/* General Information Section */}
-          <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-slate-900">
-                General Information
-              </h2>
-              <div className="flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded">
-                ℹ
-                REQUIRED INFO
-              </div>
-            </div>
-
-            <div className="space-y-4">
-              {/* Assignment Title */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Assignment Title <span className="text-red-500">*</span>
-                </label>
-                <input
-                  type="text"
-                  name="title"
-                  value={formData.title}
-                  onChange={handleInputChange}
-                  placeholder="Advanced Database Systems Project"
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
-                  required
-                />
+    <div className="p-8 bg-slate-50">
+      <div className="mx-auto max-w-7xl">
+        <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Top Grid: General Info | Scheduling | Grading & Rules */}
+          <div className="grid grid-cols-3 gap-6">
+            {/* General Information Section */}
+            <div className="p-6 bg-white border border-slate-200 rounded-xl">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-sm font-bold tracking-wider uppercase text-slate-900">
+                  General Information
+                </h2>
+                <span className="px-3 py-1 text-xs font-semibold text-blue-600 rounded-full bg-blue-50">
+                  REQUIRED
+                </span>
               </div>
 
-              {/* Session and Submission Type */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-5">
+                {/* Assignment Title */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Session <span className="text-red-500">*</span>
+                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                    Assignment Title <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
+                  <input
+                    type="text"
+                    name="title"
+                    value={formData.title}
+                    onChange={handleInputChange}
+                    placeholder="Advanced Database Systems Project"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder-slate-400 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    required
+                  />
+                </div>
+
+                {/* Session and Type */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                      Session <span className="text-red-500">*</span>
+                    </label>
                     <input
                       type="text"
                       name="session"
                       value={formData.session}
                       onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text"
+                      placeholder="2024"
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder-slate-400 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
                   </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Submission Type
-                  </label>
-                  <select
-                    name="submissionType"
-                    value={formData.submissionType}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer appearance-none"
-                  >
-                    <option value="individual">Individual Submission</option>
-                    <option value="group">Group Submission</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Instructions */}
-              <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
-                  Instructions <span className="text-red-500">*</span>
-                </label>
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <div className="flex items-center gap-2 bg-slate-50 p-3 border-b border-slate-200">
-                    <button
-                      type="button"
-                      className="p-1 hover:bg-slate-200 rounded font-bold"
-                      title="Bold"
+                  <div>
+                    <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                      Type
+                    </label>
+                    <select
+                      name="submissionType"
+                      value={formData.submissionType}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
                     >
-                      B
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 hover:bg-slate-200 rounded italic"
-                      title="Italic"
-                    >
-                      I
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 hover:bg-slate-200 rounded"
-                      title="List"
-                    >
-                      ≡
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 hover:bg-slate-200 rounded"
-                      title="Link"
-                    >
-                      🔗
-                    </button>
+                      <option value="individual">Individual</option>
+                      <option value="group">Group</option>
+                    </select>
                   </div>
-                  <textarea
-                    name="instructions"
-                    value={formData.instructions}
-                    onChange={handleInputChange}
-                    placeholder="Outline the expectations, deliverables, and any technical constraints for students..."
-                    className="w-full h-32 px-4 py-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                    required
-                  />
                 </div>
               </div>
             </div>
-          </section>
 
-          {/* Scheduling & Grading Section */}
-          <section className="border-t border-slate-200 pt-8">
-            <h2 className="text-xl font-semibold text-slate-900 mb-6">
-              Scheduling & Grading
-            </h2>
+            {/* Scheduling Section */}
+            <div className="p-6 bg-white border border-slate-200 rounded-xl">
+              <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">
+                Scheduling
+              </h2>
 
-            <div className="space-y-4">
-              {/* Date and Time Fields */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-5">
+                {/* Start Date */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Start Date & Time
+                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                    Start Date
                   </label>
                   <input
                     type="datetime-local"
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
+                    placeholder="mm/dd/yyyy, --:-- --"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
                     value={formData.startDate}
                     onChange={(e) =>
                       setFormData({ ...formData, startDate: e.target.value })
@@ -254,13 +205,15 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   />
                 </div>
 
+                {/* Due Date */}
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Due Date & Time
+                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                    Due Date
                   </label>
                   <input
                     type="datetime-local"
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
+                    placeholder="mm/dd/yyyy, --:-- --"
+                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
                     value={formData.dueDate}
                     onChange={(e) =>
                       setFormData({ ...formData, dueDate: e.target.value })
@@ -268,46 +221,52 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   />
                 </div>
               </div>
+            </div>
 
-              {/* Max Score and Submission Method */}
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Max Score
-                  </label>
-                  <input
-                    type="number"
-                    name="maxScore"
-                    value={formData.maxScore}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text"
-                  />
+            {/* Grading & Rules Section */}
+            <div className="p-6 bg-white border border-slate-200 rounded-xl">
+              <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">
+                Grading & Rules
+              </h2>
+
+              <div className="space-y-5">
+                {/* Max Score and Method */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                      Max Score
+                    </label>
+                    <input
+                      type="number"
+                      name="maxScore"
+                      value={formData.maxScore}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder-slate-400 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    />
+                  </div>
+                  <div>
+                    <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
+                      Method
+                    </label>
+                    <select
+                      name="allowedSubmissionMethod"
+                      value={formData.allowedSubmissionMethod}
+                      onChange={handleInputChange}
+                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                    >
+                      <option value="both">Both</option>
+                      <option value="file">File Only</option>
+                      <option value="text">Text Only</option>
+                    </select>
+                  </div>
                 </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Allowed Submission Method
-                  </label>
-                  <select
-                    name="allowedSubmissionMethod"
-                    value={formData.allowedSubmissionMethod}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer appearance-none"
-                  >
-                    <option value="both">Both File & Text</option>
-                    <option value="file">File Only</option>
-                    <option value="text">Text Only</option>
-                  </select>
-                </div>
-              </div>
-
-              {/* Toggles */}
-              <div className="space-y-3 pt-2">
-                <div className="flex items-center justify-between">
-                  <p className="font-medium text-slate-900">
-                    Allow Late Submissions
+                {/* Late Submissions Toggle */}
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-sm font-medium text-slate-900">
+                    Late Submissions
                   </p>
-                  <label className="relative inline-flex items-center">
+                  <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       name="allowLateSubmissions"
@@ -319,17 +278,12 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                  <div>
-                    <p className="font-medium text-slate-900">
-                      AI Evaluation Enable
-                    </p>
-                    <p className="text-sm text-slate-600">
-                      Automatically analyze submissions for rubric alignment
-                      and plagiarism.
-                    </p>
-                  </div>
-                  <label className="relative inline-flex items-center">
+                {/* AI Evaluation Toggle */}
+                <div className="flex items-center justify-between pt-2">
+                  <p className="text-sm font-medium text-slate-900">
+                    AI Evaluation
+                  </p>
+                  <label className="relative inline-flex items-center cursor-pointer">
                     <input
                       type="checkbox"
                       name="aiEvaluationEnabled"
@@ -342,78 +296,129 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                 </div>
               </div>
             </div>
-          </section>
+          </div>
 
-          {/* Learning Resources Section */}
-          <section className="border-t border-slate-200 pt-8">
-            <h2 className="text-xl font-semibold text-slate-900 mb-6">
-              Learning Resources
-            </h2>
-
-            <label
-              htmlFor="file-upload"
-              className="flex flex-col items-center border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer group"
-            >
-              <div className="mb-3 text-4xl">📁</div>
-              <p className="font-medium text-slate-900 group-hover:text-blue-700 transition-colors">
-                Click to upload or drag and drop
-              </p>
-              <p className="text-sm text-slate-500 mt-1">
-                PDF, DOCX, ZIP or MP4 (Max 500MB per file)
-              </p>
-              <input
-                type="file"
-                multiple
-                onChange={handleFileUpload}
-                className="hidden"
-                id="file-upload"
-                accept=".pdf,.docx,.zip,.mp4"
-              />
-            </label>
-
-            {/* Uploaded Files Display */}
-            {uploadedFiles.length > 0 && (
-              <div className="mt-4 space-y-2">
-                {uploadedFiles.map((file, index) => (
-                  <div
-                    key={index}
-                    className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200"
+          {/* Bottom Grid: Instructions | Resources */}
+          <div className="grid grid-cols-2 gap-6">
+            {/* Instructions Section */}
+            <div className="p-6 bg-white border border-slate-200 rounded-xl">
+              <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
+                Instructions <span className="text-red-500">*</span>
+              </h2>
+              <div className="overflow-hidden border rounded-lg border-slate-200">
+                <div className="flex items-center gap-2 p-3 border-b bg-slate-50 border-slate-200">
+                  <button
+                    type="button"
+                    className="p-1 text-sm font-bold rounded hover:bg-slate-200 text-slate-700"
+                    title="Bold"
                   >
-                    <div className="flex items-center gap-3">
-                      <div>
-                        {file.type.includes("pdf") ? (
-                          "📄"
-                        ) : file.type.includes("video") ? (
-                          "🎥"
-                        ) : (
-                          "📦"
-                        )}
-                      </div>
-                      <span className="text-sm font-medium text-slate-900">
-                        {file.name}
-                      </span>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveFile(index)}
-                      className="text-red-500 hover:text-red-700"
-                    >
-                      ✕
-                    </button>
-                  </div>
-                ))}
+                    B
+                  </button>
+                  <button
+                    type="button"
+                    className="p-1 text-sm italic rounded hover:bg-slate-200 text-slate-700"
+                    title="Italic"
+                  >
+                    I
+                  </button>
+                  <button
+                    type="button"
+                    className="p-1 text-sm rounded hover:bg-slate-200 text-slate-700"
+                    title="List"
+                  >
+                    ≡
+                  </button>
+                  <button
+                    type="button"
+                    className="p-1 rounded hover:bg-slate-200 text-slate-700"
+                    title="Link"
+                  >
+                    <Link2 className="w-4 h-4" />
+                  </button>
+                </div>
+                <textarea
+                  name="instructions"
+                  value={formData.instructions}
+                  onChange={handleInputChange}
+                  placeholder="Outline expectations and deliverables..."
+                  className="w-full h-40 px-4 py-3 text-sm bg-white resize-none text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  required
+                />
               </div>
-            )}
-          </section>
+            </div>
+
+            {/* Resources Section */}
+            <div className="p-6 bg-white border border-slate-200 rounded-xl">
+              <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
+                Resources
+              </h2>
+
+              <label
+                htmlFor="file-upload"
+                className="flex flex-col items-center justify-center p-8 mb-4 text-center transition-all border-2 border-dashed rounded-lg cursor-pointer border-slate-300 hover:border-blue-400 hover:bg-blue-50 group"
+              >
+                <div className="mb-3">
+                  <Upload className="w-10 h-10 mx-auto transition-colors text-slate-400 group-hover:text-blue-500" />
+                </div>
+                <p className="text-sm font-medium transition-colors text-slate-700 group-hover:text-blue-700">
+                  Drop files to upload
+                </p>
+                <input
+                  type="file"
+                  multiple
+                  onChange={handleFileUpload}
+                  className="hidden"
+                  id="file-upload"
+                  accept=".pdf,.docx,.zip,.mp4"
+                />
+              </label>
+
+              {/* Uploaded Files Display */}
+              {uploadedFiles.length > 0 && (
+                <div className="space-y-2">
+                  {uploadedFiles.map((file, index) => (
+                    <div
+                      key={index}
+                      className="flex items-center justify-between p-3 transition-colors border rounded-lg bg-slate-50 border-slate-200 hover:bg-slate-100"
+                    >
+                      <div className="flex items-center flex-1 min-w-0 gap-3">
+                        <div className="flex-shrink-0">
+                          {file.type.includes("pdf") ? (
+                            <FileText className="w-5 h-5 text-red-500" />
+                          ) : file.type.includes("video") ? (
+                            <Video className="w-5 h-5 text-blue-500" />
+                          ) : (
+                            <Package className="w-5 h-5 text-slate-500" />
+                          )}
+                        </div>
+                        <span className="text-sm font-medium truncate text-slate-900">
+                          {file.name}
+                        </span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleRemoveFile(index)}
+                        className="flex-shrink-0 p-1 ml-2 transition-colors text-slate-400 hover:text-red-600"
+                        title="Remove file"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
 
           {/* Action Buttons */}
-          <div className="border-t border-slate-200 pt-8 flex items-center justify-between">
+          <div className="flex items-center justify-between pt-6">
             <button
               type="button"
               onClick={handlePreview}
-              className="px-6 py-2 text-slate-700 hover:text-slate-900 font-medium"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors text-slate-600 hover:text-slate-900"
             >
-              Preview Assignment
+              <Eye className="w-4 h-4" />
+              Preview
             </button>
 
             <div className="flex gap-3">
@@ -437,7 +442,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   });
                   setUploadedFiles([]);
                 }}
-                className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium"
+                className="px-4 py-2 text-sm font-medium transition-colors border rounded-lg border-slate-300 text-slate-700 hover:bg-slate-50"
               >
                 Reset
               </button>
@@ -448,16 +453,16 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   localStorage.setItem(`draft_assignment_${classId}`, JSON.stringify(formData));
                   alert("Assignment saved to draft!");
                 }}
-                className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 font-medium"
+                className="px-4 py-2 text-sm font-medium transition-colors border rounded-lg border-slate-300 text-slate-700 hover:bg-slate-50"
               >
                 Save to Draft
               </button>
 
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                className="px-6 py-2 text-sm font-medium text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
               >
-                Publish & Notify Students
+                Publish & Notify
               </button>
             </div>
           </div>

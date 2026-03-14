@@ -115,25 +115,21 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 p-8">
-      <div className="max-w-4xl mx-auto bg-white rounded-lg shadow-sm p-8">
-        <form onSubmit={handleSubmit} className="space-y-8">
+    <div className="p-4 bg-slate-50">
+      <div className="max-w-2xl p-5 mx-auto bg-white rounded-lg shadow-sm">
+        <form onSubmit={handleSubmit} className="space-y-4">
           {/* General Information Section */}
           <section>
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="text-xl font-semibold text-slate-900">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-slate-900">
                 General Information
               </h2>
-              <div className="flex items-center gap-1 text-xs font-medium text-blue-600 bg-blue-50 px-3 py-1 rounded">
-                ℹ
-                REQUIRED INFO
-              </div>
             </div>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
               {/* Assignment Title */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block mb-1 text-xs font-medium text-slate-700">
                   Assignment Title <span className="text-red-500">*</span>
                 </label>
                 <input
@@ -141,110 +137,76 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   name="title"
                   value={formData.title}
                   onChange={handleInputChange}
-                  placeholder="Advanced Database Systems Project"
-                  className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+                  placeholder="Enter title"
+                  className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
                   required
                 />
               </div>
 
               {/* Session and Submission Type */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block mb-1 text-xs font-medium text-slate-700">
                     Session <span className="text-red-500">*</span>
                   </label>
-                  <div className="relative">
-                    <input
-                      type="text"
-                      name="session"
-                      value={formData.session}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text"
-                    />
-                  </div>
+                  <input
+                    type="text"
+                    name="session"
+                    value={formData.session}
+                    onChange={handleInputChange}
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text"
+                  />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block mb-1 text-xs font-medium text-slate-700">
                     Submission Type
                   </label>
                   <select
                     name="submissionType"
                     value={formData.submissionType}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer appearance-none"
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer appearance-none"
                   >
-                    <option value="individual">Individual Submission</option>
-                    <option value="group">Group Submission</option>
+                    <option value="individual">Individual</option>
+                    <option value="group">Group</option>
                   </select>
                 </div>
               </div>
 
               {/* Instructions */}
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-2">
+                <label className="block mb-1 text-xs font-medium text-slate-700">
                   Instructions <span className="text-red-500">*</span>
                 </label>
-                <div className="border border-slate-200 rounded-lg overflow-hidden">
-                  <div className="flex items-center gap-2 bg-slate-50 p-3 border-b border-slate-200">
-                    <button
-                      type="button"
-                      className="p-1 hover:bg-slate-200 rounded font-bold"
-                      title="Bold"
-                    >
-                      B
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 hover:bg-slate-200 rounded italic"
-                      title="Italic"
-                    >
-                      I
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 hover:bg-slate-200 rounded"
-                      title="List"
-                    >
-                      ≡
-                    </button>
-                    <button
-                      type="button"
-                      className="p-1 hover:bg-slate-200 rounded"
-                      title="Link"
-                    >
-                      🔗
-                    </button>
-                  </div>
-                  <textarea
-                    name="instructions"
-                    value={formData.instructions}
-                    onChange={handleInputChange}
-                    placeholder="Outline the expectations, deliverables, and any technical constraints for students..."
-                    className="w-full h-32 px-4 py-3 bg-white text-slate-900 placeholder-slate-400 border border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
-                    required
-                  />
-                </div>
+                <textarea
+                  name="instructions"
+                  value={formData.instructions}
+                  onChange={handleInputChange}
+                  placeholder="Enter instructions"
+                  className="w-full h-16 px-3 py-1.5 text-sm bg-white text-slate-900 placeholder-slate-400 border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-none"
+                  required
+                />
               </div>
             </div>
           </section>
 
           {/* Scheduling & Grading Section */}
-          <section className="border-t border-slate-200 pt-8">
-            <h2 className="text-xl font-semibold text-slate-900 mb-6">
+          <section className="pt-3 border-t border-slate-200">
+            <h2 className="mb-2 text-base font-semibold text-slate-900">
               Scheduling & Grading
             </h2>
 
-            <div className="space-y-4">
+            <div className="space-y-2">
               {/* Date and Time Fields */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Start Date & Time
+                  <label className="block mb-1 text-xs font-medium text-slate-700">
+                    Start Date
                   </label>
                   <input
                     type="datetime-local"
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
                     value={formData.startDate}
                     onChange={(e) =>
                       setFormData({ ...formData, startDate: e.target.value })
@@ -253,12 +215,12 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Due Date & Time
+                  <label className="block mb-1 text-xs font-medium text-slate-700">
+                    Due Date
                   </label>
                   <input
                     type="datetime-local"
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer"
                     value={formData.dueDate}
                     onChange={(e) =>
                       setFormData({ ...formData, dueDate: e.target.value })
@@ -268,9 +230,9 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
               </div>
 
               {/* Max Score and Submission Method */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
+                  <label className="block mb-1 text-xs font-medium text-slate-700">
                     Max Score
                   </label>
                   <input
@@ -278,21 +240,21 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                     name="maxScore"
                     value={formData.maxScore}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text"
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-text"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Allowed Submission Method
+                  <label className="block mb-1 text-xs font-medium text-slate-700">
+                    Submission Method
                   </label>
                   <select
                     name="allowedSubmissionMethod"
                     value={formData.allowedSubmissionMethod}
                     onChange={handleInputChange}
-                    className="w-full px-4 py-3 border border-slate-300 rounded-lg bg-white text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer appearance-none"
+                    className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 hover:border-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors cursor-pointer appearance-none"
                   >
-                    <option value="both">Both File & Text</option>
+                    <option value="both">Both</option>
                     <option value="file">File Only</option>
                     <option value="text">Text Only</option>
                   </select>
@@ -300,10 +262,10 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
               </div>
 
               {/* Toggles */}
-              <div className="space-y-3 pt-2">
+              <div className="space-y-1.5 pt-1">
                 <div className="flex items-center justify-between">
-                  <p className="font-medium text-slate-900">
-                    Allow Late Submissions
+                  <p className="text-xs font-medium text-slate-900">
+                    Late Submissions
                   </p>
                   <label className="relative inline-flex items-center">
                     <input
@@ -313,21 +275,20 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                       onChange={handleInputChange}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-8 h-5 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
 
-                <div className="flex items-center justify-between p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <div className="flex items-center justify-between p-2 text-xs border border-purple-200 rounded bg-purple-50">
                   <div>
                     <p className="font-medium text-slate-900">
-                      AI Evaluation Enable
+                      AI Evaluation
                     </p>
-                    <p className="text-sm text-slate-600">
-                      Automatically analyze submissions for rubric alignment
-                      and plagiarism.
+                    <p className="text-slate-600">
+                      Auto-analyze submissions
                     </p>
                   </div>
-                  <label className="relative inline-flex items-center">
+                  <label className="relative inline-flex items-center shrink-0">
                     <input
                       type="checkbox"
                       name="aiEvaluationEnabled"
@@ -335,7 +296,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                       onChange={handleInputChange}
                       className="sr-only peer"
                     />
-                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                    <div className="w-8 h-5 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-blue-600"></div>
                   </label>
                 </div>
               </div>
@@ -343,21 +304,20 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
           </section>
 
           {/* Learning Resources Section */}
-          <section className="border-t border-slate-200 pt-8">
-            <h2 className="text-xl font-semibold text-slate-900 mb-6">
+          <section className="pt-3 border-t border-slate-200">
+            <h2 className="mb-2 text-base font-semibold text-slate-900">
               Learning Resources
             </h2>
 
             <label
               htmlFor="file-upload"
-              className="flex flex-col items-center border-2 border-dashed border-slate-300 rounded-lg p-8 text-center hover:border-blue-400 hover:bg-blue-50 transition-colors cursor-pointer group"
+              className="flex flex-col items-center p-3 text-center transition-colors border-2 border-dashed rounded-lg cursor-pointer border-slate-300 hover:border-blue-400 hover:bg-blue-50 group"
             >
-              <div className="mb-3 text-4xl">📁</div>
-              <p className="font-medium text-slate-900 group-hover:text-blue-700 transition-colors">
-                Click to upload or drag and drop
+              <p className="text-xs font-medium transition-colors text-slate-900 group-hover:text-blue-700">
+                Click to upload files
               </p>
-              <p className="text-sm text-slate-500 mt-1">
-                PDF, DOCX, ZIP or MP4 (Max 500MB per file)
+              <p className="text-xs text-slate-500 mt-0.5">
+                PDF, DOCX, ZIP or MP4
               </p>
               <input
                 type="file"
@@ -371,30 +331,19 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
 
             {/* Uploaded Files Display */}
             {uploadedFiles.length > 0 && (
-              <div className="mt-4 space-y-2">
+              <div className="mt-2 space-y-1">
                 {uploadedFiles.map((file, index) => (
                   <div
                     key={index}
-                    className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200"
+                    className="flex items-center justify-between p-2 border rounded-lg bg-slate-50 border-slate-200"
                   >
-                    <div className="flex items-center gap-3">
-                      <div>
-                        {file.type.includes("pdf") ? (
-                          "📄"
-                        ) : file.type.includes("video") ? (
-                          "🎥"
-                        ) : (
-                          "📦"
-                        )}
-                      </div>
-                      <span className="text-sm font-medium text-slate-900">
-                        {file.name}
-                      </span>
-                    </div>
+                    <span className="text-xs font-medium truncate text-slate-900">
+                      {file.name}
+                    </span>
                     <button
                       type="button"
                       onClick={() => handleRemoveFile(index)}
-                      className="text-red-500 hover:text-red-700"
+                      className="text-xs text-red-500 hover:text-red-700"
                     >
                       ✕
                     </button>
@@ -405,16 +354,16 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
           </section>
 
           {/* Action Buttons */}
-          <div className="border-t border-slate-200 pt-8 flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200">
             <button
               type="button"
               onClick={handlePreview}
-              className="px-6 py-2 text-slate-700 hover:text-slate-900 font-medium"
+              className="px-3 py-1.5 text-xs text-slate-700 hover:text-slate-900 font-medium"
             >
-              Preview Assignment
+              Preview
             </button>
 
-            <div className="flex gap-3">
+            <div className="flex gap-2">
               <button
                 type="button"
                 onClick={() => {
@@ -435,7 +384,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   });
                   setUploadedFiles([]);
                 }}
-                className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium"
+                className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium"
               >
                 Reset
               </button>
@@ -444,18 +393,18 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                 type="button"
                 onClick={() => {
                   localStorage.setItem(`draft_assignment_${classId}`, JSON.stringify(formData));
-                  alert("Assignment saved to draft!");
+                  alert("Saved to draft!");
                 }}
-                className="px-6 py-2 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 font-medium"
+                className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-100 font-medium"
               >
-                Save to Draft
+                Draft
               </button>
 
               <button
                 type="submit"
-                className="px-6 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
+                className="px-4 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium"
               >
-                Publish & Notify Students
+                Publish
               </button>
             </div>
           </div>
