@@ -1,7 +1,4 @@
-"use client";
-
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 
 interface CreateAssignmentData {
   title: string;
@@ -20,7 +17,6 @@ interface CreateAssignmentData {
 }
 
 export default function CreateAssignmentForm({ classId }: { classId: string }) {
-  const router = useRouter();
   const draftKey = `draft_assignment_${classId}`;
   
   const [formData, setFormData] = useState<CreateAssignmentData>({

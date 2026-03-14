@@ -22,7 +22,7 @@ interface ClassTabsProps {
  * Displays the current tab and provides quick actions.
  */
 // Accept allowedTabs and role props
-export default function ClassTabs({ activeTab, onTabChange, allowedTabs }: ClassTabsProps) {
+export default function ClassTabs({ activeTab, allowedTabs }: Omit<ClassTabsProps, 'onTabChange'>) {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -75,19 +75,6 @@ export default function ClassTabs({ activeTab, onTabChange, allowedTabs }: Class
           </div>
           <h1 className="text-xl font-semibold text-slate-900">{getTabTitle()}</h1>
         </div>
-
-        {/* Tab Navigation */}
-        <nav className="flex gap-2">
-          {tabs.map(tab => (
-            <button
-              key={tab.id}
-              onClick={() => onTabChange && onTabChange(tab.id)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors duration-150 ${activeTab === tab.id ? "bg-blue-500 text-white" : "bg-slate-100 text-slate-700 hover:bg-blue-100"}`}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </nav>
       </div>
     </header>
   );

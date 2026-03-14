@@ -101,7 +101,7 @@ export default function ClassDashboardClient() {
   return (
     <div className="flex min-h-screen bg-slate-50">
       <MainNavigation activeId="classes" />
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex flex-col flex-1 min-w-0">
         <div className="flex w-full min-h-screen">
           {/* Class Sidebar (middle left) */}
           <ClassSidebar
@@ -113,9 +113,9 @@ export default function ClassDashboardClient() {
           />
 
           {/* Main Content Area */}
-          <div className="flex-1 flex flex-col min-w-0">
-            {/* Top Tabs Navigation */}
-            <ClassTabs activeTab={activeTab} onTabChange={setActiveTab} allowedTabs={allowedTabs} role={role} />
+          <div className="flex flex-col flex-1 min-w-0">
+            {/* Top Header Navigation */}
+            <ClassTabs activeTab={activeTab} allowedTabs={allowedTabs} />
 
             {/* Tab Content */}
             <main className="flex-1 overflow-y-auto bg-slate-50">
