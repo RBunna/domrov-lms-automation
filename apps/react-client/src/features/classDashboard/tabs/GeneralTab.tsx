@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { ClipboardIcon } from "../icons";
 import assessmentService from "@/services/assessmentService";
 import type { AssessmentListItemDto } from "@/types";
@@ -78,9 +79,10 @@ const GeneralTab = ({ classId }: GeneralTabProps) => {
 
                 <div className="space-y-3">
                   {sessionAssignments.map((assignment) => (
-                    <div
+                    <Link
                       key={assignment.id || assignment.id}
-                      className="border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-slate-300 transition-all cursor-pointer"
+                      to={`/assignment/${assignment.id}`}
+                      className="block border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-slate-300 transition-all"
                     >
                       <h3 className="font-semibold text-slate-900 mb-2">
                         {assignment.title}
@@ -97,7 +99,7 @@ const GeneralTab = ({ classId }: GeneralTabProps) => {
                         <ClipboardIcon className="w-4 h-4" />
                         <span>Session: {assignment.session}</span>
                       </div>
-                    </div>
+                    </Link>
                   ))}
                 </div>
               </div>

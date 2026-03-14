@@ -1,5 +1,6 @@
 "use client";
 
+import { useNavigate } from "react-router-dom";
 import {
   ChevronLeftIcon,
   MoreVerticalIcon,
@@ -24,6 +25,11 @@ interface ClassSidebarProps {
  */
 
 export default function ClassSidebar({ classId: _classId, activeTab, onTabChange, allowedTabs}: ClassSidebarProps) {
+  const navigate = useNavigate();
+
+  const handleBackToDashboard = () => {
+    navigate(-1);
+  };
   // All possible nav items
   const allNavItems = [
     { id: "general" as TabId, icon: TvIcon, label: "General" },
@@ -53,16 +59,16 @@ export default function ClassSidebar({ classId: _classId, activeTab, onTabChange
         {/* Navigator Button */}
         <div className="border-b border-white/5">
           <button
-            onClick={() => { }}
-            className="w-full p-6 hover:bg-white/3 transition-colors duration-150 group"
+            onClick={handleBackToDashboard}
+            className="w-full p-6 transition-colors duration-150 hover:bg-white/3 group"
             title="Back to Dashboard"
           >
-            <ChevronLeftIcon className="w-5 h-5 mx-auto text-white/60 group-hover:text-white/90 transition-colors duration-150" />
+            <ChevronLeftIcon className="w-5 h-5 mx-auto transition-colors duration-150 text-white/60 group-hover:text-white/90" />
           </button>
         </div>
 
         {/* Class List */}
-        <div className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent py-3">
+        <div className="flex-1 py-3 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
           {userClasses.map((classItem) => (
             <button
               key={classItem.id}
@@ -78,7 +84,7 @@ export default function ClassSidebar({ classId: _classId, activeTab, onTabChange
                 <span className="text-white font-bold text-[1rem] leading-tight text-center w-full">{classItem.badge}</span>
               </div>
               {classItem.isActive && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-10 bg-white rounded-r"></div>
+                <div className="absolute left-0 w-1 h-10 -translate-y-1/2 bg-white rounded-r top-1/2"></div>
               )}
             </button>
           ))}
@@ -90,21 +96,21 @@ export default function ClassSidebar({ classId: _classId, activeTab, onTabChange
         {/* Class Header */}
         <div className="p-5 border-b border-white/5">
           <div className="flex items-center gap-3">
-            <div className="w-12 h-12 bg-orange-500 rounded-xl flex items-center justify-center shrink-0">
-              <span className="text-white font-bold text-sm">GEN 10</span>
+            <div className="flex items-center justify-center w-12 h-12 bg-orange-500 rounded-xl shrink-0">
+              <span className="text-sm font-bold text-white">GEN 10</span>
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-semibold text-white truncate leading-tight">GEN-10-Advanced Mobile Development</h3>
-              <p className="text-xs text-white/40 mt-1">{userClasses[0].members} members</p>
+              <h3 className="text-sm font-semibold leading-tight text-white truncate">GEN-10-Advanced Mobile Development</h3>
+              <p className="mt-1 text-xs text-white/40">{userClasses[0].members} members</p>
             </div>
-            <button className="text-white/30 hover:text-white/60 transition-colors duration-150 p-2 hover:bg-white/3 rounded-lg">
+            <button className="p-2 transition-colors duration-150 rounded-lg text-white/30 hover:text-white/60 hover:bg-white/3">
               <MoreVerticalIcon className="w-4 h-4" />
             </button>
           </div>
         </div>
 
         {/* Module Navigation */}
-        <nav className="flex-1 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent py-2">
+        <nav className="flex-1 py-2 overflow-y-auto scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
           {navItems.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;
@@ -119,7 +125,7 @@ export default function ClassSidebar({ classId: _classId, activeTab, onTabChange
                   }`}
               >
                 {isActive && (
-                  <div className="absolute left-0 top-0 bottom-0 w-1 bg-white rounded-r"></div>
+                  <div className="absolute top-0 bottom-0 left-0 w-1 bg-white rounded-r"></div>
                 )}
                 <Icon className={`w-5 h-5 shrink-0 ${isActive ? "text-white" : "text-white/50"}`} />
                 <span className={`text-sm ${isActive ? "font-semibold" : "font-medium"}`}>{item.label}</span>

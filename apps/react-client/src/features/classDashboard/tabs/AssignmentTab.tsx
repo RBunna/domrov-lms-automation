@@ -1,5 +1,3 @@
-"use client";
-
 import { useState } from "react";
 import AssignmentFilters from "../AssignmentFilters";
 import AssignmentList from "../AssignmentList";
@@ -17,7 +15,7 @@ export default function AssignmentTab({ classId }: AssignmentTabProps) {
   const [activeFilter, setActiveFilter] = useState<"upcoming" | "past-due" | "completed">("upcoming");
 
   return (
-    <div className="p-6 max-w-6xl mx-auto">
+    <div className="max-w-6xl p-6 mx-auto">
       {/* Assignment Filters */}
       <AssignmentFilters activeFilter={activeFilter} onFilterChange={setActiveFilter} />
 
