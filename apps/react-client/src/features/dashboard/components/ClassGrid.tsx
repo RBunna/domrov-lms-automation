@@ -5,13 +5,14 @@ import type { ClassCard as ClassCardType } from "@/types/classCard";
 interface ClassGridProps {
   items: ClassCardType[];
   onOpen?: (id: string) => void;
+  activeClassId?: string | number | null;
 }
 
 /**
  * ClassGrid - Displays a grid of class cards or empty state.
  * Handles the case when no classes are available for the selected term.
  */
-export default function ClassGrid({ items, onOpen }: ClassGridProps) {
+export default function ClassGrid({ items, onOpen, activeClassId }: ClassGridProps) {
   if (items.length === 0) {
     return (
       <div className="col-span-full">
@@ -27,6 +28,7 @@ export default function ClassGrid({ items, onOpen }: ClassGridProps) {
           key={classItem.id}
           classItem={classItem}
           onOpen={onOpen}
+          isActive={classItem.id?.toString() === activeClassId?.toString()}
         />
       ))}
     </>

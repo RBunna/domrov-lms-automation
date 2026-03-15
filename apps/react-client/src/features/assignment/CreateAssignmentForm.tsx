@@ -116,18 +116,26 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
   };
 
   return (
-    <div className="p-8 bg-slate-50">
-      <div className="mx-auto max-w-7xl">
+    <div className="min-h-screen bg-slate-50">
+      <div className="mx-auto max-w-7xl p-8">
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Page Header */}
+          <div className="mb-8">
+            <h1 className="text-3xl font-bold text-slate-900">Create Assignment</h1>
+            <p className="mt-2 text-slate-600">
+              Set up a new assignment with instructions, resources, and grading rules.
+            </p>
+          </div>
+
           {/* Top Grid: General Info | Scheduling | Grading & Rules */}
           <div className="grid grid-cols-3 gap-6">
             {/* General Information Section */}
-            <div className="p-6 bg-white border border-slate-200 rounded-xl">
+            <div className="bg-white border border-slate-200 rounded-lg p-6">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-sm font-bold tracking-wider uppercase text-slate-900">
                   General Information
                 </h2>
-                <span className="px-3 py-1 text-xs font-semibold text-blue-600 rounded-full bg-blue-50">
+                <span className="px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full">
                   REQUIRED
                 </span>
               </div>
@@ -144,7 +152,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                     value={formData.title}
                     onChange={handleInputChange}
                     placeholder="Advanced Database Systems Project"
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder-slate-400 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                    className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     required
                   />
                 </div>
@@ -161,7 +169,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                       value={formData.session}
                       onChange={handleInputChange}
                       placeholder="2024"
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder-slate-400 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
                   </div>
                   <div>
@@ -172,7 +180,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                       name="submissionType"
                       value={formData.submissionType}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                      className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg appearance-none cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       <option value="individual">Individual</option>
                       <option value="group">Group</option>
@@ -183,7 +191,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
             </div>
 
             {/* Scheduling Section */}
-            <div className="p-6 bg-white border border-slate-200 rounded-xl">
+            <div className="bg-white border border-slate-200 rounded-lg p-6">
               <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">
                 Scheduling
               </h2>
@@ -197,7 +205,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   <input
                     type="datetime-local"
                     placeholder="mm/dd/yyyy, --:-- --"
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+                    className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={formData.startDate}
                     onChange={(e) =>
                       setFormData({ ...formData, startDate: e.target.value })
@@ -213,7 +221,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   <input
                     type="datetime-local"
                     placeholder="mm/dd/yyyy, --:-- --"
-                    className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all cursor-pointer"
+                    className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     value={formData.dueDate}
                     onChange={(e) =>
                       setFormData({ ...formData, dueDate: e.target.value })
@@ -224,7 +232,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
             </div>
 
             {/* Grading & Rules Section */}
-            <div className="p-6 bg-white border border-slate-200 rounded-xl">
+            <div className="bg-white border border-slate-200 rounded-lg p-6">
               <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">
                 Grading & Rules
               </h2>
@@ -241,7 +249,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                       name="maxScore"
                       value={formData.maxScore}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 placeholder-slate-400 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                      className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     />
                   </div>
                   <div>
@@ -252,7 +260,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                       name="allowedSubmissionMethod"
                       value={formData.allowedSubmissionMethod}
                       onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 border border-slate-200 rounded-lg bg-white text-slate-900 text-sm hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none cursor-pointer"
+                      className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg appearance-none cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                     >
                       <option value="both">Both</option>
                       <option value="file">File Only</option>
@@ -301,36 +309,36 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
           {/* Bottom Grid: Instructions | Resources */}
           <div className="grid grid-cols-2 gap-6">
             {/* Instructions Section */}
-            <div className="p-6 bg-white border border-slate-200 rounded-xl">
+            <div className="bg-white border border-slate-200 rounded-lg p-6">
               <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
                 Instructions <span className="text-red-500">*</span>
               </h2>
-              <div className="overflow-hidden border rounded-lg border-slate-200">
-                <div className="flex items-center gap-2 p-3 border-b bg-slate-50 border-slate-200">
+              <div className="overflow-hidden border border-slate-200 rounded-lg">
+                <div className="flex items-center gap-2 p-3 border-b border-slate-200 bg-slate-50">
                   <button
                     type="button"
-                    className="p-1 text-sm font-bold rounded hover:bg-slate-200 text-slate-700"
+                    className="p-1 text-sm font-bold text-slate-700 rounded hover:bg-slate-200 transition-colors"
                     title="Bold"
                   >
                     B
                   </button>
                   <button
                     type="button"
-                    className="p-1 text-sm italic rounded hover:bg-slate-200 text-slate-700"
+                    className="p-1 text-sm italic text-slate-700 rounded hover:bg-slate-200 transition-colors"
                     title="Italic"
                   >
                     I
                   </button>
                   <button
                     type="button"
-                    className="p-1 text-sm rounded hover:bg-slate-200 text-slate-700"
+                    className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"
                     title="List"
                   >
                     ≡
                   </button>
                   <button
                     type="button"
-                    className="p-1 rounded hover:bg-slate-200 text-slate-700"
+                    className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"
                     title="Link"
                   >
                     <Link2 className="w-4 h-4" />
@@ -341,26 +349,26 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   value={formData.instructions}
                   onChange={handleInputChange}
                   placeholder="Outline expectations and deliverables..."
-                  className="w-full h-40 px-4 py-3 text-sm bg-white resize-none text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full h-40 px-4 py-3 text-sm bg-white text-slate-900 resize-none placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
             </div>
 
             {/* Resources Section */}
-            <div className="p-6 bg-white border border-slate-200 rounded-xl">
+            <div className="bg-white border border-slate-200 rounded-lg p-6">
               <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
                 Resources
               </h2>
 
               <label
                 htmlFor="file-upload"
-                className="flex flex-col items-center justify-center p-8 mb-4 text-center transition-all border-2 border-dashed rounded-lg cursor-pointer border-slate-300 hover:border-blue-400 hover:bg-blue-50 group"
+                className="flex flex-col items-center justify-center p-8 mb-4 text-center border-2 border-dashed border-slate-300 rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50 group"
               >
                 <div className="mb-3">
-                  <Upload className="w-10 h-10 mx-auto transition-colors text-slate-400 group-hover:text-blue-500" />
+                  <Upload className="w-10 h-10 mx-auto text-slate-400 transition-colors group-hover:text-blue-500" />
                 </div>
-                <p className="text-sm font-medium transition-colors text-slate-700 group-hover:text-blue-700">
+                <p className="text-sm font-medium text-slate-700 transition-colors group-hover:text-blue-700">
                   Drop files to upload
                 </p>
                 <input
@@ -379,7 +387,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   {uploadedFiles.map((file, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 transition-colors border rounded-lg bg-slate-50 border-slate-200 hover:bg-slate-100"
+                      className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
                     >
                       <div className="flex items-center flex-1 min-w-0 gap-3">
                         <div className="flex-shrink-0">
@@ -398,7 +406,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                       <button
                         type="button"
                         onClick={() => handleRemoveFile(index)}
-                        className="flex-shrink-0 p-1 ml-2 transition-colors text-slate-400 hover:text-red-600"
+                        className="flex-shrink-0 p-1 ml-2 text-slate-400 transition-colors hover:text-red-600"
                         title="Remove file"
                       >
                         <X className="w-4 h-4" />
@@ -411,11 +419,11 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
           </div>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-6">
+          <div className="flex items-center justify-between pt-6 border-t border-slate-200">
             <button
               type="button"
               onClick={handlePreview}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors text-slate-600 hover:text-slate-900"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
             >
               <Eye className="w-4 h-4" />
               Preview
@@ -442,7 +450,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   });
                   setUploadedFiles([]);
                 }}
-                className="px-4 py-2 text-sm font-medium transition-colors border rounded-lg border-slate-300 text-slate-700 hover:bg-slate-50"
+                className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50"
               >
                 Reset
               </button>
@@ -453,14 +461,14 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   localStorage.setItem(`draft_assignment_${classId}`, JSON.stringify(formData));
                   alert("Assignment saved to draft!");
                 }}
-                className="px-4 py-2 text-sm font-medium transition-colors border rounded-lg border-slate-300 text-slate-700 hover:bg-slate-50"
+                className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50"
               >
                 Save to Draft
               </button>
 
               <button
                 type="submit"
-                className="px-6 py-2 text-sm font-medium text-white transition-colors bg-blue-600 rounded-lg hover:bg-blue-700"
+                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg transition-colors hover:bg-blue-700"
               >
                 Publish & Notify
               </button>

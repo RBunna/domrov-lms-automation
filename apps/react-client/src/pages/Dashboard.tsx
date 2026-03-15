@@ -8,7 +8,7 @@ import { DashboardClient } from "@/features/dashboard";
 export default function Dashboard() {
   return (
     <div className="flex min-h-screen bg-slate-50">
-      <MainNavigation activeId="classes" />
+      <MainNavigation activeId="home" />
       <div className="flex-1 flex flex-col min-w-0">
         <DashboardClient />
       </div>
