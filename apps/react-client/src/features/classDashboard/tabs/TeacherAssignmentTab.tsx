@@ -1,106 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Plus, Edit2, Eye, Trash2, ClipboardList, Users, FileText } from "lucide-react";
-
-// Interface matching CreateAssignmentForm data structure
-interface CreateAssignmentData {
-  title: string;
-  session: string;
-  submissionType: "individual" | "group";
-  instructions: string;
-  startDate: string;
-  startTime: string;
-  dueDate: string;
-  dueTime: string;
-  maxScore: number;
-  allowedSubmissionMethod: string;
-  allowLateSubmissions: boolean;
-  aiEvaluationEnabled: boolean;
-  learningResources: File[];
-}
-
-// Extended interface for teacher view (includes CreateAssignmentData fields + view-specific fields)
-interface TeacherAssignment extends CreateAssignmentData {
-  id: string;
-  status: "draft" | "published" | "archived";
-  submissionRate: number; // 0-100 percentage
-}
-
-// Mock data for teacher's assignments - based on CreateAssignmentData structure
-const INITIAL_ASSIGNMENTS: TeacherAssignment[] = [
-  {
-    id: "1",
-    title: "Database Design Project",
-    session: "2024",
-    submissionType: "group",
-    instructions: "Design a normalized database for an e-commerce platform",
-    startDate: "2024-03-01",
-    startTime: "09:00",
-    dueDate: "2024-03-15",
-    dueTime: "23:59",
-    maxScore: 100,
-    allowedSubmissionMethod: "file",
-    allowLateSubmissions: false,
-    aiEvaluationEnabled: true,
-    learningResources: [],
-    status: "published",
-    submissionRate: 92,
-  },
-  {
-    id: "2",
-    title: "Calculus Problem Set",
-    session: "2024",
-    submissionType: "individual",
-    instructions: "Solve 20 calculus problems covering integration and differentiation",
-    startDate: "2024-03-05",
-    startTime: "08:00",
-    dueDate: "2024-03-20",
-    dueTime: "17:00",
-    maxScore: 50,
-    allowedSubmissionMethod: "both",
-    allowLateSubmissions: true,
-    aiEvaluationEnabled: false,
-    learningResources: [],
-    status: "draft",
-    submissionRate: 0,
-  },
-  {
-    id: "3",
-    title: "Essay on Modern History",
-    session: "2024",
-    submissionType: "individual",
-    instructions: "Write a 3000-word essay on the causes of World War II",
-    startDate: "2024-02-28",
-    startTime: "00:00",
-    dueDate: "2024-03-25",
-    dueTime: "23:59",
-    maxScore: 100,
-    allowedSubmissionMethod: "text",
-    allowLateSubmissions: false,
-    aiEvaluationEnabled: true,
-    learningResources: [],
-    status: "published",
-    submissionRate: 85,
-  },
-  {
-    id: "4",
-    title: "Chemistry Lab Report",
-    session: "2024",
-    submissionType: "group",
-    instructions: "Document your lab experiment with methodology, results, and analysis",
-    startDate: "2024-03-10",
-    startTime: "10:00",
-    dueDate: "2024-03-22",
-    dueTime: "18:00",
-    maxScore: 75,
-    allowedSubmissionMethod: "file",
-    allowLateSubmissions: false,
-    aiEvaluationEnabled: false,
-    learningResources: [],
-    status: "published",
-    submissionRate: 78,
-  },
-];
+import { useAssignments } from "@/context/AssignmentContext";
 
 const STATISTICS = [
   {
@@ -139,7 +40,7 @@ const getStatusLabel = (status: string) => {
 
 export default function TeacherAssignmentTab({ classId }: { classId: string }) {
   const navigate = useNavigate();
-  const [assignments, setAssignments] = useState<TeacherAssignment[]>(INITIAL_ASSIGNMENTS);
+  const { assignments, deleteAssignment } = useAssignments();
   const [activeFilter, setActiveFilter] = useState<"all" | "published" | "drafts">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 4;
@@ -148,9 +49,13 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     navigate(`/class/${classId}/assignment/create`);
   };
 
+  const handleEditAssignment = (assignmentId: string) => {
+    navigate(`/class/${classId}/assignment/${assignmentId}/edit`);
+  };
+
   const handleDeleteAssignment = (assignmentId: string) => {
     if (confirm("Are you sure you want to delete this assignment?")) {
-      setAssignments((prev) => prev.filter((a) => a.id !== assignmentId));
+      deleteAssignment(assignmentId);
     }
   };
 
@@ -263,22 +168,26 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
                   <td className="px-6 py-4">
                     <span
                       className={`inline-block px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(
-                        assignment.status
+                        assignment.status || "draft"
                       )}`}
                     >
-                      • {getStatusLabel(assignment.status)}
+                      • {getStatusLabel(assignment.status || "draft")}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
-                      <button className="p-2 transition-colors rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900" title="Edit assignment">
+                      <button 
+                        onClick={() => handleEditAssignment(assignment.id || "")}
+                        className="p-2 transition-colors rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900" 
+                        title="Edit assignment"
+                      >
                         <Edit2 className="w-4 h-4" />
                       </button>
                       <button className="p-2 transition-colors rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900" title="View assignment">
                         <Eye className="w-4 h-4" />
                       </button>
                       <button 
-                        onClick={() => handleDeleteAssignment(assignment.id)}
+                        onClick={() => handleDeleteAssignment(assignment.id || "")}
                         className="p-2 transition-colors rounded-lg hover:bg-red-50 text-slate-600 hover:text-red-600" 
                         title="Delete assignment"
                       >

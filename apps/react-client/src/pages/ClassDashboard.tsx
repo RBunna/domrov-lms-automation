@@ -26,7 +26,8 @@ export default function ClassDashboardClient() {
   const classId = params.id as string;
   const { isLoading: authLoading } = useAuth();
   const location = useLocation();
-  const [activeTab, setActiveTab] = useState<TabId>("general");
+  const initialTab = (location.state?.activeTab as TabId) || "general";
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
   // Get role from location.state (passed from ClassCard) or default to Teacher
   const role = (location.state && location.state.role) || UserRole.Teacher;
   const [error] = useState<string | null>(null);

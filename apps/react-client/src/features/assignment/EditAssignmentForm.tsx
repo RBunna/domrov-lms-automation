@@ -5,51 +5,74 @@ import type { AssignmentData } from "@/context/AssignmentContext";
 import { useAssignments } from "@/context/AssignmentContext";
 import { useToast } from "@/components/Toast";
 
-export default function CreateAssignmentForm({ classId }: { classId: string }) {
-  const navigate = useNavigate();
-  const { createAssignment } = useAssignments();
-  const { showToast } = useToast();
-  const draftKey = `draft_assignment_${classId}`;
+interface EditAssignmentFormProps {
+  classId: string;
+  assignmentId: string;
+  initialData?: AssignmentData;
+}
 
-  const [formData, setFormData] = useState<AssignmentData>({
-    title: "",
-    session: new Date().getFullYear().toString(),
-    submissionType: "individual",
-    instructions: "",
-    startDate: "",
-    startTime: "",
-    dueDate: "",
-    dueTime: "",
-    maxScore: 100,
-    allowedSubmissionMethod: "both",
-    allowLateSubmissions: false,
-    aiEvaluationEnabled: false,
-    learningResources: [],
-    status: "draft",
-    submissionRate: 0,
-  });
+export default function EditAssignmentForm({
+  classId,
+  assignmentId,
+  initialData,
+}: EditAssignmentFormProps) {
+  const navigate = useNavigate();
+  const { updateAssignment, getAssignmentById } = useAssignments();
+  const { showToast } = useToast();
+  
+  // Get assignment data from context or use initialData
+  const assignmentFromContext = getAssignmentById(assignmentId);
+  const loadedData = initialData || assignmentFromContext;
+
+  const [formData, setFormData] = useState<AssignmentData>(
+    loadedData || {
+      title: "",
+      session: "2024",
+      submissionType: "individual",
+      instructions: "",
+      startDate: "",
+      startTime: "",
+      dueDate: "",
+      dueTime: "",
+      maxScore: 100,
+      allowedSubmissionMethod: "both",
+      allowLateSubmissions: false,
+      aiEvaluationEnabled: false,
+      learningResources: [],
+    }
+  );
 
   const [uploadedFiles, setUploadedFiles] = useState<
     Array<{ name: string; type: string }>
-  >([]);
+  >([
+    { name: "Database_Design_Guide.pdf", type: "application/pdf" },
+    { name: "Sample_Data.zip", type: "application/zip" },
+  ]);
 
-  // Load saved draft on component mount
-  useEffect(() => {
-    const savedDraft = localStorage.getItem(draftKey);
-    if (savedDraft) {
-      try {
-        const parsed = JSON.parse(savedDraft);
-        setFormData(parsed);
-      } catch (error) {
-        console.error("Failed to load draft:", error);
-      }
+  const [hasChanges, setHasChanges] = useState(false);
+  const [originalData] = useState(
+    loadedData || {
+      title: "",
+      session: "2024",
+      submissionType: "individual",
+      instructions: "",
+      startDate: "",
+      startTime: "",
+      dueDate: "",
+      dueTime: "",
+      maxScore: 100,
+      allowedSubmissionMethod: "both",
+      allowLateSubmissions: false,
+      aiEvaluationEnabled: false,
+      learningResources: [],
     }
-  }, [draftKey]);
+  );
 
-  // Auto-save to localStorage whenever formData changes
+  // Track if form has changes
   useEffect(() => {
-    localStorage.setItem(draftKey, JSON.stringify(formData));
-  }, [formData, draftKey]);
+    const isChanged = JSON.stringify(formData) !== JSON.stringify(originalData);
+    setHasChanges(isChanged);
+  }, [formData, originalData]);
 
   const handleInputChange = (
     e: React.ChangeEvent<
@@ -95,15 +118,30 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    const newAssignmentId = createAssignment(formData);
-    showToast(`✅ Assignment created successfully! ID: ${newAssignmentId}`, "success", 3000);
-    // Clear draft and navigate back to assignment tab
-    localStorage.removeItem(draftKey);
-    setTimeout(() => {
-      navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
-    }, 500);
+
+    // Update assignment in context
+    const success = updateAssignment(assignmentId, formData);
+    if (success) {
+      showToast("✅ Assignment updated successfully!", "success", 3000);
+      // Navigate back to assignment tab after brief delay to show toast
+      setTimeout(() => {
+        navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
+      }, 500);
+    } else {
+      showToast("❌ Failed to update assignment", "error", 3000);
+    }
+  };
+
+  const handleCancel = () => {
+    if (hasChanges) {
+      const confirmed = window.confirm(
+        "You have unsaved changes. Are you sure you want to cancel?"
+      );
+      if (!confirmed) return;
+    }
+    navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
   };
 
   const handlePreview = () => {
@@ -113,25 +151,25 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
 
   return (
     <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
+      <div className="p-8 mx-auto max-w-7xl">
+        <form onSubmit={handleSave} className="space-y-6">
           {/* Page Header */}
           <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900">Create Assignment</h1>
+            <h1 className="text-3xl font-bold text-slate-900">Edit Assignment</h1>
             <p className="mt-2 text-slate-600">
-              Set up a new assignment with instructions, resources, and grading rules.
+              Update the assignment details, instructions, resources, and grading rules.
             </p>
           </div>
 
           {/* Top Grid: General Info | Scheduling | Grading & Rules */}
           <div className="grid grid-cols-3 gap-6">
             {/* General Information Section */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
+            <div className="p-6 bg-white border rounded-lg border-slate-200">
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-sm font-bold tracking-wider uppercase text-slate-900">
                   General Information
                 </h2>
-                <span className="px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full">
+                <span className="px-3 py-1 text-xs font-semibold text-blue-600 rounded-full bg-blue-50">
                   REQUIRED
                 </span>
               </div>
@@ -187,7 +225,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
             </div>
 
             {/* Scheduling Section */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
+            <div className="p-6 bg-white border rounded-lg border-slate-200">
               <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">
                 Scheduling
               </h2>
@@ -228,7 +266,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
             </div>
 
             {/* Grading & Rules Section */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
+            <div className="p-6 bg-white border rounded-lg border-slate-200">
               <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">
                 Grading & Rules
               </h2>
@@ -305,36 +343,36 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
           {/* Bottom Grid: Instructions | Resources */}
           <div className="grid grid-cols-2 gap-6">
             {/* Instructions Section */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
+            <div className="p-6 bg-white border rounded-lg border-slate-200">
               <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
                 Instructions <span className="text-red-500">*</span>
               </h2>
-              <div className="overflow-hidden border border-slate-200 rounded-lg">
+              <div className="overflow-hidden border rounded-lg border-slate-200">
                 <div className="flex items-center gap-2 p-3 border-b border-slate-200 bg-slate-50">
                   <button
                     type="button"
-                    className="p-1 text-sm font-bold text-slate-700 rounded hover:bg-slate-200 transition-colors"
+                    className="p-1 text-sm font-bold transition-colors rounded text-slate-700 hover:bg-slate-200"
                     title="Bold"
                   >
                     B
                   </button>
                   <button
                     type="button"
-                    className="p-1 text-sm italic text-slate-700 rounded hover:bg-slate-200 transition-colors"
+                    className="p-1 text-sm italic transition-colors rounded text-slate-700 hover:bg-slate-200"
                     title="Italic"
                   >
                     I
                   </button>
                   <button
                     type="button"
-                    className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"
+                    className="p-1 transition-colors rounded text-slate-700 hover:bg-slate-200"
                     title="List"
                   >
                     ≡
                   </button>
                   <button
                     type="button"
-                    className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"
+                    className="p-1 transition-colors rounded text-slate-700 hover:bg-slate-200"
                     title="Link"
                   >
                     <Link2 className="w-4 h-4" />
@@ -345,26 +383,26 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   value={formData.instructions}
                   onChange={handleInputChange}
                   placeholder="Outline expectations and deliverables..."
-                  className="w-full h-40 px-4 py-3 text-sm bg-white text-slate-900 resize-none placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full h-40 px-4 py-3 text-sm bg-white resize-none text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   required
                 />
               </div>
             </div>
 
             {/* Resources Section */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
+            <div className="p-6 bg-white border rounded-lg border-slate-200">
               <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
                 Resources
               </h2>
 
               <label
                 htmlFor="file-upload"
-                className="flex flex-col items-center justify-center p-8 mb-4 text-center border-2 border-dashed border-slate-300 rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50 group"
+                className="flex flex-col items-center justify-center p-8 mb-4 text-center transition-all border-2 border-dashed rounded-lg cursor-pointer border-slate-300 hover:border-blue-400 hover:bg-blue-50 group"
               >
                 <div className="mb-3">
-                  <Upload className="w-10 h-10 mx-auto text-slate-400 transition-colors group-hover:text-blue-500" />
+                  <Upload className="w-10 h-10 mx-auto transition-colors text-slate-400 group-hover:text-blue-500" />
                 </div>
-                <p className="text-sm font-medium text-slate-700 transition-colors group-hover:text-blue-700">
+                <p className="text-sm font-medium transition-colors text-slate-700 group-hover:text-blue-700">
                   Drop files to upload
                 </p>
                 <input
@@ -383,7 +421,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                   {uploadedFiles.map((file, index) => (
                     <div
                       key={index}
-                      className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
+                      className="flex items-center justify-between p-3 transition-colors border rounded-lg border-slate-200 bg-slate-50 hover:bg-slate-100"
                     >
                       <div className="flex items-center flex-1 min-w-0 gap-3">
                         <div className="flex-shrink-0">
@@ -402,7 +440,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                       <button
                         type="button"
                         onClick={() => handleRemoveFile(index)}
-                        className="flex-shrink-0 p-1 ml-2 text-slate-400 transition-colors hover:text-red-600"
+                        className="flex-shrink-0 p-1 ml-2 transition-colors text-slate-400 hover:text-red-600"
                         title="Remove file"
                       >
                         <X className="w-4 h-4" />
@@ -419,7 +457,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
             <button
               type="button"
               onClick={handlePreview}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+              className="flex items-center gap-2 px-4 py-2 text-sm font-medium transition-colors text-slate-600 hover:text-slate-900"
             >
               <Eye className="w-4 h-4" />
               Preview
@@ -428,45 +466,22 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
             <div className="flex gap-3">
               <button
                 type="button"
-                onClick={() => {
-                  setFormData({
-                    title: "",
-                    session: new Date().getFullYear().toString(),
-                    submissionType: "individual",
-                    instructions: "",
-                    startDate: "",
-                    startTime: "",
-                    dueDate: "",
-                    dueTime: "",
-                    maxScore: 100,
-                    allowedSubmissionMethod: "both",
-                    allowLateSubmissions: false,
-                    aiEvaluationEnabled: false,
-                    learningResources: [],
-                  });
-                  setUploadedFiles([]);
-                }}
-                className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50"
+                onClick={handleCancel}
+                className="px-6 py-2 text-sm font-medium transition-colors border rounded-lg text-slate-700 border-slate-300 hover:bg-slate-50"
               >
-                Reset
-              </button>
-
-              <button
-                type="button"
-                onClick={() => {
-                  localStorage.setItem(`draft_assignment_${classId}`, JSON.stringify(formData));
-                  alert("Assignment saved to draft!");
-                }}
-                className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50"
-              >
-                Save to Draft
+                Cancel
               </button>
 
               <button
                 type="submit"
-                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg transition-colors hover:bg-blue-700"
+                disabled={!hasChanges}
+                className={`px-6 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
+                  hasChanges
+                    ? "bg-blue-600 hover:bg-blue-700 cursor-pointer"
+                    : "bg-slate-400 cursor-not-allowed"
+                }`}
               >
-                Publish & Notify
+                Save Changes
               </button>
             </div>
           </div>
