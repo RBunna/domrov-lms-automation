@@ -6,13 +6,27 @@ interface ClassGridProps {
   items: ClassCardType[];
   onOpen?: (id: string) => void;
   activeClassId?: string | number | null;
+  onEdit?: (id: string) => void;
+  onViewMembers?: (id: string) => void;
+  onLeaveClass?: (id: string) => void;
+  onDeleteClass?: (id: string) => void;
+  onShareClass?: (id: string) => void;
 }
 
 /**
  * ClassGrid - Displays a grid of class cards or empty state.
  * Handles the case when no classes are available for the selected term.
  */
-export default function ClassGrid({ items, onOpen, activeClassId }: ClassGridProps) {
+export default function ClassGrid({ 
+  items, 
+  onOpen, 
+  activeClassId,
+  onEdit,
+  onViewMembers,
+  onLeaveClass,
+  onDeleteClass,
+  onShareClass,
+}: ClassGridProps) {
   if (items.length === 0) {
     return (
       <div className="col-span-full">
@@ -29,6 +43,11 @@ export default function ClassGrid({ items, onOpen, activeClassId }: ClassGridPro
           classItem={classItem}
           onOpen={onOpen}
           isActive={classItem.id?.toString() === activeClassId?.toString()}
+          onEdit={onEdit}
+          onViewMembers={onViewMembers}
+          onLeaveClass={onLeaveClass}
+          onDeleteClass={onDeleteClass}
+          onShareClass={onShareClass}
         />
       ))}
     </>
