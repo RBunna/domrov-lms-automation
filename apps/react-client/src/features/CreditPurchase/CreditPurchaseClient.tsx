@@ -338,7 +338,7 @@ export default function CreditPurchaseClient() {
         return (
             <div className="flex items-center justify-center flex-1 min-h-[50vh]">
                 <div className="text-center">
-                    <div className="animate-spin rounded-full h-8 w-8 border-4 border-slate-900 border-t-transparent mb-4 mx-auto"></div>
+                    <div className="w-8 h-8 mx-auto mb-4 border-4 rounded-full animate-spin border-slate-900 border-t-transparent"></div>
                     <p className="text-slate-500">Loading token packages...</p>
                 </div>
             </div>
@@ -346,226 +346,248 @@ export default function CreditPurchaseClient() {
     }
 
     return (
-        <main className="px-6 py-6 max-w-5xl mx-auto w-full flex flex-col gap-10">
-
-            {error && (
-                <div className="p-4 bg-red-50 border border-red-200 rounded-xl text-red-700 text-sm flex gap-3">
-                    <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    <span>{error}</span>
+        <main className="flex-1 overflow-y-auto bg-slate-50">
+            <div className="p-8 mx-auto max-w-7xl">
+                
+                {/* HEADER */}
+                <div className="flex items-center justify-between gap-6 p-4 mb-6 bg-white rounded-lg">
+                    <div>
+                        <h1 className="text-2xl font-bold text-slate-900">AI Token Center</h1>
+                        <p className="text-slate-500 text-xs mt-0.5">Top up your account for academic evaluations.</p>
+                    </div>
+                    <div className="text-right">
+                        <p className="text-xs font-bold tracking-wider uppercase text-slate-400">Your Balance</p>
+                        <p className="text-2xl font-bold text-blue-600">{currentTokens.toLocaleString()}</p>
+                        <p className="text-xs text-slate-400">Tokens</p>
+                    </div>
                 </div>
-            )}
 
-            {/* --- STATUS SECTION --- */}
-            <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-4">Token Balance</h2>
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm p-6 flex flex-col justify-center">
-                    <h3 className="text-sm font-semibold text-slate-900 mb-2">Current Balance</h3>
-                    <p className="text-sm text-slate-600 flex items-center gap-2">
-                        Available Tokens:{" "}
-                        <span className="font-bold text-slate-900 text-base">
-                            {currentTokens.toLocaleString()}
-                        </span>
-                    </p>
-                </div>
-            </section>
+                {error && (
+                    <div className="flex gap-3 p-4 mb-8 text-sm text-red-700 border border-red-200 bg-red-50 rounded-xl">
+                        <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        <span>{error}</span>
+                    </div>
+                )}
 
-            {/* --- PACKAGES SECTION --- */}
-            <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-4">Token Packages</h2>
-                <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3">
-                    {packages.map((pack) => {
-                        const isSelected = selectedPackId === pack.id.toString();
-                        return (
-                            <article
-                                key={pack.id}
-                                onClick={() => setSelectedPackId(pack.id.toString())}
-                                className={`bg-white rounded-xl border shadow-sm transition-all duration-200 flex flex-col h-[280px] p-6 cursor-pointer ${isSelected
-                                    ? "border-slate-900 ring-1 ring-slate-900"
-                                    : "border-slate-200 hover:border-slate-300 hover:shadow-md"
-                                    }`}
-                            >
-                                <div className="flex-1">
-                                    <h3 className="text-sm font-semibold text-slate-900 mb-2">{pack.name}</h3>
-                                    <p className="text-2xl font-normal text-slate-800 mb-1">
-                                        {((pack as any).credits || (pack as any).tokens || 0).toLocaleString()} Tokens
-                                    </p>
-                                    <p className="text-xs text-slate-400">
-                                        {(pack as any).description || "Best value package"}
-                                    </p>
-                                </div>
-                                <div className="mt-auto flex items-center justify-between">
-                                    <span className="text-2xl font-normal text-slate-800">${pack.price}</span>
-                                    <button
-                                        className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${isSelected ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                            }`}
+                {/* TWO COLUMN LAYOUT */}
+                <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+                    
+                    {/* LEFT COLUMN - PACKAGES (2 cols) */}
+                    <div className="lg:col-span-2">
+                        <h2 className="flex items-center gap-2 mb-6 text-xs font-bold tracking-widest uppercase text-slate-900">
+                            <span className="text-lg text-blue-600">|</span> SELECT A PACKAGE
+                        </h2>
+
+                        {/* Package Grid - 3 columns */}
+                        <div className="grid grid-cols-3 gap-4 mb-8">
+                            {packages.map((pack) => {
+                                const isSelected = selectedPackId === pack.id.toString();
+                                const isPopular = pack.name?.toLowerCase().includes("student");
+                                const tokens = ((pack as any).credits || (pack as any).tokens || 0);
+                                return (
+                                    <div
+                                        key={pack.id}
+                                        onClick={() => setSelectedPackId(pack.id.toString())}
+                                        className={`rounded-xl border-2 p-5 cursor-pointer transition-all relative ${
+                                            isSelected
+                                                ? "border-blue-600 bg-blue-50"
+                                                : "border-slate-200 bg-white hover:shadow-sm"
+                                        }`}
                                     >
-                                        {isSelected ? "Selected" : "Select"}
+                                        {/* POPULAR Badge */}
+                                        {isPopular && (
+                                            <div className="absolute px-3 py-1 text-xs font-bold text-white bg-blue-600 rounded-full shadow-md -top-3 right-4">
+                                                POPULAR
+                                            </div>
+                                        )}
+
+                                        <div className="text-left">
+                                            <p className="mb-2 text-xs font-semibold tracking-wider uppercase text-slate-500">{pack.name}</p>
+                                            <p className="mb-1 text-3xl font-bold text-slate-900">
+                                                {tokens.toLocaleString()}
+                                            </p>
+                                            <p className="mb-4 text-xs text-slate-600">Tokens</p>
+                                            
+                                            <div className="flex items-center justify-between">
+                                                <p className="text-xl font-bold text-blue-600">${pack.price.toFixed(2)}</p>
+
+                                                {/* Checkmark circle or Select text */}
+                                                {isSelected ? (
+                                                    <div className="flex items-center justify-center flex-shrink-0 w-8 h-8 bg-blue-600 rounded-full">
+                                                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                                                            <path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" />
+                                                        </svg>
+                                                    </div>
+                                                ) : (
+                                                    <p className="text-xs font-semibold text-slate-400">Select</p>
+                                                )}
+                                            </div>
+                                        </div>
+                                    </div>
+                                );
+                            })}
+                        </div>
+
+                        {/* CUSTOM TOKEN CALCULATOR */}
+                        <div className="p-6 bg-white border rounded-2xl border-slate-200">
+                            {/* TOP ROW - Title & Input & Button */}
+                            <div className="flex items-start justify-between gap-6 mb-6">
+                                {/* LEFT - Title & Description */}
+                                <div className="flex-shrink-0 min-w-fit">
+                                    <h3 className="mb-1 text-base font-bold text-slate-900">Custom<br/>Token<br/>Calculator</h3>
+                                    <p className="text-xs leading-relaxed text-slate-500">Perfect for specific grading cycles or large batches.</p>
+                                </div>
+
+                                {/* CENTER - Input & Button */}
+                                <div className="flex items-center gap-4">
+                                    <div className="relative">
+                                        <input
+                                            type="number"
+                                            value={customTokenAmount || ""}
+                                            onChange={(e) => {
+                                                setCustomTokenAmount(Number(e.target.value));
+                                                setSelectedPackId("custom");
+                                            }}
+                                            placeholder="Enter amount"
+                                            className="px-4 py-2.5 text-sm border border-slate-300 rounded-lg text-slate-900 placeholder-slate-400 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 w-56 pr-20 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [&]:appearance-none"
+                                        />
+                                        <span className="absolute text-xs font-semibold -translate-y-1/2 pointer-events-none right-4 top-1/2 text-slate-400">TOKENS</span>
+                                    </div>
+                                    <button
+                                        onClick={() => setSelectedPackId("custom")}
+                                        className="px-8 py-2.5 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition whitespace-nowrap"
+                                    >
+                                        Calculate
                                     </button>
                                 </div>
-                            </article>
-                        );
-                    })}
-
-                    {/* Custom Pack */}
-                    <article
-                        onClick={() => setSelectedPackId("custom")}
-                        className={`bg-white rounded-xl border shadow-sm transition-all duration-200 flex flex-col h-[280px] p-6 cursor-pointer ${selectedPackId === "custom"
-                            ? "border-slate-900 ring-1 ring-slate-900"
-                            : "border-slate-200 hover:border-slate-300 hover:shadow-md"
-                            }`}
-                    >
-                        <div className="flex-1">
-                            <h3 className="text-sm font-semibold text-slate-900 mb-2">Custom Token Pack</h3>
-                            <p className="text-xs text-slate-400 mb-4">Tailor to your exact needs</p>
-                            <label className="text-xs text-slate-500 mb-1 block">Enter Token Amount:</label>
-                            <div className="relative">
-                                <input
-                                    type="number"
-                                    value={customTokenAmount || ""}
-                                    onChange={(e) => {
-                                        setCustomTokenAmount(Number(e.target.value));
-                                        setSelectedPackId("custom");
-                                    }}
-                                    onClick={(e) => e.stopPropagation()}
-                                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-slate-400 focus:ring-1 focus:ring-slate-400"
-                                />
-                                <span className="absolute right-3 top-2.5 text-xs text-slate-400">Tokens</span>
                             </div>
-                            <p className="text-xs text-slate-500 mt-3">
-                                Price:{" "}
-                                <span className="font-medium text-slate-900">
-                                    ${customPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}
-                                </span>
-                            </p>
-                        </div>
-                        <div className="mt-auto flex items-end justify-end">
-                            <button
-                                className={`px-6 py-2 rounded-lg text-sm font-medium transition-colors ${selectedPackId === "custom" ? "bg-slate-900 text-white" : "bg-slate-100 text-slate-700 hover:bg-slate-200"
-                                    }`}
-                            >
-                                {selectedPackId === "custom" ? "Selected" : "Select"}
-                            </button>
-                        </div>
-                    </article>
-                </div>
-            </section>
 
-            {/* --- PAYMENT SECTION --- */}
-            <section>
-                <h2 className="text-xl font-bold text-slate-900 mb-4">Payment Details</h2>
-                <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                    {/* Summary */}
-                    <div className="p-6 border-b border-slate-100">
-                        <div className="flex items-center gap-2 mb-4 text-slate-900">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <h3 className="font-semibold text-sm">Order Summary</h3>
-                        </div>
-                        <div className="space-y-3 pl-7 text-sm">
-                            <p className="text-slate-500">
-                                Package: <span className="text-slate-900 ml-1">{summaryName}</span>
-                            </p>
-                            <p className="text-slate-500">
-                                Tokens: <span className="text-slate-900 ml-1">{summaryTokens.toLocaleString()}</span>
-                            </p>
-                            <p className="text-slate-900 font-bold pt-2">
-                                Total: <span className="text-lg ml-2">${summaryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
-                            </p>
-                        </div>
-                    </div>
-
-                    {/* Payment Method */}
-                    <div className="p-6 border-b border-slate-100">
-                        <div className="flex items-center gap-2 mb-4 text-slate-900">
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                            <h3 className="font-semibold text-sm">Payment Method</h3>
-                        </div>
-                        <div className="space-y-2 pl-7">
-                            {/* KHQR */}
-                            <label className="flex items-center gap-4 cursor-pointer p-3 rounded-lg hover:bg-slate-50 border border-transparent transition-colors">
-                                <input
-                                    type="radio"
-                                    name="payment"
-                                    checked={paymentMethod === "KHQR"}
-                                    onChange={() => setPaymentMethod("KHQR")}
-                                    className="hidden"
-                                />
-                                <div className={`w-12 h-12 bg-[#E5223A] rounded-lg flex items-center justify-center transition-all ${paymentMethod === 'KHQR' ? 'ring-2 ring-offset-2 ring-[#E5223A]' : ''}`}>
-                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                                        <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                        <path d="M2 17L12 22L22 17" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-                                        <path d="M2 12L12 17L22 12" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                            {/* BOTTOM ROW - Info & Estimated */}
+                            <div className="flex items-center justify-between gap-6 pt-4 border-t border-slate-200">
+                                <div className="flex items-center gap-2 text-xs text-slate-500">
+                                    <svg className="flex-shrink-0 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                                     </svg>
+                                    <span>Prices are inclusive of all local taxes.</span>
                                 </div>
-                                <div>
-                                    <p className="font-semibold text-sm text-slate-900">Bakong KHQR</p>
-                                    <p className="text-xs text-slate-500">Instant payment via KHQR QR code</p>
+                                <div className="flex-shrink-0 text-right">
+                                    <p className="text-xs font-semibold text-slate-500">Estimated:</p>
+                                    <p className="text-2xl font-bold text-blue-600">${customPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</p>
                                 </div>
-                            </label>
-
-                            <hr className="border-slate-100 ml-14" />
-
-                            {/* ABA */}
-                            <label className="flex items-center gap-4 cursor-pointer p-3 rounded-lg hover:bg-slate-50 border border-transparent transition-colors opacity-50">
-                                <input
-                                    type="radio"
-                                    name="payment"
-                                    checked={paymentMethod === "ABA"}
-                                    onChange={() => setPaymentMethod("ABA")}
-                                    disabled
-                                    className="hidden"
-                                />
-                                <div className={`w-12 h-12 bg-[#00539A] rounded-lg flex items-center justify-center text-white font-bold text-sm transition-all`}>
-                                    ABA
-                                </div>
-                                <div>
-                                    <p className="font-semibold text-sm text-slate-900">ABA</p>
-                                    <p className="text-xs text-slate-500">Coming soon</p>
-                                </div>
-                            </label>
+                            </div>
                         </div>
                     </div>
 
-                    {/* Terms */}
-                    <div className="p-6 bg-slate-50/50">
-                        <label className="flex items-center gap-3 cursor-pointer group w-max">
-                            <input
-                                type="checkbox"
-                                checked={termsAgreed}
-                                onChange={(e) => setTermsAgreed(e.target.checked)}
-                                className="w-4 h-4 rounded border-slate-300 text-slate-900 focus:ring-slate-900 transition-colors cursor-pointer"
-                            />
-                            <span className="text-xs text-slate-600 group-hover:text-slate-900 transition-colors">
-                                I agree to the Terms & Conditions
-                            </span>
-                        </label>
+                    {/* RIGHT COLUMN - ORDER SUMMARY SIDEBAR */}
+                    <div className="lg:col-span-1">
+                        <div className="sticky p-6 bg-white border top-8 rounded-2xl border-slate-200">
+                            
+                            {/* HEADER */}
+                            <h3 className="mb-6 text-lg font-bold text-slate-900">Order Summary</h3>
+
+                            {/* PACKAGE INFO */}
+                            <div className="pb-6 mb-6 border-b border-slate-200">
+                                <p className="mb-1 text-sm text-slate-600">{summaryName}</p>
+                                <p className="mb-2 text-sm font-semibold text-slate-900">{summaryTokens.toLocaleString()} AI Evaluation Tokens</p>
+                            </div>
+
+                            {/* PRICING BREAKDOWN */}
+                            <div className="pb-6 mb-6 space-y-3 text-sm border-b border-slate-200">
+                                <div className="flex justify-between text-slate-600">
+                                    <span>Service Fee</span>
+                                    <span>$0.00</span>
+                                </div>
+                                <div className="flex justify-between text-slate-600">
+                                    <span>VAT (Inclusive)</span>
+                                    <span>$0.00</span>
+                                </div>
+                                <div className="flex justify-between pt-2 text-lg font-bold text-slate-900">
+                                    <span>Total Price</span>
+                                    <span className="text-blue-600">${summaryPrice.toLocaleString(undefined, { minimumFractionDigits: 2 })}</span>
+                                </div>
+                            </div>
+
+                            {/* PAYMENT METHOD */}
+                            <div className="mb-6">
+                                <p className="mb-3 text-xs font-bold tracking-wider uppercase text-slate-500">Payment Method</p>
+                                <div className="flex gap-3">
+                                    {/* KHQR */}
+                                    <button
+                                        onClick={() => setPaymentMethod("KHQR")}
+                                        className={`flex-1 p-4 rounded-lg border-2 transition flex items-center justify-start gap-3 ${
+                                            paymentMethod === "KHQR"
+                                                ? "border-blue-600 bg-blue-50"
+                                                : "border-slate-200 bg-white hover:border-slate-300"
+                                        }`}
+                                    >
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <img src="/assets/KHQR.png" alt="KHQR" className="w-8 h-8 rounded" />
+                                            <span className="text-xs font-bold text-blue-600">KHQR</span>
+                                        </div>
+                                    </button>
+                                    
+                                    {/* ABA */}
+                                    <button
+                                        disabled
+                                        className="flex items-center justify-start flex-1 gap-3 p-4 border-2 rounded-lg opacity-50 cursor-not-allowed border-slate-200"
+                                    >
+                                        <div className="flex items-center gap-2 flex-shrink-0">
+                                            <img src="/assets/ABA.png" alt="ABA" className="w-8 h-8 rounded" />
+                                            <span className="text-xs font-bold text-slate-500">ABA</span>
+                                        </div>
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* TERMS & CONDITIONS */}
+                            <div className="pb-6 mb-6 border-b border-slate-200">
+                                <label className="flex items-start gap-3 cursor-pointer group">
+                                    <input
+                                        type="checkbox"
+                                        checked={termsAgreed}
+                                        onChange={(e) => setTermsAgreed(e.target.checked)}
+                                        className="w-5 h-5 rounded border-slate-300 text-blue-600 cursor-pointer mt-0.5"
+                                    />
+                                    <span className="text-xs leading-relaxed text-slate-600 group-hover:text-slate-900">
+                                        I agree to the <span className="font-semibold text-slate-900">Terms & Conditions</span>. Tokens are valid for 12 months.
+                                    </span>
+                                </label>
+                            </div>
+
+                            {/* PAY NOW BUTTON */}
+                            <button
+                                onClick={handleProcessPayment}
+                                disabled={!termsAgreed || packages.length === 0 || paymentMethod !== "KHQR"}
+                                className={`w-full py-3 rounded-lg font-bold text-sm flex items-center justify-center gap-2 transition ${
+                                    termsAgreed && paymentMethod === "KHQR"
+                                        ? "bg-slate-900 text-white hover:bg-slate-800"
+                                        : "bg-slate-300 text-slate-500 cursor-not-allowed"
+                                }`}
+                            >
+                                PAY NOW
+                                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+
+                            {/* SSL BADGE */}
+                            <div className="flex items-center justify-center gap-1 mt-4 text-xs text-slate-400">
+                                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                                </svg>
+                                SSL ENCRYPTED CHECKOUT
+                            </div>
+                        </div>
                     </div>
                 </div>
-
-                {/* Action Button */}
-                <div className="mt-6 flex justify-end">
-                    <button
-                        onClick={handleProcessPayment}
-                        disabled={!termsAgreed || packages.length === 0 || paymentMethod !== "KHQR"}
-                        className={`px-8 py-2.5 rounded-lg text-sm font-medium transition-all duration-200 ${termsAgreed && paymentMethod === "KHQR"
-                            ? "bg-slate-900 text-white hover:bg-slate-800 shadow-sm hover:shadow-md"
-                            : "bg-slate-200 text-slate-400 cursor-not-allowed"
-                            }`}
-                    >
-                        Proceed to Payment
-                    </button>
-                </div>
-            </section>
+            </div>
 
             {/* --- PAYMENT MODAL --- */}
             {isPaymentModalOpen && (
                 <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm overflow-hidden flex flex-col animate-in fade-in zoom-in duration-200">
+                    <div className="flex flex-col w-full max-w-sm overflow-hidden duration-200 bg-white shadow-xl rounded-2xl animate-in fade-in zoom-in">
 
                         {/* Header */}
                         <div className="bg-[#E5223A] px-6 py-4 flex items-center justify-between text-white">
@@ -579,7 +601,7 @@ export default function CreditPurchaseClient() {
                             </div>
                             <button
                                 onClick={handleCloseModal}
-                                className="text-white/80 hover:text-white transition-colors"
+                                className="transition-colors text-white/80 hover:text-white"
                             >
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -588,37 +610,37 @@ export default function CreditPurchaseClient() {
                         </div>
 
                         {/* Body */}
-                        <div className="p-6 flex flex-col items-center text-center">
+                        <div className="flex flex-col items-center p-6 text-center">
 
                             {isProcessingPayment ? (
                                 // Loading
-                                <div className="py-12 flex flex-col items-center">
+                                <div className="flex flex-col items-center py-12">
                                     <div className="animate-spin rounded-full h-10 w-10 border-4 border-[#E5223A] border-t-transparent mb-4"></div>
-                                    <p className="text-slate-500 text-sm">Generating QR Code...</p>
+                                    <p className="text-sm text-slate-500">Generating QR Code...</p>
                                 </div>
                             ) : paymentSuccess ? (
                                 // Success
-                                <div className="py-12 flex flex-col items-center animate-in fade-in zoom-in duration-300">
-                                    <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4 animate-pulse">
+                                <div className="flex flex-col items-center py-12 duration-300 animate-in fade-in zoom-in">
+                                    <div className="flex items-center justify-center w-16 h-16 mb-4 bg-green-100 rounded-full animate-pulse">
                                         <svg className="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                                         </svg>
                                     </div>
-                                    <p className="text-lg font-semibold text-green-600 mb-2">Payment Successful!</p>
+                                    <p className="mb-2 text-lg font-semibold text-green-600">Payment Successful!</p>
                                     <p className="text-sm text-slate-500">Your tokens have been added to your account</p>
                                 </div>
                             ) : paymentTimeout ? (
                                 // Timeout
-                                <div className="py-12 flex flex-col items-center transition-all duration-500 animate-in fade-in">
-                                    <div className="w-16 h-16 rounded-full bg-orange-100 flex items-center justify-center mb-4">
+                                <div className="flex flex-col items-center py-12 transition-all duration-500 animate-in fade-in">
+                                    <div className="flex items-center justify-center w-16 h-16 mb-4 bg-orange-100 rounded-full">
                                         <svg className="w-8 h-8 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
                                         </svg>
                                     </div>
-                                    <p className="text-lg font-semibold text-orange-600 mb-2">Payment Timeout</p>
-                                    <p className="text-sm text-slate-500 mb-6">The QR code has expired. Please try again or contact support.</p>
+                                    <p className="mb-2 text-lg font-semibold text-orange-600">Payment Timeout</p>
+                                    <p className="mb-6 text-sm text-slate-500">The QR code has expired. Please try again or contact support.</p>
 
-                                    <div className="w-full flex gap-3">
+                                    <div className="flex w-full gap-3">
                                         <button
                                             onClick={handleCloseModal}
                                             className="flex-1 py-2.5 rounded-lg border border-slate-200 text-slate-600 font-medium text-sm hover:bg-slate-50 transition-colors"
@@ -647,10 +669,10 @@ export default function CreditPurchaseClient() {
                                     )}
 
                                     {/* Status Info */}
-                                    <div className="w-full mb-6 p-3 bg-blue-50 rounded-lg border border-blue-200 transition-all duration-300">
+                                    <div className="w-full p-3 mb-6 transition-all duration-300 border border-blue-200 rounded-lg bg-blue-50">
                                         {isCheckingStatus ? (
                                             <div className="flex items-center gap-2 text-sm text-blue-700">
-                                                <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent"></div>
+                                                <div className="w-3 h-3 border-2 border-blue-600 rounded-full animate-spin border-t-transparent"></div>
                                                 <span>Checking payment status...</span>
                                             </div>
                                         ) : paymentError ? (
@@ -661,7 +683,7 @@ export default function CreditPurchaseClient() {
                                     </div>
 
                                     {/* Actions */}
-                                    <div className="w-full flex gap-3">
+                                    <div className="flex w-full gap-3">
                                         <button
                                             onClick={handleCloseModal}
                                             disabled={isCheckingStatus}
@@ -678,7 +700,7 @@ export default function CreditPurchaseClient() {
                                         </button>
                                     </div>
 
-                                    <p className="text-xs text-slate-400 mt-4">
+                                    <p className="mt-4 text-xs text-slate-400">
                                         ✅ Auto-checking every 3 seconds • Expires in 5 minutes
                                     </p>
                                 </>
