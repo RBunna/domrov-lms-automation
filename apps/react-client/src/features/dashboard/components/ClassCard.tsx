@@ -6,12 +6,13 @@ import type { ClassCard as ClassCardType } from "@/types/classCard";
 interface ClassCardProps {
   classItem: ClassCardType;
   onOpen?: (id: string) => void;
+  isActive?: boolean;
 }
 
 /**
  * ClassCard - Displays a class with clean, simple design showing all backend data.
  */
-export default function ClassCard({ classItem, onOpen }: ClassCardProps) {
+export default function ClassCard({ classItem, onOpen, isActive = false }: ClassCardProps) {
   const [copied, setCopied] = useState(false);
 
   const ownerName = classItem.owner
@@ -51,16 +52,20 @@ export default function ClassCard({ classItem, onOpen }: ClassCardProps) {
   };
 
   return (
-    <article className="bg-white rounded-xl border border-slate-200 shadow-sm hover:shadow-md transition-shadow duration-200 overflow-hidden flex flex-col h-[340px]">
+    <article className={`bg-white rounded-xl border shadow-sm transition-all duration-200 overflow-hidden flex flex-col h-[340px] cursor-pointer ${
+      isActive
+        ? "border-blue-500 shadow-lg ring-2 ring-blue-200 scale-[1.02]"
+        : "border-slate-200 hover:shadow-lg hover:border-slate-300 hover:scale-[1.02]"
+    }`}>
       {/* Cover Image or Placeholder */}
       {classItem.coverImageUrl ? (
         <img
           src={classItem.coverImageUrl}
           alt={classItem.name}
-          className="w-full h-28 object-cover shrink-0"
+          className="object-cover w-full h-28 shrink-0"
         />
       ) : (
-        <div className="w-full h-28 bg-slate-100 flex items-center justify-center shrink-0">
+        <div className="flex items-center justify-center w-full transition-colors duration-200 h-28 bg-gradient-to-br from-slate-100 to-slate-50 shrink-0 hover:from-slate-200 hover:to-slate-100">
           <span className="text-4xl font-bold text-slate-300">
             {classItem.name
               ?.split(" ")
@@ -73,10 +78,10 @@ export default function ClassCard({ classItem, onOpen }: ClassCardProps) {
       )}
 
       {/* Card Content */}
-      <div className="flex-1 flex flex-col p-4 min-h-0">
+      <div className="flex flex-col flex-1 min-h-0 p-4">
         {/* Header: Name + Status */}
         <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="text-sm font-semibold text-slate-900 line-clamp-1 flex-1">
+          <h3 className="flex-1 text-sm font-semibold text-slate-900 line-clamp-1">
             {classItem.name}
           </h3>
           <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${statusColor}`}>
@@ -85,7 +90,7 @@ export default function ClassCard({ classItem, onOpen }: ClassCardProps) {
         </div>
 
         {/* Description */}
-        <p className="text-slate-600 text-xs line-clamp-2 mb-2 h-8">
+        <p className="h-8 mb-2 text-xs text-slate-600 line-clamp-2">
           {classItem.description || "No description"}
         </p>
 
@@ -98,7 +103,7 @@ export default function ClassCard({ classItem, onOpen }: ClassCardProps) {
         </div>
 
         {/* Role Badge */}
-        <div className="my-2 h-5">
+        <div className="h-5 my-2">
           {classItem.role && (
             <span className={`inline-block px-2 py-0.5 rounded text-xs font-medium ${roleColor}`}>
               {classItem.role}
@@ -116,7 +121,7 @@ export default function ClassCard({ classItem, onOpen }: ClassCardProps) {
               </code>
               <button
                 onClick={handleCopyCode}
-                className="p-1 hover:bg-slate-100 rounded transition-colors"
+                className="p-1 transition-colors rounded hover:bg-slate-100"
                 title={copied ? "Copied!" : "Copy code"}
               >
                 {copied ? (
@@ -134,9 +139,9 @@ export default function ClassCard({ classItem, onOpen }: ClassCardProps) {
         </div>
 
         {/* Action Button */}
-        <div className="mt-auto pt-2 border-t border-slate-100">
+        <div className="pt-2 mt-auto border-t border-slate-100">
           <button
-            className="w-full px-4 py-2 rounded-lg bg-slate-900 text-white font-medium hover:bg-slate-800 transition-colors text-sm"
+            className="w-full px-4 py-2 text-sm font-medium text-white transition-colors rounded-lg bg-slate-900 hover:bg-slate-800"
             onClick={onOpen ? () => onOpen(classItem.id?.toString?.() ?? "") : undefined}
             aria-label="View class details"
           >

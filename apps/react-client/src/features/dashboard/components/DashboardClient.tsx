@@ -16,6 +16,7 @@ export default function DashboardClient() {
   const [classList, setClassList] = useState<ClassCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [activeClassId, setActiveClassId] = useState<string | number | null>(null);
 
   // Fetch classes on mount
   useEffect(() => {
@@ -57,8 +58,11 @@ export default function DashboardClient() {
   }>({ isOpen: false, classId: null, className: "" });
 
   const handleOpen = useCallback(
-    (id: string, role?: string) => navigate(`/class/${id}`, { state: { role } }),
-    [],
+    (id: string, role?: string) => {
+      setActiveClassId(id);
+      navigate(`/class/${id}`, { state: { role } });
+    },
+    [navigate],
   );
 
   const handleJoinClass = useCallback(
@@ -141,10 +145,14 @@ export default function DashboardClient() {
         )}
 
         <div className="grid gap-6 mt-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          <ClassGrid items={filteredClasses} onOpen={(id) => {
-            const classItem = filteredClasses.find(c => c.id.toString() === id);
-            handleOpen(id, classItem?.role);
-          }} />
+          <ClassGrid 
+            items={filteredClasses} 
+            onOpen={(id) => {
+              const classItem = filteredClasses.find(c => c.id.toString() === id);
+              handleOpen(id, classItem?.role);
+            }}
+            activeClassId={activeClassId}
+          />
         </div>
 
         {!error && filteredClasses.length === 0 && (

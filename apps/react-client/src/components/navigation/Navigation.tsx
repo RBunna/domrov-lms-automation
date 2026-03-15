@@ -1,7 +1,7 @@
 "use client";
 
 import { useNavigate } from "react-router-dom";
-import { Home, BookOpen, BarChart3, Bell, Lock, Sparkles, CreditCard } from "lucide-react";
+import { Home, Sparkles, CreditCard } from "lucide-react";
 
 
 /**
@@ -10,12 +10,8 @@ import { Home, BookOpen, BarChart3, Bell, Lock, Sparkles, CreditCard } from "luc
  */
 // Navigation items are now defined here to avoid passing icon functions from server to client
 const navItems = [
-  { id: "home", label: "Home", icon: Home, href: "/" },
+  { id: "home", label: "Home", icon: Home, href: "/dashboard" },
   { id: "ai-evaluation", label: "AI Evaluation", icon: Sparkles, href: "/ai-evaluation" },
-  { id: "bookmark", label: "Bookmark", icon: BookOpen, href: "/bookmarks" },
-  { id: "star", label: "Star", icon: BarChart3, href: "/starred" },
-  { id: "bell", label: "Notifications", icon: Bell, href: "/notifications" },
-  { id: "lock", label: "Lock", icon: Lock, href: "/pricing" },
   { id: "credit", label: "Credit", icon: CreditCard, href: "/creditPurchase" },
 ];
 
@@ -28,18 +24,20 @@ const MainNavigation: React.FC<MainNavigationProps> = ({ activeId }) => {
   const pathname = window.location.pathname;
   // Map pathname to nav id
   const pathToId = (path: string) => {
-    if (path === "/") return "home";
+    if (path === "/" || path === "/dashboard") return "home";
     if (path === "/profile") return "profile";
     if (path === "/bookmarks") return "bookmark";
     if (path === "/starred") return "star";
     if (path === "/notifications") return "bell";
     if (path === "/pricing") return "lock";
+    if (path.startsWith("/ai-evaluation")) return "ai-evaluation";
+    if (path.startsWith("/creditPurchase")) return "credit";
     return "";
   };
   const currentId = activeId || pathToId(pathname);
   return (
-    <aside className="w-16 bg-white border-r border-slate-200 flex flex-col items-center py-6 space-y-6 min-h-screen">
-      <div className="h-10 w-10 rounded-xl bg-[#0B1531] flex items-center justify-center text-white font-black text-sm mb-2">
+    <aside className="flex flex-col items-center w-16 min-h-screen py-6 space-y-6 bg-white border-r border-slate-200">
+      <div className="h-10 w-10 rounded-xl bg-[#0B1531] flex items-center justify-center text-white font-black text-sm mb-8">
         <span className="tracking-tight">DR</span>
       </div>
       <nav className="flex flex-col items-center space-y-5">
@@ -56,7 +54,7 @@ const MainNavigation: React.FC<MainNavigationProps> = ({ activeId }) => {
               aria-label={item.label}
               onClick={() => navigate(item.href)}
             >
-              <Icon className="h-5 w-5" />
+              <Icon className="w-5 h-5" />
             </button>
           );
         })}
