@@ -1,18 +1,34 @@
 "use client";
 
 import { useState } from "react";
+import DropdownMenu from "@/components/ui/DropdownMenu";
 import type { ClassCard as ClassCardType } from "@/types/classCard";
+import { MoreVertical, Edit2, Users, LogOut, Trash2, Share2 } from "lucide-react";
 
 interface ClassCardProps {
   classItem: ClassCardType;
   onOpen?: (id: string) => void;
   isActive?: boolean;
+  onEdit?: (id: string) => void;
+  onViewMembers?: (id: string) => void;
+  onLeaveClass?: (id: string) => void;
+  onDeleteClass?: (id: string) => void;
+  onShareClass?: (id: string) => void;
 }
 
 /**
  * ClassCard - Displays a class with clean, simple design showing all backend data.
  */
-export default function ClassCard({ classItem, onOpen, isActive = false }: ClassCardProps) {
+export default function ClassCard({ 
+  classItem, 
+  onOpen, 
+  isActive = false,
+  onEdit,
+  onViewMembers,
+  onLeaveClass,
+  onDeleteClass,
+  onShareClass,
+}: ClassCardProps) {
   const [copied, setCopied] = useState(false);
 
   const ownerName = classItem.owner
@@ -52,7 +68,7 @@ export default function ClassCard({ classItem, onOpen, isActive = false }: Class
   };
 
   return (
-    <article className={`bg-white rounded-xl border shadow-sm transition-all duration-200 overflow-hidden flex flex-col h-[340px] cursor-pointer ${
+    <article className={`relative bg-white rounded-xl border shadow-sm transition-all duration-200 overflow-visible flex flex-col h-[340px] cursor-pointer ${
       isActive
         ? "border-blue-500 shadow-lg ring-2 ring-blue-200 scale-[1.02]"
         : "border-slate-200 hover:shadow-lg hover:border-slate-300 hover:scale-[1.02]"
@@ -78,15 +94,65 @@ export default function ClassCard({ classItem, onOpen, isActive = false }: Class
       )}
 
       {/* Card Content */}
-      <div className="flex flex-col flex-1 min-h-0 p-4">
-        {/* Header: Name + Status */}
-        <div className="flex items-start justify-between gap-2 mb-2">
-          <h3 className="flex-1 text-sm font-semibold text-slate-900 line-clamp-1">
-            {classItem.name}
-          </h3>
+      <div className="flex flex-col flex-1 min-h-0 p-4 overflow-visible">
+        {/* Header: Name + Status + Menu */}
+        <div className="flex items-start justify-between gap-2 mb-2 relative z-20">
+          <div className="flex-1">
+            <h3 className="text-sm font-semibold text-slate-900 line-clamp-1">
+              {classItem.name}
+            </h3>
+          </div>
+          
+          {/* Status Badge */}
           <span className={`px-2 py-0.5 rounded text-xs font-medium shrink-0 ${statusColor}`}>
             {classItem.status}
           </span>
+
+          {/* Menu Button */}
+          <DropdownMenu
+              trigger={<MoreVertical className="w-4 h-4 text-slate-600" />}
+              items={[
+                {
+                  label: "Edit Class",
+                  icon: <Edit2 className="w-4 h-4" />,
+                  onClick: () => onEdit?.(classItem.id?.toString?.() ?? ""),
+                },
+                {
+                  label: "View Members",
+                  icon: <Users className="w-4 h-4" />,
+                  onClick: () => onViewMembers?.(classItem.id?.toString?.() ?? ""),
+                },
+                {
+                  label: "Share Class",
+                  icon: <Share2 className="w-4 h-4" />,
+                  onClick: () => onShareClass?.(classItem.id?.toString?.() ?? ""),
+                  divider: true,
+                },
+                {
+                  label: "Leave Class",
+                  icon: <LogOut className="w-4 h-4" />,
+                  onClick: () => {
+                    if (confirm("Are you sure you want to leave this class?")) {
+                      onLeaveClass?.(classItem.id?.toString?.() ?? "");
+                    }
+                  },
+                  className: "text-orange-600 hover:bg-orange-50",
+                  divider: true,
+                },
+                {
+                  label: "Delete Class",
+                  icon: <Trash2 className="w-4 h-4" />,
+                  onClick: () => {
+                    if (confirm("Are you sure you want to delete this class? This cannot be undone.")) {
+                      onDeleteClass?.(classItem.id?.toString?.() ?? "");
+                    }
+                  },
+                  className: "text-red-600 hover:bg-red-50",
+                  condition: classItem.role === "Teacher",
+                },
+              ]}
+              triggerClassName="p-1 transition-colors rounded-lg hover:bg-slate-100 active:bg-slate-200"
+            />
         </div>
 
         {/* Description */}

@@ -152,6 +152,26 @@ export default function DashboardClient() {
               handleOpen(id, classItem?.role);
             }}
             activeClassId={activeClassId}
+            onEdit={(id) => {
+              console.log("Edit class:", id);
+              // TODO: Implement edit class functionality
+            }}
+            onViewMembers={(id) => {
+              console.log("View members for class:", id);
+              // TODO: Implement view members functionality
+            }}
+            onLeaveClass={(id) => {
+              console.log("Leave class:", id);
+              // TODO: Implement leave class functionality
+            }}
+            onDeleteClass={(id) => {
+              console.log("Delete class:", id);
+              // TODO: Implement delete class functionality
+            }}
+            onShareClass={(id) => {
+              console.log("Share class:", id);
+              // TODO: Implement share class functionality
+            }}
           />
         </div>
 
