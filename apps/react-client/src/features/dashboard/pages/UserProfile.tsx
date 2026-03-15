@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useAuth } from "@/context/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const transactions = [
   { id: 19,  amount: 2712.72, reason: "AI Usage",    balanceBefore: 18293.79, balanceAfter: 15581.02, date: "3/8/2026" },
@@ -90,6 +91,7 @@ interface FormState {
 
 export default function UserProfile() {
   const { user, isLoading: loading, token } = useAuth();
+  const navigate = useNavigate();
   const profile = user as ExtendedUser | null;
 
   const [activeTab,     setActiveTab]     = useState<string>("overview");
@@ -210,7 +212,10 @@ export default function UserProfile() {
       <div style={{ height: "160px", background: "#0a0f1e", position: "relative", overflow: "hidden" }}>
         <div style={{ position:"absolute", inset:0, backgroundImage:"linear-gradient(rgba(22,119,255,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(22,119,255,.07) 1px,transparent 1px)", backgroundSize:"36px 36px" }}/>
         <div style={{ position:"absolute", top:"50%", left:"50%", transform:"translate(-50%,-50%)", width:"600px", height:"200px", background:"radial-gradient(ellipse,rgba(22,119,255,.12) 0%,transparent 70%)", pointerEvents:"none" }}/>
-        <div style={{ position:"absolute", top:"18px", left:"28px", display:"flex", gap:"8px", alignItems:"center" }}>
+        <div style={{ position:"absolute", top:"18px", left:"28px", display:"flex", gap:"12px", alignItems:"center" }}>
+          <button onClick={() => navigate("/dashboard")} style={{ background:"rgba(255,255,255,.1)", border:"none", color:"rgba(255,255,255,.6)", width:"32px", height:"32px", borderRadius:"6px", display:"flex", alignItems:"center", justifyContent:"center", cursor:"pointer", transition:"all .2s", fontSize:"16px" }} onMouseEnter={(e) => {e.currentTarget.style.background="rgba(255,255,255,.15)"; e.currentTarget.style.color="rgba(255,255,255,.9)";}} onMouseLeave={(e) => {e.currentTarget.style.background="rgba(255,255,255,.1)"; e.currentTarget.style.color="rgba(255,255,255,.6)";}}>
+            ←
+          </button>
           <span style={{ color:"rgba(22,119,255,.7)" }}><Icons.GraduationCap/></span>
           <span style={{ fontSize:"12px", fontWeight:"700", letterSpacing:"0.14em", textTransform:"uppercase", color:"rgba(255,255,255,.35)" }}>Domrov</span>
         </div>
