@@ -24,8 +24,6 @@ const AppRoutes: React.FC = () => {
       <Route path="/docs" element={<Docs />} />
       <Route path="/about" element={<About />} />
       <Route path="/pricing" element={<Pricing />} />
-
-      {/* Auth pages - redirect to dashboard if already logged in */}
       <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
 
       {/* Protected pages - require authentication */}
