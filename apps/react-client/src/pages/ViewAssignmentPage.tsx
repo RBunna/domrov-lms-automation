@@ -1,14 +1,12 @@
 "use client";
 
-import { useParams, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import StudentSubmissionsTable from "@/features/assignment/components/StudentSubmissionsTable";
 import { mockAssignmentDetails, getAssignmentStats } from "@/data/mockAssignmentDetails";
 
 export default function ViewAssignmentPage() {
   const navigate = useNavigate();
-  const params = useParams();
-  const assignmentId = params.id;
 
   // In a real app, you'd fetch data based on assignmentId
   // For now, we use mock data
