@@ -2,9 +2,9 @@
 
 import { useState, useCallback, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import DashboardHeader from "@/features/dashboard/components/DashboardHeader";
+import { ArrowLeft } from "lucide-react";
+import AnimatedPage from "@/components/AnimatedPage";
 import ClassGrid from "@/features/dashboard/components/ClassGrid";
-import ClassesDetail from "@/features/dashboard/components/ClassesDetail";
 import StatusFilters from "@/features/dashboard/components/TermFilters";
 import JoinClassModal from "@/features/dashboard/components/JoinClassModal";
 import DeleteConfirmModal from "@/features/dashboard/components/DeleteConfirmModal";
@@ -12,9 +12,12 @@ import { useDashboardFilters } from "@/hooks";
 import classService from "@/services/classService";
 import type { ClassCard } from "@/types/classCard";
 
-export default function DashboardClient() {
+interface ClassesDetailProps {
+  onBack: () => void;
+}
+
+export default function ClassesDetail({ onBack }: ClassesDetailProps) {
   const navigate = useNavigate();
-  const [isViewingClasses, setIsViewingClasses] = useState(false);
   const [classList, setClassList] = useState<ClassCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -26,7 +29,6 @@ export default function DashboardClient() {
       try {
         setIsLoading(true);
         const classes = await classService.getMyClasses();
-        // Map API response to ClassCard format
         const mappedClasses: ClassCard[] = classes.map((c) => ({
           id: c.id,
           name: c.name,
@@ -72,7 +74,6 @@ export default function DashboardClient() {
       try {
         const result = await classService.joinClassByCode({ joinCode: code });
         alert(`Successfully joined class: ${result.className}`);
-        // Refresh class list
         const classes = await classService.getMyClasses();
         const mappedClasses: ClassCard[] = classes.map((c) => ({
           id: c.id,
@@ -98,7 +99,6 @@ export default function DashboardClient() {
     if (!deleteModalState.classId) return;
     try {
       await classService.deleteClass(parseInt(deleteModalState.classId));
-      // Remove from local state
       setClassList(prev => prev.filter(c => c.id.toString() !== deleteModalState.classId));
       setDeleteModalState({ isOpen: false, classId: null, className: "" });
     } catch (err) {
@@ -112,96 +112,100 @@ export default function DashboardClient() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center flex-1">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mb-4 mx-auto"></div>
-          <p className="text-slate-500">Loading classes...</p>
+      <AnimatedPage>
+        <div className="flex items-center justify-center flex-1">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mb-4 mx-auto"></div>
+            <p className="text-slate-500">Loading classes...</p>
+          </div>
         </div>
-      </div>
+      </AnimatedPage>
     );
   }
 
-  // Show Classes detail view if viewing classes
-  if (isViewingClasses) {
-    return <ClassesDetail onBack={() => setIsViewingClasses(false)} />;
-  }
-
   return (
-    <>
-      <DashboardHeader
-        activeStatus={activeStatus}
-        onChangeStatus={setActiveStatus}
-        onJoinClass={() => setIsJoinModalOpen(true)}
-        onViewAllClasses={() => setIsViewingClasses(true)}
-      />
-
-      <main className="px-6 py-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+    <AnimatedPage>
+      <div>
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-8">
+          <button
+            onClick={onBack}
+            className="flex items-center justify-center transition-colors rounded-lg w-9 h-9 hover:bg-slate-100 text-slate-600 hover:text-slate-900"
+            title="Back to dashboard"
+          >
+            <ArrowLeft className="w-5 h-5" />
+          </button>
           <div>
-            <h2 className="text-lg font-semibold text-slate-900">Classes</h2>
-            <p className="text-sm text-slate-500">
+            <h1 className="text-3xl font-bold text-slate-900">Classes</h1>
+            <p className="mt-2 text-slate-600">
               Browse and manage your cohorts
             </p>
           </div>
-          <StatusFilters activeStatus={activeStatus} onChange={setActiveStatus} />
         </div>
 
-        {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
-            {error}
+        <main className="space-y-6">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <StatusFilters activeStatus={activeStatus} onChange={setActiveStatus} />
+            <button
+              onClick={() => setIsJoinModalOpen(true)}
+              className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700"
+            >
+              + Join Class
+            </button>
           </div>
-        )}
 
-        <div className="grid gap-6 mt-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-          <ClassGrid 
-            items={filteredClasses} 
-            onOpen={(id) => {
-              const classItem = filteredClasses.find(c => c.id.toString() === id);
-              handleOpen(id, classItem?.role);
-            }}
-            activeClassId={activeClassId}
-            onEdit={(id) => {
-              console.log("Edit class:", id);
-              // TODO: Implement edit class functionality
-            }}
-            onViewMembers={(id) => {
-              console.log("View members for class:", id);
-              // TODO: Implement view members functionality
-            }}
-            onLeaveClass={(id) => {
-              console.log("Leave class:", id);
-              // TODO: Implement leave class functionality
-            }}
-            onDeleteClass={(id) => {
-              console.log("Delete class:", id);
-              // TODO: Implement delete class functionality
-            }}
-            onShareClass={(id) => {
-              console.log("Share class:", id);
-              // TODO: Implement share class functionality
-            }}
-          />
-        </div>
+          {error && (
+            <div className="p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+              {error}
+            </div>
+          )}
 
-        {!error && filteredClasses.length === 0 && (
-          <div className="text-center py-12">
-            <p className="text-slate-500">No classes found. Join or create a class to get started.</p>
+          <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+            <ClassGrid 
+              items={filteredClasses} 
+              onOpen={(id) => {
+                const classItem = filteredClasses.find(c => c.id.toString() === id);
+                handleOpen(id, classItem?.role);
+              }}
+              activeClassId={activeClassId}
+              onEdit={(id) => {
+                console.log("Edit class:", id);
+              }}
+              onViewMembers={(id) => {
+                console.log("View members for class:", id);
+              }}
+              onLeaveClass={(id) => {
+                console.log("Leave class:", id);
+              }}
+              onDeleteClass={(id) => {
+                console.log("Delete class:", id);
+              }}
+              onShareClass={(id) => {
+                console.log("Share class:", id);
+              }}
+            />
           </div>
-        )}
-      </main>
 
-      <JoinClassModal
-        isOpen={isJoinModalOpen}
-        onClose={() => setIsJoinModalOpen(false)}
-        onJoin={handleJoinClass}
-      />
+          {!error && filteredClasses.length === 0 && (
+            <div className="text-center py-12">
+              <p className="text-slate-500">No classes found. Join or create a class to get started.</p>
+            </div>
+          )}
+        </main>
 
-      <DeleteConfirmModal
-        isOpen={deleteModalState.isOpen}
-        className={deleteModalState.className}
-        onConfirm={handleDeleteConfirm}
-        onCancel={handleDeleteCancel}
-      />
-    </>
+        <JoinClassModal
+          isOpen={isJoinModalOpen}
+          onClose={() => setIsJoinModalOpen(false)}
+          onJoin={handleJoinClass}
+        />
+
+        <DeleteConfirmModal
+          isOpen={deleteModalState.isOpen}
+          className={deleteModalState.className}
+          onConfirm={handleDeleteConfirm}
+          onCancel={handleDeleteCancel}
+        />
+      </div>
+    </AnimatedPage>
   );
 }

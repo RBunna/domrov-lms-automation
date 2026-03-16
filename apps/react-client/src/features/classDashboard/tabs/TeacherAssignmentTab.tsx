@@ -1,25 +1,13 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { Plus, Edit2, Eye, Trash2, ClipboardList, Users, FileText } from "lucide-react";
+import { Plus, Edit2, Eye, Trash2 } from "lucide-react";
 import { useAssignments } from "@/context/AssignmentContext";
+import AnimatedPage from "@/components/AnimatedPage";
+import ViewAssignmentDetail from "@/features/assignment/components/ViewAssignmentDetail";
+import EditAssignmentDetail from "@/features/assignment/components/EditAssignmentDetail";
+import CreateAssignmentDetail from "@/features/assignment/components/CreateAssignmentDetail";
+import { mockAssignmentDetails } from "@/data/mockAssignmentDetails";
 
-const STATISTICS = [
-  {
-    value: "12",
-    label: "ACTIVE ASSIGNMENTS",
-    icon: ClipboardList,
-  },
-  {
-    value: "85%",
-    label: "SUBMISSION RATE",
-    icon: Users,
-  },
-  {
-    value: "4",
-    label: "DRAFTS TO FINISH",
-    icon: FileText,
-  },
-];
+
 
 const getStatusColor = (status: string) => {
   switch (status) {
@@ -39,18 +27,30 @@ const getStatusLabel = (status: string) => {
 };
 
 export default function TeacherAssignmentTab({ classId }: { classId: string }) {
-  const navigate = useNavigate();
   const { assignments, deleteAssignment } = useAssignments();
   const [activeFilter, setActiveFilter] = useState<"all" | "published" | "drafts">("all");
   const [currentPage, setCurrentPage] = useState(1);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
+  const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const itemsPerPage = 4;
 
   const handleCreateAssignment = () => {
-    navigate(`/class/${classId}/assignment/create`);
+    setIsCreating(true);
+    setSelectedAssignmentId(null);
+    setEditingAssignmentId(null);
   };
 
   const handleEditAssignment = (assignmentId: string) => {
-    navigate(`/class/${classId}/assignment/${assignmentId}/edit`);
+    setEditingAssignmentId(assignmentId);
+    setSelectedAssignmentId(null);
+    setIsCreating(false);
+  };
+
+  const handleViewAssignment = (assignmentId: string) => {
+    setSelectedAssignmentId(assignmentId);
+    setEditingAssignmentId(null);
+    setIsCreating(false);
   };
 
   const handleDeleteAssignment = (assignmentId: string) => {
@@ -71,6 +71,48 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     startIndex,
     startIndex + itemsPerPage
   );
+
+  // Show create mode
+  if (isCreating) {
+    return (
+      <div className="p-8 mx-auto max-w-7xl">
+        <AnimatedPage>
+          <CreateAssignmentDetail
+            classId={classId}
+            onBack={() => setIsCreating(false)}
+          />
+        </AnimatedPage>
+      </div>
+    );
+  }
+
+  // Show edit mode
+  if (editingAssignmentId) {
+    return (
+      <div className="p-8 mx-auto max-w-7xl">
+        <AnimatedPage>
+          <EditAssignmentDetail
+            assignmentId={editingAssignmentId}
+            onBack={() => setEditingAssignmentId(null)}
+          />
+        </AnimatedPage>
+      </div>
+    );
+  }
+
+  // Show assignment detail view when one is selected
+  if (selectedAssignmentId) {
+    return (
+      <div className="p-8 mx-auto max-w-7xl">
+        <AnimatedPage>
+          <ViewAssignmentDetail
+            data={mockAssignmentDetails}
+            onBack={() => setSelectedAssignmentId(null)}
+          />
+        </AnimatedPage>
+      </div>
+    );
+  }
 
   // Show assignments list view
   return (
@@ -183,7 +225,11 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
                       >
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button className="p-2 transition-colors rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900" title="View assignment">
+                      <button 
+                        onClick={() => handleViewAssignment(assignment.id || "")}
+                        className="p-2 transition-colors rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900" 
+                        title="View assignment"
+                      >
                         <Eye className="w-4 h-4" />
                       </button>
                       <button 
@@ -225,26 +271,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
         </div>
       </div>
 
-      {/* Statistics Cards */}
-      <div className="grid grid-cols-3 gap-6">
-        {STATISTICS.map((stat, index) => {
-          const IconComponent = stat.icon;
-          return (
-            <div
-              key={index}
-              className="p-6 text-center bg-white border rounded-lg border-slate-200"
-            >
-              <div className="flex justify-center mb-3">
-                <IconComponent className="w-8 h-8 text-slate-600" />
-              </div>
-              <div className="text-3xl font-bold text-slate-900">{stat.value}</div>
-              <div className="mt-2 text-sm font-medium tracking-wide uppercase text-slate-600">
-                {stat.label}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+
     </div>
   );
 }

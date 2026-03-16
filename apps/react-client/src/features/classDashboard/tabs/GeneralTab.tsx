@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { ClipboardIcon } from "../icons";
+import AssignmentDetailView from "./AssignmentDetailView";
 import assessmentService from "@/services/assessmentService";
 import type { AssessmentListItemDto } from "@/types";
 
@@ -17,6 +17,7 @@ const GeneralTab = ({ classId }: GeneralTabProps) => {
   const [groupedAssignments, setGroupedAssignments] = useState<Record<number, AssessmentListItemDto[]>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedAssignment, setSelectedAssignment] = useState<AssessmentListItemDto | null>(null);
 
   // Fetch all assignments
   useEffect(() => {
@@ -55,59 +56,68 @@ const GeneralTab = ({ classId }: GeneralTabProps) => {
   }, [classIdNum]);
 
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div className="bg-white rounded-lg border border-slate-200 p-6">
-        <div className="flex items-center gap-2 mb-4">
-          <ClipboardIcon className="w-5 h-5 text-slate-700" />
-          <h2 className="text-lg font-semibold text-slate-900">Assignments</h2>
-        </div>
+    <>
+      {selectedAssignment ? (
+        <AssignmentDetailView
+          assignment={selectedAssignment}
+          onBack={() => setSelectedAssignment(null)}
+        />
+      ) : (
+        <div className="p-6 max-w-4xl mx-auto space-y-6">
+          <div className="bg-white rounded-lg border border-slate-200 p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ClipboardIcon className="w-5 h-5 text-slate-700" />
+              <h2 className="text-lg font-semibold text-slate-900">Assignments</h2>
+            </div>
 
-        {loading ? (
-          <div className="text-slate-500">Loading assignments...</div>
-        ) : error ? (
-          <div className="text-red-600">{error}</div>
-        ) : Object.keys(groupedAssignments).length === 0 ? (
-          <div className="text-slate-500">No assignments found.</div>
-        ) : (
-          <div className="space-y-6">
-            {Object.entries(groupedAssignments).map(([session, sessionAssignments]) => (
-              <div key={session}>
-                {/* Session Title */}
-                <h3 className="text-md font-semibold text-slate-800 mb-3">
-                  Session {session}
-                </h3>
+            {loading ? (
+              <div className="text-slate-500">Loading assignments...</div>
+            ) : error ? (
+              <div className="text-red-600">{error}</div>
+            ) : Object.keys(groupedAssignments).length === 0 ? (
+              <div className="text-slate-500">No assignments found.</div>
+            ) : (
+              <div className="space-y-6">
+                {Object.entries(groupedAssignments).map(([session, sessionAssignments]) => (
+                  <div key={session}>
+                    {/* Session Title */}
+                    <h3 className="text-md font-semibold text-slate-800 mb-3">
+                      Session {session}
+                    </h3>
 
-                <div className="space-y-3">
-                  {sessionAssignments.map((assignment) => (
-                    <Link
-                      key={assignment.id || assignment.id}
-                      to={`/assignment/${assignment.id}`}
-                      className="block border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-slate-300 transition-all"
-                    >
-                      <h3 className="font-semibold text-slate-900 mb-2">
-                        {assignment.title}
-                      </h3>
+                    <div className="space-y-3">
+                      {sessionAssignments.map((assignment) => (
+                        <button
+                          key={assignment.id || assignment.id}
+                          onClick={() => setSelectedAssignment(assignment)}
+                          className="w-full text-left border border-slate-200 rounded-xl p-4 hover:shadow-md hover:border-slate-300 transition-all"
+                        >
+                          <h3 className="font-semibold text-slate-900 mb-2">
+                            {assignment.title}
+                          </h3>
 
-                      <p className="text-sm text-slate-600 mb-2">
-                        Due:{" "}
-                        {assignment.dueDate
-                          ? new Date(assignment.dueDate).toLocaleString()
-                          : "-"}
-                      </p>
+                          <p className="text-sm text-slate-600 mb-2">
+                            Due:{" "}
+                            {assignment.dueDate
+                              ? new Date(assignment.dueDate).toLocaleString()
+                              : "-"}
+                          </p>
 
-                      <div className="flex items-center gap-2 text-xs text-slate-500">
-                        <ClipboardIcon className="w-4 h-4" />
-                        <span>Session: {assignment.session}</span>
-                      </div>
-                    </Link>
-                  ))}
-                </div>
+                          <div className="flex items-center gap-2 text-xs text-slate-500">
+                            <ClipboardIcon className="w-4 h-4" />
+                            <span>Session: {assignment.session}</span>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
           </div>
-        )}
-      </div>
-    </div>
+        </div>
+      )}
+    </>
   );
 };
 

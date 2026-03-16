@@ -1,9 +1,10 @@
 import { useState, useEffect } from "react";
-import { Upload, Link2, FileText, Video, Package, X, Eye } from "lucide-react";
+import { Upload, Link2, FileText, Video, Package, X, Eye, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import type { AssignmentData } from "@/context/AssignmentContext";
 import { useAssignments } from "@/context/AssignmentContext";
 import { useToast } from "@/components/Toast";
+import Dialog from "@/components/Dialog";
 
 interface EditAssignmentFormProps {
   classId: string;
@@ -69,6 +70,7 @@ export default function EditAssignmentForm({
   );
 
   // Track if form has changes
+  const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
   useEffect(() => {
     const isChanged = JSON.stringify(formData) !== JSON.stringify(originalData);
     setHasChanges(isChanged);
@@ -136,12 +138,10 @@ export default function EditAssignmentForm({
 
   const handleCancel = () => {
     if (hasChanges) {
-      const confirmed = window.confirm(
-        "You have unsaved changes. Are you sure you want to cancel?"
-      );
-      if (!confirmed) return;
+      setCancelDialogOpen(true);
+    } else {
+      navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
     }
-    navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
   };
 
   const handlePreview = () => {
@@ -486,6 +486,31 @@ export default function EditAssignmentForm({
             </div>
           </div>
         </form>
+
+        {/* Cancel Confirmation Dialog */}
+        <Dialog
+          isOpen={cancelDialogOpen}
+          onClose={() => setCancelDialogOpen(false)}
+          title="Unsaved Changes"
+          description="You have unsaved changes. Are you sure you want to cancel?"
+          icon={<AlertTriangle className="w-6 h-6 text-yellow-600" />}
+          iconBgColor="bg-yellow-100"
+          buttons={[
+            {
+              label: 'Keep Editing',
+              onClick: () => setCancelDialogOpen(false),
+              variant: 'secondary',
+            },
+            {
+              label: 'Discard Changes',
+              onClick: () => {
+                setCancelDialogOpen(false);
+                navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
+              },
+              variant: 'danger',
+            },
+          ]}
+        />
       </div>
     </div>
   );
