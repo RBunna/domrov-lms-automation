@@ -1,8 +1,10 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { Plus, Edit2, Eye, Trash2 } from "lucide-react";
 import { useAssignments } from "@/context/AssignmentContext";
+import AnimatedPage from "@/components/AnimatedPage";
 import ViewAssignmentDetail from "@/features/assignment/components/ViewAssignmentDetail";
+import EditAssignmentDetail from "@/features/assignment/components/EditAssignmentDetail";
+import CreateAssignmentDetail from "@/features/assignment/components/CreateAssignmentDetail";
 import { mockAssignmentDetails } from "@/data/mockAssignmentDetails";
 
 
@@ -25,23 +27,30 @@ const getStatusLabel = (status: string) => {
 };
 
 export default function TeacherAssignmentTab({ classId }: { classId: string }) {
-  const navigate = useNavigate();
   const { assignments, deleteAssignment } = useAssignments();
   const [activeFilter, setActiveFilter] = useState<"all" | "published" | "drafts">("all");
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null);
+  const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null);
+  const [isCreating, setIsCreating] = useState(false);
   const itemsPerPage = 4;
 
   const handleCreateAssignment = () => {
-    navigate(`/class/${classId}/assignment/create`);
+    setIsCreating(true);
+    setSelectedAssignmentId(null);
+    setEditingAssignmentId(null);
   };
 
   const handleEditAssignment = (assignmentId: string) => {
-    navigate(`/class/${classId}/assignment/${assignmentId}/edit`);
+    setEditingAssignmentId(assignmentId);
+    setSelectedAssignmentId(null);
+    setIsCreating(false);
   };
 
   const handleViewAssignment = (assignmentId: string) => {
     setSelectedAssignmentId(assignmentId);
+    setEditingAssignmentId(null);
+    setIsCreating(false);
   };
 
   const handleDeleteAssignment = (assignmentId: string) => {
@@ -63,14 +72,44 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     startIndex + itemsPerPage
   );
 
+  // Show create mode
+  if (isCreating) {
+    return (
+      <div className="p-8 mx-auto max-w-7xl">
+        <AnimatedPage>
+          <CreateAssignmentDetail
+            classId={classId}
+            onBack={() => setIsCreating(false)}
+          />
+        </AnimatedPage>
+      </div>
+    );
+  }
+
+  // Show edit mode
+  if (editingAssignmentId) {
+    return (
+      <div className="p-8 mx-auto max-w-7xl">
+        <AnimatedPage>
+          <EditAssignmentDetail
+            assignmentId={editingAssignmentId}
+            onBack={() => setEditingAssignmentId(null)}
+          />
+        </AnimatedPage>
+      </div>
+    );
+  }
+
   // Show assignment detail view when one is selected
   if (selectedAssignmentId) {
     return (
       <div className="p-8 mx-auto max-w-7xl">
-        <ViewAssignmentDetail
-          data={mockAssignmentDetails}
-          onBack={() => setSelectedAssignmentId(null)}
-        />
+        <AnimatedPage>
+          <ViewAssignmentDetail
+            data={mockAssignmentDetails}
+            onBack={() => setSelectedAssignmentId(null)}
+          />
+        </AnimatedPage>
       </div>
     );
   }
