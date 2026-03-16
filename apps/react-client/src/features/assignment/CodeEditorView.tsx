@@ -154,25 +154,25 @@ export default function CodeEditorView({ files, onClose }: CodeEditorViewProps) 
   };
 
   return (
-    <div className="fixed inset-0 bg-slate-900 z-50 flex flex-col">
+    <div className="fixed inset-0 z-50 flex flex-col bg-slate-900">
       {/* Top Bar */}
-      <div className="bg-slate-800 border-b border-slate-700 px-4 py-3 flex items-center justify-between">
+      <div className="flex items-center justify-between px-4 py-3 border-b bg-slate-800 border-slate-700">
         <div className="flex items-center gap-3">
-          <span className="text-white font-semibold">Code Editor</span>
+          <span className="font-semibold text-white">Code Editor</span>
         </div>
         <button
           onClick={onClose}
-          className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-medium transition-all shadow-lg flex items-center gap-2"
+          className="flex items-center gap-2 px-4 py-2 font-medium text-white transition-all bg-purple-600 rounded-lg shadow-lg hover:bg-purple-700"
         >
           ← Back to Assignment
         </button>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex flex-1 overflow-hidden">
         {/* Sidebar - File Explorer */}
-        <div className="w-72 bg-slate-800 border-r border-slate-700 flex flex-col">
+        <div className="flex flex-col border-r w-72 bg-slate-800 border-slate-700">
           <div className="px-4 py-3 border-b border-slate-700">
-            <h2 className="text-white font-semibold text-sm uppercase tracking-wide flex items-center gap-2">
+            <h2 className="flex items-center gap-2 text-sm font-semibold tracking-wide text-white uppercase">
               <span>📁</span> Files Explorer
             </h2>
           </div>
@@ -184,10 +184,10 @@ export default function CodeEditorView({ files, onClose }: CodeEditorViewProps) 
         </div>
 
         {/* Main Editor Area */}
-        <div className="flex-1 flex flex-col bg-slate-900">
+        <div className="flex flex-col flex-1 bg-slate-900">
           {/* Tabs */}
           {openTabs.length > 0 && (
-            <div className="flex items-center gap-1 bg-slate-800 border-b border-slate-700 px-2 py-1 overflow-x-auto">
+            <div className="flex items-center gap-1 px-2 py-1 overflow-x-auto border-b bg-slate-800 border-slate-700">
               {openTabs.map((tab, idx) => (
                 <div
                   key={idx}
@@ -230,7 +230,7 @@ export default function CodeEditorView({ files, onClose }: CodeEditorViewProps) 
             ) : (
               <div className="flex items-center justify-center h-full text-slate-400">
                 <div className="text-center">
-                  <div className="text-6xl mb-4">📂</div>
+                  <div className="mb-4 text-6xl">📂</div>
                   <p className="text-lg">Select a file to view</p>
                 </div>
               </div>
