@@ -20,6 +20,7 @@ import {
   ApiBody,
   ApiCreatedResponse,
   ApiNotFoundResponse,
+  ApiResponse,
 } from '@nestjs/swagger';
 import { CreateUserAIKeyDto } from '../../libs/dtos/user/create-user-ai-key.dto';
 import { UpdateUserAIKeyDto } from '../../libs/dtos/user/update-user-ai-key.dto';
@@ -30,6 +31,7 @@ import { UserId } from '../../common/decorators/user.decorator';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { UserAiService } from './user-ai.service';
 import { AIUsageLogService } from './ai-usage-log.service';
+import { AIProviderDto } from '../../libs/dtos/user-ai/ai-provider.dto';
 
 @ApiTags('User AI Keys & Usage Logs')
 @ApiBearerAuth('JWT-auth')
@@ -42,6 +44,25 @@ export class UserAiController {
   ) { }
 
   // --------------------- AI Key CRUD ---------------------
+
+  @Get('providers')
+  @ApiOperation({ summary: 'Get list of AI providers with descriptions' })
+  @ApiResponse({ status: 200, description: 'List of AI providers' })
+  getAll() {
+    const data:AIProviderDto[] = [
+      { provider: 'openai', description: 'OpenAI GPT models' },
+      { provider: 'gemini', description: 'Google Gemini AI models' },
+      { provider: 'ollama', description: 'Ollama AI models' },
+      { provider: 'openrouter', description: 'OpenRouter API models' },
+      { provider: 'grok', description: 'Grok AI models' },
+      { provider: 'custom', description: 'Custom AI provider' },
+    ];
+    return {
+      success: true,
+      data,
+    };
+  }
+
   @Post()
   @ApiOperation({ summary: 'Create a new AI key for the authenticated user' })
   @ApiBody({ type: CreateUserAIKeyDto, description: 'AI key creation payload' })

@@ -25,6 +25,10 @@ export class UserAiService {
       if (!dto || typeof dto !== 'object' || !dto.apiKey)
         throw new NotFoundException('API key data is required');
 
+      if(dto.provider === 'custom' && (!dto.apiEndpoint || dto.apiEndpoint.trim() === '')) {
+        throw new NotFoundException('Custom provider requires an API endpoint');
+      }
+
       const { apiKey, ...rest } = dto;
 
       await this.aiConnectionTestService.test({
