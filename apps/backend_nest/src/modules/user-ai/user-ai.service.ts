@@ -5,11 +5,14 @@ import { CreateUserAIKeyDto } from '../../libs/dtos/user/create-user-ai-key.dto'
 import { UpdateUserAIKeyDto } from '../../libs/dtos/user/update-user-ai-key.dto';
 import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
 import { Encryption } from '../../libs/utils/Encryption';
+import { AIConnectionTestService } from '../../services/ai-connection-test.service';
 @Injectable()
 export class UserAiService {
   constructor(
     @InjectRepository(UserAIKey)
     private readonly userAIRepo: Repository<UserAIKey>,
+
+    private readonly aiConnectionTestService: AIConnectionTestService,
   ) {}
 
   // Create / store a new key
@@ -21,18 +24,29 @@ export class UserAiService {
       if (!userId) throw new NotFoundException('User ID is required');
       if (!dto || typeof dto !== 'object' || !dto.apiKey)
         throw new NotFoundException('API key data is required');
+
       const { apiKey, ...rest } = dto;
+
+      await this.aiConnectionTestService.test({
+        provider: dto.provider,
+        apiKey:dto.apiKey,
+        model: dto.model,
+      });
+
       const encryptedKey = Encryption.encryptKey(apiKey);
       const key = this.userAIRepo.create({
         userId,
         encryptedKey,
         ...rest,
         isActive: true,
-        isValid: false,
+        isValid: true,
       });
       return await this.userAIRepo.save(key);
     } catch (err) {
-      throw new NotFoundException('Failed to create user AI key');
+      if(err instanceof NotFoundException) {
+        throw err; // rethrow known exceptions
+      }
+      throw err; // bad request or other unexpected errors will be handled by the global exception filter
     }
   }
 
@@ -82,6 +96,13 @@ export class UserAiService {
       if (dto.label) key.label = dto.label;
       if (dto.isActive !== undefined) key.isActive = dto.isActive;
       if (dto.isValid !== undefined) key.isValid = dto.isValid;
+      if (dto.provider) key.provider = dto.provider;
+
+      await this.aiConnectionTestService.test({
+        provider: dto.provider,
+        apiKey: dto.apiKey,
+        model: key.model,
+      });
       return await this.userAIRepo.save(key);
     } catch (err) {
       throw new NotFoundException('Failed to update user AI key');

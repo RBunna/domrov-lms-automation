@@ -6,6 +6,7 @@ import { UserAIKey } from '../../libs/entities/ai/user-ai-key.entity';
 import { AIUsageLogService } from './ai-usage-log.service';
 import { AIUsageLog } from '../../libs/entities/ai/ai-usage-log.entity';
 import { User } from '../../libs/entities/user/user.entity';
+import { AIConnectionTestService } from '../../services/ai-connection-test.service';
 
 @Module({
   imports: [
@@ -16,7 +17,7 @@ import { User } from '../../libs/entities/user/user.entity';
     ]),
   ],
   controllers: [UserAiController],
-  providers: [UserAiService, AIUsageLogService],
+  providers: [UserAiService, AIUsageLogService,AIConnectionTestService],
   exports: [AIUsageLogService],
 })
 export class UserAiModule { }

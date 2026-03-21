@@ -31,7 +31,7 @@ export class UserAIKey extends BaseEntity {
     encryptedKey: string;
 
     // Encrypted API key (AES-256)
-    @Column({ type: 'text' })
+    @Column({ type: 'text' ,nullable: true})
     apiEndpoint: string;
 
     // Whether the key is active

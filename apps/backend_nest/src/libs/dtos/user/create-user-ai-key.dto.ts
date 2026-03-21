@@ -1,10 +1,16 @@
-import { IsString, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsIn } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import * as aiConnectionTestService from '../../../services/ai-connection-test.service';
 
 export class CreateUserAIKeyDto {
-    @ApiProperty({ description: 'AI provider name', example: 'openai' })
-    @IsString()
-    provider: string;
+    @ApiProperty({
+        description: 'AI provider name',
+        example: 'openai',
+        enum: aiConnectionTestService.AI_PROVIDERS, // swagger dropdown
+    })
+    @IsIn(aiConnectionTestService.AI_PROVIDERS) // runtime validation
+    provider: aiConnectionTestService.AIProvider;
+
 
     @ApiPropertyOptional({ description: 'Optional model preference', example: 'gpt-4' })
     @IsOptional()
