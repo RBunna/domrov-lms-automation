@@ -1,3 +1,4 @@
+
 import axiosInstance from '@/lib/axiosInstance';
 import type { ApiResponse } from '@/types/api';
 import type {
@@ -92,6 +93,12 @@ export async function getAssessmentTracking(assessmentId: number): Promise<ApiRe
 export async function getAssessmentStats(classId: number, assessmentId: number): Promise<AssessmentStatsResponseDto> {
   const response = await axiosInstance.get<AssessmentStatsResponseDto>(`/assessments/${classId}/stats/${assessmentId}`);
   return response.data;
+}
+// Fetch assignments for a class from backend API
+export async function fetchAssignmentsByClass(classId: string) {
+  const res = await fetch(`https://api.domrov.app/assessments/class/${classId}`);
+  if (!res.ok) throw new Error("Failed to fetch assignments");
+  return res.json();
 }
 
 const assessmentService = {

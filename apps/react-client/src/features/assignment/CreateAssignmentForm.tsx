@@ -1,74 +1,98 @@
-import { useState, useEffect } from "react";
-import { Upload, Link2, FileText, Video, Package, X, Eye } from "lucide-react";
+"use client";
+
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import type { AssignmentData } from "@/context/AssignmentContext";
-import { useAssignments } from "@/context/AssignmentContext";
 import { useToast } from "@/components/Toast";
+import assessmentService from "@/services/assessmentService";
+import axiosInstance from "@/lib/axiosInstance";
+
+interface CreateAssignmentData {
+  title: string;
+  session: string;
+  submissionType: "individual" | "group";
+  instructions: string;
+  startDate: string;
+  dueDate: string;
+  maxScore: number;
+  allowedSubmissionMethod: string;
+  allowLateSubmissions: boolean;
+  aiEvaluationEnabled: boolean;
+  learningResources: File[];
+}
+
+const DEFAULT_FORM: CreateAssignmentData = {
+  title: "",
+  session: "1",
+  submissionType: "individual",
+  instructions: "",
+  startDate: "",
+  dueDate: "",
+  maxScore: 100,
+  allowedSubmissionMethod: "GITHUB",
+  allowLateSubmissions: false,
+  aiEvaluationEnabled: false,
+  learningResources: [],
+};
+
+function mapToFormData(data: CreateAssignmentData): FormData {
+  const form = new FormData();
+  form.append("title", data.title);
+  form.append("instruction", data.instructions);
+  if (data.startDate) form.append("startDate", new Date(data.startDate).toISOString());
+  if (data.dueDate) form.append("dueDate", new Date(data.dueDate).toISOString());
+  form.append("maxScore", String(data.maxScore));
+  form.append("session", String(Number(data.session)));
+  form.append("allowLate", String(data.allowLateSubmissions));
+  form.append("submissionType", data.submissionType.toUpperCase());
+  form.append("aiEvaluationEnable", String(data.aiEvaluationEnabled));
+  form.append("allowedSubmissionMethod", data.allowedSubmissionMethod);
+  data.learningResources.forEach((file) => {
+    form.append("files", file);
+  });
+  return form;
+}
 
 export default function CreateAssignmentForm({ classId }: { classId: string }) {
   const navigate = useNavigate();
-  const { createAssignment } = useAssignments();
   const { showToast } = useToast();
   const draftKey = `draft_assignment_${classId}`;
 
-  const [formData, setFormData] = useState<AssignmentData>({
-    title: "",
-    session: new Date().getFullYear().toString(),
-    submissionType: "individual",
-    instructions: "",
-    startDate: "",
-    startTime: "",
-    dueDate: "",
-    dueTime: "",
-    maxScore: 100,
-    allowedSubmissionMethod: "both",
-    allowLateSubmissions: false,
-    aiEvaluationEnabled: false,
-    learningResources: [],
-    status: "draft",
-    submissionRate: 0,
-  });
+  const [formData, setFormData] = useState<CreateAssignmentData>(DEFAULT_FORM);
+  const [uploadedFiles, setUploadedFiles] = useState<{ name: string; type: string }[]>([]);
+  const [loading, setLoading] = useState<null | "draft" | "publish">(null);
 
-  const [uploadedFiles, setUploadedFiles] = useState<
-    Array<{ name: string; type: string }>
-  >([]);
-
-  // Load saved draft on component mount
+  // Load saved draft on mount
   useEffect(() => {
-    const savedDraft = localStorage.getItem(draftKey);
-    if (savedDraft) {
+    const saved = localStorage.getItem(draftKey);
+    if (saved) {
       try {
-        const parsed = JSON.parse(savedDraft);
-        setFormData(parsed);
-      } catch (error) {
-        console.error("Failed to load draft:", error);
+        const parsed = JSON.parse(saved);
+        // learningResources can't survive JSON round-trip as File objects
+        setFormData({ ...parsed, learningResources: [] });
+      } catch {
+        // ignore corrupt draft
       }
     }
   }, [draftKey]);
 
-  // Auto-save to localStorage whenever formData changes
+  // Auto-save on every change (exclude File objects)
   useEffect(() => {
-    localStorage.setItem(draftKey, JSON.stringify(formData));
+    const { learningResources: _, ...rest } = formData;
+    localStorage.setItem(draftKey, JSON.stringify(rest));
   }, [formData, draftKey]);
 
-  const handleInputChange = (
-    e: React.ChangeEvent<
-      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-    >
+  // ─── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>
   ) => {
     const { name, value, type } = e.currentTarget;
-
-    if (type === "checkbox") {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: (e.currentTarget as HTMLInputElement).checked,
-      }));
-    } else {
-      setFormData((prev) => ({
-        ...prev,
-        [name]: value,
-      }));
-    }
+    setFormData((prev) => ({
+      ...prev,
+      [name]: type === "checkbox"
+        ? (e.currentTarget as HTMLInputElement).checked
+        : value,
+    }));
   };
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,14 +101,10 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
       ...prev,
       learningResources: [...prev.learningResources, ...files],
     }));
-
-    // Add to display list
-    files.forEach((file) => {
-      setUploadedFiles((prev) => [
-        ...prev,
-        { name: file.name, type: file.type },
-      ]);
-    });
+    setUploadedFiles((prev) => [
+      ...prev,
+      ...files.map((f) => ({ name: f.name, type: f.type })),
+    ]);
   };
 
   const handleRemoveFile = (index: number) => {
@@ -95,381 +115,327 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
     setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    const newAssignmentId = createAssignment(formData);
-    showToast(`✅ Assignment created successfully! ID: ${newAssignmentId}`, "success", 3000);
-    // Clear draft and navigate back to assignment tab
+  const handleReset = () => {
+    setFormData(DEFAULT_FORM);
+    setUploadedFiles([]);
     localStorage.removeItem(draftKey);
-    setTimeout(() => {
-      navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
-    }, 500);
   };
 
-  const handlePreview = () => {
-    // TODO: Show preview modal
-    console.log("Preview:", formData);
+  // ─── Save as Draft (calls API) ─────────────────────────────────────────────
+
+  const handleSaveDraft = async () => {
+    if (!formData.title.trim()) {
+      showToast("Please enter a title before saving.", "error", 3000);
+      return;
+    }
+    setLoading("draft");
+    try {
+      console.log("[Draft] Creating draft for classId:", classId, "session:", formData.session);
+      // 1. Create draft
+      const draftRes = await assessmentService.createAssessmentDraft(
+        Number(classId),
+        Number(formData.session)
+      );
+      const draftId = draftRes.data.assessmentId;
+      console.log("[Draft] Draft created, id:", draftId);
+
+      // 2. Update with form data (stays as draft — no publish call)
+      const form = mapToFormData(formData);
+      const patchRes = await axiosInstance.patch(`/assessments/${draftId}`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log("[Draft] Patch response:", patchRes);
+
+      showToast("✅ Draft saved!", "success", 3000);
+      localStorage.removeItem(draftKey);
+      setTimeout(() => {
+        // Optionally, navigate to draft list or refresh
+        window.location.reload();
+      }, 500);
+    } catch (err) {
+      console.error("Save draft error:", err);
+      showToast("❌ Failed to save draft.", "error", 3000);
+    }
+    setLoading(null);
   };
+
+  // ─── Publish (calls API) ───────────────────────────────────────────────────
+
+  const handlePublish = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.dueDate) {
+      showToast("Please set a due date before publishing.", "error", 3000);
+      return;
+    }
+    setLoading("publish");
+    try {
+      console.log("[Publish] Creating draft for classId:", classId, "session:", formData.session);
+      // 1. Create draft
+      const draftRes = await assessmentService.createAssessmentDraft(
+        Number(classId),
+        Number(formData.session)
+      );
+      const draftId = draftRes.data.assessmentId;
+      console.log("[Publish] Draft created, id:", draftId);
+
+      // 2. Update with form data
+      const form = mapToFormData(formData);
+      const patchRes = await axiosInstance.patch(`/assessments/${draftId}`, form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      console.log("[Publish] Patch response:", patchRes);
+
+      // 3. Publish
+      const publishRes = await assessmentService.publishAssessment(draftId);
+      console.log("[Publish] Publish response:", publishRes);
+
+      showToast("✅ Assignment published!", "success", 3000);
+      localStorage.removeItem(draftKey);
+
+      // Navigate back to assignments tab
+      setTimeout(() => {
+        navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
+      }, 500);
+    } catch (err) {
+      console.error("Publish error:", err);
+      showToast("❌ Failed to publish assignment.", "error", 3000);
+    }
+    setLoading(null);
+  };
+
+  // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
-    <div className="min-h-screen bg-slate-50">
-      <div className="mx-auto max-w-7xl p-8">
-        <form onSubmit={handleSubmit} className="space-y-6">
-          {/* Page Header */}
-          <div className="mb-8">
-            <h1 className="text-3xl font-bold text-slate-900">Create Assignment</h1>
-            <p className="mt-2 text-slate-600">
-              Set up a new assignment with instructions, resources, and grading rules.
-            </p>
+    <div className="p-4 bg-slate-50 min-h-screen">
+      <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-sm p-5">
+        <form onSubmit={handlePublish} className="space-y-4">
+
+          {/* Header */}
+          <div>
+            <h1 className="text-xl font-bold text-slate-900">Create Assignment</h1>
+            <p className="text-xs text-slate-500 mt-0.5">For class ID: {classId}</p>
           </div>
 
-          {/* Top Grid: General Info | Scheduling | Grading & Rules */}
-          <div className="grid grid-cols-3 gap-6">
-            {/* General Information Section */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
-              <div className="flex items-center justify-between mb-6">
-                <h2 className="text-sm font-bold tracking-wider uppercase text-slate-900">
-                  General Information
-                </h2>
-                <span className="px-3 py-1 text-xs font-semibold text-blue-600 bg-blue-50 rounded-full">
-                  REQUIRED
-                </span>
-              </div>
+          {/* General Information */}
+          <section className="space-y-2">
+            <h2 className="text-sm font-semibold text-slate-900">General Information</h2>
 
-              <div className="space-y-5">
-                {/* Assignment Title */}
-                <div>
-                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
-                    Assignment Title <span className="text-red-500">*</span>
-                  </label>
-                  <input
-                    type="text"
-                    name="title"
-                    value={formData.title}
-                    onChange={handleInputChange}
-                    placeholder="Advanced Database Systems Project"
-                    className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    required
-                  />
-                </div>
-
-                {/* Session and Type */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
-                      Session <span className="text-red-500">*</span>
-                    </label>
-                    <input
-                      type="text"
-                      name="session"
-                      value={formData.session}
-                      onChange={handleInputChange}
-                      placeholder="2024"
-                      className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
-                      Type
-                    </label>
-                    <select
-                      name="submissionType"
-                      value={formData.submissionType}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg appearance-none cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    >
-                      <option value="individual">Individual</option>
-                      <option value="group">Group</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Scheduling Section */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
-              <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">
-                Scheduling
-              </h2>
-
-              <div className="space-y-5">
-                {/* Start Date */}
-                <div>
-                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
-                    Start Date
-                  </label>
-                  <input
-                    type="datetime-local"
-                    placeholder="mm/dd/yyyy, --:-- --"
-                    className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    value={formData.startDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, startDate: e.target.value })
-                    }
-                  />
-                </div>
-
-                {/* Due Date */}
-                <div>
-                  <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
-                    Due Date
-                  </label>
-                  <input
-                    type="datetime-local"
-                    placeholder="mm/dd/yyyy, --:-- --"
-                    className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    value={formData.dueDate}
-                    onChange={(e) =>
-                      setFormData({ ...formData, dueDate: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Grading & Rules Section */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
-              <h2 className="mb-6 text-sm font-bold tracking-wider uppercase text-slate-900">
-                Grading & Rules
-              </h2>
-
-              <div className="space-y-5">
-                {/* Max Score and Method */}
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
-                      Max Score
-                    </label>
-                    <input
-                      type="number"
-                      name="maxScore"
-                      value={formData.maxScore}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg placeholder-slate-400 hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    />
-                  </div>
-                  <div>
-                    <label className="block mb-2 text-xs font-semibold tracking-wide uppercase text-slate-700">
-                      Method
-                    </label>
-                    <select
-                      name="allowedSubmissionMethod"
-                      value={formData.allowedSubmissionMethod}
-                      onChange={handleInputChange}
-                      className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg appearance-none cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                    >
-                      <option value="both">Both</option>
-                      <option value="file">File Only</option>
-                      <option value="text">Text Only</option>
-                    </select>
-                  </div>
-                </div>
-
-                {/* Late Submissions Toggle */}
-                <div className="flex items-center justify-between pt-2">
-                  <p className="text-sm font-medium text-slate-900">
-                    Late Submissions
-                  </p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="allowLateSubmissions"
-                      checked={formData.allowLateSubmissions}
-                      onChange={handleInputChange}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-
-                {/* AI Evaluation Toggle */}
-                <div className="flex items-center justify-between pt-2">
-                  <p className="text-sm font-medium text-slate-900">
-                    AI Evaluation
-                  </p>
-                  <label className="relative inline-flex items-center cursor-pointer">
-                    <input
-                      type="checkbox"
-                      name="aiEvaluationEnabled"
-                      checked={formData.aiEvaluationEnabled}
-                      onChange={handleInputChange}
-                      className="sr-only peer"
-                    />
-                    <div className="w-11 h-6 bg-slate-300 peer-focus:outline-none peer-focus:ring-2 peer-focus:ring-blue-500 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                  </label>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Bottom Grid: Instructions | Resources */}
-          <div className="grid grid-cols-2 gap-6">
-            {/* Instructions Section */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
-              <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
-                Instructions <span className="text-red-500">*</span>
-              </h2>
-              <div className="overflow-hidden border border-slate-200 rounded-lg">
-                <div className="flex items-center gap-2 p-3 border-b border-slate-200 bg-slate-50">
-                  <button
-                    type="button"
-                    className="p-1 text-sm font-bold text-slate-700 rounded hover:bg-slate-200 transition-colors"
-                    title="Bold"
-                  >
-                    B
-                  </button>
-                  <button
-                    type="button"
-                    className="p-1 text-sm italic text-slate-700 rounded hover:bg-slate-200 transition-colors"
-                    title="Italic"
-                  >
-                    I
-                  </button>
-                  <button
-                    type="button"
-                    className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"
-                    title="List"
-                  >
-                    ≡
-                  </button>
-                  <button
-                    type="button"
-                    className="p-1 text-slate-700 rounded hover:bg-slate-200 transition-colors"
-                    title="Link"
-                  >
-                    <Link2 className="w-4 h-4" />
-                  </button>
-                </div>
-                <textarea
-                  name="instructions"
-                  value={formData.instructions}
-                  onChange={handleInputChange}
-                  placeholder="Outline expectations and deliverables..."
-                  className="w-full h-40 px-4 py-3 text-sm bg-white text-slate-900 resize-none placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  required
-                />
-              </div>
-            </div>
-
-            {/* Resources Section */}
-            <div className="bg-white border border-slate-200 rounded-lg p-6">
-              <h2 className="mb-4 text-sm font-bold tracking-wider uppercase text-slate-900">
-                Resources
-              </h2>
-
-              <label
-                htmlFor="file-upload"
-                className="flex flex-col items-center justify-center p-8 mb-4 text-center border-2 border-dashed border-slate-300 rounded-lg cursor-pointer transition-all hover:border-blue-400 hover:bg-blue-50 group"
-              >
-                <div className="mb-3">
-                  <Upload className="w-10 h-10 mx-auto text-slate-400 transition-colors group-hover:text-blue-500" />
-                </div>
-                <p className="text-sm font-medium text-slate-700 transition-colors group-hover:text-blue-700">
-                  Drop files to upload
-                </p>
-                <input
-                  type="file"
-                  multiple
-                  onChange={handleFileUpload}
-                  className="hidden"
-                  id="file-upload"
-                  accept=".pdf,.docx,.zip,.mp4"
-                />
+            <div>
+              <label className="block mb-1 text-xs font-medium text-slate-700">
+                Assignment Title <span className="text-red-500">*</span>
               </label>
-
-              {/* Uploaded Files Display */}
-              {uploadedFiles.length > 0 && (
-                <div className="space-y-2">
-                  {uploadedFiles.map((file, index) => (
-                    <div
-                      key={index}
-                      className="flex items-center justify-between p-3 border border-slate-200 rounded-lg bg-slate-50 hover:bg-slate-100 transition-colors"
-                    >
-                      <div className="flex items-center flex-1 min-w-0 gap-3">
-                        <div className="flex-shrink-0">
-                          {file.type.includes("pdf") ? (
-                            <FileText className="w-5 h-5 text-red-500" />
-                          ) : file.type.includes("video") ? (
-                            <Video className="w-5 h-5 text-blue-500" />
-                          ) : (
-                            <Package className="w-5 h-5 text-slate-500" />
-                          )}
-                        </div>
-                        <span className="text-sm font-medium truncate text-slate-900">
-                          {file.name}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => handleRemoveFile(index)}
-                        className="flex-shrink-0 p-1 ml-2 text-slate-400 transition-colors hover:text-red-600"
-                        title="Remove file"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
+              <input
+                type="text"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="e.g. WB-CHALLENGE-Weather"
+                className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                required
+              />
             </div>
-          </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block mb-1 text-xs font-medium text-slate-700">
+                  Session # <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="number"
+                  name="session"
+                  value={formData.session}
+                  onChange={handleChange}
+                  placeholder="1"
+                  min="1"
+                  className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                />
+                <p className="mt-0.5 text-xs text-slate-400">Enter a session number (e.g. 1, 2, 3)</p>
+              </div>
+              <div>
+                <label className="block mb-1 text-xs font-medium text-slate-700">
+                  Submission Type
+                </label>
+                <select
+                  name="submissionType"
+                  value={formData.submissionType}
+                  onChange={handleChange}
+                  className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors appearance-none"
+                >
+                  <option value="individual">Individual</option>
+                  <option value="group">Group</option>
+                </select>
+              </div>
+            </div>
+
+            <div>
+              <label className="block mb-1 text-xs font-medium text-slate-700">
+                Instructions <span className="text-red-500">*</span>
+              </label>
+              <textarea
+                name="instructions"
+                value={formData.instructions}
+                onChange={handleChange}
+                placeholder="Outline expectations and deliverables..."
+                className="w-full h-20 px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+                required
+              />
+            </div>
+          </section>
+
+          {/* Scheduling & Grading */}
+          <section className="pt-3 border-t border-slate-200 space-y-2">
+            <h2 className="text-sm font-semibold text-slate-900">Scheduling & Grading</h2>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block mb-1 text-xs font-medium text-slate-700">Start Date</label>
+                <input
+                  type="datetime-local"
+                  value={formData.startDate}
+                  onChange={(e) => setFormData({ ...formData, startDate: e.target.value })}
+                  className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-xs font-medium text-slate-700">
+                  Due Date <span className="text-red-500">*</span>
+                </label>
+                <input
+                  type="datetime-local"
+                  value={formData.dueDate}
+                  onChange={(e) => setFormData({ ...formData, dueDate: e.target.value })}
+                  className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="block mb-1 text-xs font-medium text-slate-700">Max Score</label>
+                <input
+                  type="number"
+                  name="maxScore"
+                  value={formData.maxScore}
+                  onChange={handleChange}
+                  className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
+                />
+              </div>
+              <div>
+                <label className="block mb-1 text-xs font-medium text-slate-700">Submission Method</label>
+                <select
+                  name="allowedSubmissionMethod"
+                  value={formData.allowedSubmissionMethod}
+                  onChange={handleChange}
+                  className="w-full px-3 py-1.5 text-sm border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors appearance-none"
+                >
+                  <option value="GITHUB">GitHub</option>
+                  <option value="UPLOAD">File Upload</option>
+                  <option value="LINK">Link</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-1.5 pt-1">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-medium text-slate-900">Late Submissions</p>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    name="allowLateSubmissions"
+                    checked={formData.allowLateSubmissions}
+                    onChange={handleChange}
+                    className="sr-only peer"
+                  />
+                  <div className="w-8 h-5 bg-slate-300 rounded-full peer peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
+                </label>
+              </div>
+              <div className="flex items-center justify-between p-2 border border-purple-200 rounded bg-purple-50">
+                <div>
+                  <p className="text-xs font-medium text-slate-900">AI Evaluation</p>
+                  <p className="text-xs text-slate-500">Auto-analyze submissions</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    name="aiEvaluationEnabled"
+                    checked={formData.aiEvaluationEnabled}
+                    onChange={handleChange}
+                    className="sr-only peer"
+                  />
+                  <div className="w-8 h-5 bg-slate-300 rounded-full peer peer-checked:bg-blue-600 peer-checked:after:translate-x-full after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
+                </label>
+              </div>
+            </div>
+          </section>
+
+          {/* Learning Resources */}
+          <section className="pt-3 border-t border-slate-200">
+            <h2 className="mb-2 text-sm font-semibold text-slate-900">Learning Resources</h2>
+            <label
+              htmlFor="file-upload"
+              className="flex flex-col items-center p-3 text-center border-2 border-dashed border-slate-300 rounded-lg cursor-pointer hover:border-blue-400 hover:bg-blue-50 group transition-colors"
+            >
+              <p className="text-xs font-medium text-slate-900 group-hover:text-blue-700">Click to upload files</p>
+              <p className="text-xs text-slate-500 mt-0.5">PDF, DOCX, ZIP or MP4</p>
+              <input
+                type="file"
+                multiple
+                onChange={handleFileUpload}
+                className="hidden"
+                id="file-upload"
+                accept=".pdf,.docx,.zip,.mp4"
+              />
+            </label>
+            {uploadedFiles.length > 0 && (
+              <div className="mt-2 space-y-1">
+                {uploadedFiles.map((file, index) => (
+                  <div key={index} className="flex items-center justify-between p-2 border border-slate-200 rounded-lg bg-slate-50">
+                    <span className="text-xs font-medium truncate text-slate-900">{file.name}</span>
+                    <button
+                      type="button"
+                      onClick={() => handleRemoveFile(index)}
+                      className="text-xs text-red-500 hover:text-red-700 ml-2 shrink-0"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
 
           {/* Action Buttons */}
-          <div className="flex items-center justify-between pt-6 border-t border-slate-200">
+          <div className="flex items-center justify-between gap-2 pt-3 border-t border-slate-200">
             <button
               type="button"
-              onClick={handlePreview}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:text-slate-900"
+              onClick={handleReset}
+              disabled={!!loading}
+              className="px-3 py-1.5 text-xs text-slate-600 hover:text-slate-900 font-medium disabled:opacity-50"
             >
-              <Eye className="w-4 h-4" />
-              Preview
+              Reset
             </button>
-
-            <div className="flex gap-3">
+            <div className="flex gap-2">
+              {/* Save as Draft — calls API, stays unpublished */}
               <button
                 type="button"
-                onClick={() => {
-                  setFormData({
-                    title: "",
-                    session: new Date().getFullYear().toString(),
-                    submissionType: "individual",
-                    instructions: "",
-                    startDate: "",
-                    startTime: "",
-                    dueDate: "",
-                    dueTime: "",
-                    maxScore: 100,
-                    allowedSubmissionMethod: "both",
-                    allowLateSubmissions: false,
-                    aiEvaluationEnabled: false,
-                    learningResources: [],
-                  });
-                  setUploadedFiles([]);
-                }}
-                className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50"
+                onClick={handleSaveDraft}
+                disabled={!!loading}
+                className="px-3 py-1.5 text-xs border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 font-medium disabled:opacity-50"
               >
-                Reset
+                {loading === "draft" ? "Saving..." : "Save as Draft"}
               </button>
 
-              <button
-                type="button"
-                onClick={() => {
-                  localStorage.setItem(`draft_assignment_${classId}`, JSON.stringify(formData));
-                  alert("Assignment saved to draft!");
-                }}
-                className="px-4 py-2 text-sm font-medium text-slate-700 border border-slate-300 rounded-lg transition-colors hover:bg-slate-50"
-              >
-                Save to Draft
-              </button>
-
+              {/* Publish — calls API, then publishes */}
               <button
                 type="submit"
-                className="px-6 py-2 text-sm font-medium text-white bg-blue-600 rounded-lg transition-colors hover:bg-blue-700"
+                disabled={!!loading}
+                className="px-4 py-1.5 text-xs bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium disabled:opacity-50"
               >
-                Publish & Notify
+                {loading === "publish" ? "Publishing..." : "Publish & Notify"}
               </button>
             </div>
           </div>
+
         </form>
       </div>
     </div>
