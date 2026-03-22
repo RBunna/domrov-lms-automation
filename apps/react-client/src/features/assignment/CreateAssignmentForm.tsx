@@ -203,7 +203,7 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
     setLoading(null);
   };
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+ 
 
   return (
     <div className="p-4 bg-slate-50 min-h-screen">
