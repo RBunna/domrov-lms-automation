@@ -59,7 +59,7 @@ const GeneralTab = ({ classId }: GeneralTabProps) => {
     <>
       {selectedAssignment ? (
         <AssignmentDetailView
-          assignment={selectedAssignment}
+          assessmentId={selectedAssignment.id}
           onBack={() => setSelectedAssignment(null)}
         />
       ) : (
