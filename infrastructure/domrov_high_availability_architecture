@@ -1,0 +1,43 @@
+digraph "Domrov High Availability Architecture" {
+	graph [fontcolor="#2D3436" fontname="Sans-Serif" fontsize=15 label="Domrov High Availability Architecture" nodesep=0.60 pad=2.0 rankdir=LR ranksep=0.75 splines=ortho]
+	node [fixedsize=true fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13 height=1.4 imagescale=true labelloc=b shape=box style=rounded width=1.4]
+	edge [color="#7B8894"]
+	fd0baf9e6c304983b6791bc81f3b104d [label=Users height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/general\users.png" shape=none]
+	"6ed5da6a22f64efdaeb822acd1d1ea3b" [label="Route 53" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/network\route-53.png" shape=none]
+	subgraph "cluster_VPC (10.0.0.0/16)" {
+		graph [bgcolor="#E5F5FD" fontname="Sans-Serif" fontsize=12 label="VPC (10.0.0.0/16)" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+		subgraph "cluster_Public Subnet" {
+			graph [bgcolor="#EBF3E7" fontname="Sans-Serif" fontsize=12 label="Public Subnet" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+			bbabba52f1a94c09b2a493eea7279c71 [label="Application Load Balancer" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/network\elastic-load-balancing.png" shape=none]
+			"360141c78fb44272afa3b61cb4e00b18" [label="CloudFront (Frontend)" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/network\cloudfront.png" shape=none]
+			"0c77039fbd954b04bfa10d181cfe77e6" [label="S3 (Static Assets)" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/storage\simple-storage-service-s3.png" shape=none]
+		}
+		subgraph "cluster_Private Subnet - App Tier" {
+			graph [bgcolor="#EBF3E7" fontname="Sans-Serif" fontsize=12 label="Private Subnet - App Tier" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+			subgraph "cluster_NestJS ASG" {
+				graph [bgcolor="#ECE8F6" fontname="Sans-Serif" fontsize=12 label="NestJS ASG" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+				"354b6c8e318a4823a5373aa9eb69afd9" [label="NestJS API 1" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/compute\ec2.png" shape=none]
+				dd23bb8a2834482199f2ee68a346f821 [label="NestJS API 2" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/compute\ec2.png" shape=none]
+				"51d3e5c9504d4f50b70ab3b714193721" [label="Scale Policy" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/compute\application-auto-scaling.png" shape=none]
+			}
+			subgraph "cluster_Python Orchestrator ASG" {
+				graph [bgcolor="#ECE8F6" fontname="Sans-Serif" fontsize=12 label="Python Orchestrator ASG" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+				"96f3c61cfde741ccb8497b057ee6a77a" [label="Python Worker 1" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/compute\ec2.png" shape=none]
+				"43db8a86d0dd4f54a4738a7a3220f8ee" [label="Python Worker 2" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/compute\ec2.png" shape=none]
+				"09e83e0524864ad88e4e9cb60e7707af" [label="Scale Policy" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/compute\application-auto-scaling.png" shape=none]
+			}
+		}
+		subgraph "cluster_Private Subnet - Data Tier" {
+			graph [bgcolor="#EBF3E7" fontname="Sans-Serif" fontsize=12 label="Private Subnet - Data Tier" labeljust=l pencolor="#AEB6BE" rankdir=LR shape=box style=rounded]
+			"2bfb18a1a10d4958847559ae805a5ac1" [label="RDS PostgreSQL (Multi-AZ)" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/database\rds.png" shape=none]
+			"26b3d6ab115747b89564538334ca450e" [label="ElastiCache Redis" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/database\elasticache.png" shape=none]
+			"1ddad9b6f65243f38017abc4b2b34b1a" [label="S3 (User Files)" height=1.9 image="C:\Users\vatha\AppData\Local\Python\pythoncore-3.14-64\Lib\site-packages\resources/aws/storage\simple-storage-service-s3.png" shape=none]
+		}
+	}
+	fd0baf9e6c304983b6791bc81f3b104d -> "6ed5da6a22f64efdaeb822acd1d1ea3b" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"6ed5da6a22f64efdaeb822acd1d1ea3b" -> bbabba52f1a94c09b2a493eea7279c71 [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	fd0baf9e6c304983b6791bc81f3b104d -> "360141c78fb44272afa3b61cb4e00b18" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	"360141c78fb44272afa3b61cb4e00b18" -> "0c77039fbd954b04bfa10d181cfe77e6" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	bbabba52f1a94c09b2a493eea7279c71 -> "354b6c8e318a4823a5373aa9eb69afd9" [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+	bbabba52f1a94c09b2a493eea7279c71 -> dd23bb8a2834482199f2ee68a346f821 [dir=forward fontcolor="#2D3436" fontname="Sans-Serif" fontsize=13]
+}
