@@ -1,0 +1,35 @@
+# Example Terraform Variables File
+# Copy this to terraform.tfvars and fill in your actual values
+# DO NOT commit real values to git - use environment variables or AWS profiles instead
+
+region      = "ap-southeast-1"
+ami_id      = "ami-0c55b159cbfafe1f0" # Replace with your desired Ubuntu AMI in ap-southeast-1
+key_name    = "your-ec2-key-pair-name" # Must exist in your AWS account
+instance_type = "t3.medium"
+
+# Database credentials - USE environment variables or AWS Secrets Manager instead
+db_user     = "admin"
+db_pass     = "ChangeMe!Str0ng" # DO NOT use this in production - set via environment or Secrets Manager
+db_pass     = sensitive("") # For production, source from: aws secretsmanager get-secret-value
+
+hosted_zone_id = "Z1EXAMPLE1234567" # Your Route53 hosted zone ID
+
+# Admin access restrictions
+admin_cidr_blocks = ["10.0.0.0/8"] # Replace with your VPN/Office IP range
+
+# ASG Configuration
+asg_min_size = 2
+asg_max_size = 4
+asg_desired_capacity = 2
+
+# RDS Configuration
+rds_multi_az = true
+rds_allocated_storage = 100
+rds_backup_retention_period = 30
+
+# CloudFront Configuration
+acm_certificate_arn = "" # Set to your ACM certificate ARN if using custom domains with HTTPS
+enable_https_redirect = false
+
+# Frontend domains
+domain_names = ["domrov.app", "admin.domrov.app"]

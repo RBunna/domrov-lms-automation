@@ -6,8 +6,8 @@ crash.log
 crash.*.log
 
 # Terraform variable files containing secrets
-# *.tfvars
-# *.tfvars.json
+*.tfvars
+*.tfvars.json
 
 # .terraform directory
 .terraform/

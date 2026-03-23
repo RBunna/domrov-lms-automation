@@ -16,7 +16,7 @@ module "s3" {
 }
 
 module "alb" {
-  source = "../../modules/alb"
+  source     = "../../modules/alb"
   vpc_id     = module.vpc.vpc_id
   subnet_ids = module.vpc.public_subnets
   sg_id      = module.security.alb_sg
@@ -25,12 +25,13 @@ module "alb" {
 module "asg" {
   source = "../../modules/autoscaling"
 
-  ami_id        = var.ami_id
-  instance_type = "t3.micro"
-  subnet_ids    = module.vpc.public_subnets
-  sg_id         = module.security.ec2_sg
-  key_name      = var.key_name
-  target_group  = module.alb.target_group_arn
+  name                 = "domrov"
+  ami_id               = var.ami_id
+  instance_type        = "t3.micro"
+  subnet_ids           = module.vpc.public_subnets
+  sg_id                = module.security.ec2_sg
+  key_name             = var.key_name
+  target_group         = module.alb.target_group_arn
   iam_instance_profile = module.iam.instance_profile
 }
 

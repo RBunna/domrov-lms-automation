@@ -1,5 +1,3 @@
-variable "asg_name" {}
-
 resource "aws_cloudwatch_metric_alarm" "cpu" {
   alarm_name          = "high-cpu"
   comparison_operator = "GreaterThanThreshold"
