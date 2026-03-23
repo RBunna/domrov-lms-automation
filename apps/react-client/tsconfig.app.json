@@ -27,8 +27,9 @@
     "ignoreDeprecations": "5.0",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      "@shared/*": ["../../shared/*"] // Added alias for shared directory
     }
   },
-  "include": ["src"]
+  "include": ["src", "../../shared"] // Added shared directory to include
 }

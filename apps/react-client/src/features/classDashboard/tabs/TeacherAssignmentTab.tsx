@@ -6,7 +6,6 @@ import EditAssignmentDetail from "@/features/assignment/components/EditAssignmen
 import CreateAssignmentDetail from "@/features/assignment/components/CreateAssignmentDetail";
 import assessmentService from "@/services/assessmentService";
 import type { AssessmentListItemDto } from "@/types/assessment";
-import type { AssignmentDetailsData } from "@/data/mockAssignmentDetails"; // Imported AssignmentDetailsData
 
 function getStatusColor(isPublic: boolean): string {
   return isPublic ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700";
@@ -34,13 +33,12 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const [activeFilter, setActiveFilter] = useState<"all" | "published" | "drafts">("all");
   const [currentPage, setCurrentPage] = useState(1);
-
-  // ✅ Use number consistently — AssessmentListItemDto.id is number
-  const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
-  const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null);
+  const [selectedAssignmentId, setSelectedAssignmentId] = useState<string | null>(null); // Updated to string
+  const [editingAssignmentId, setEditingAssignmentId] = useState<string | null>(null); // Updated to string
   const [isCreating, setIsCreating] = useState(false);
   const itemsPerPage = 4;
 
@@ -75,16 +73,38 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     }
   };
 
+  // ── Publish: auto-patch rubric first so old drafts can be published ────────
   const handlePublish = async (assignmentId: number) => {
     setPublishingId(assignmentId);
+    setPublishError(null);
     try {
+      // Find the assignment to get its maxScore
+      const assignment = assignments.find((a) => a.id === assignmentId);
+      const maxScore = assignment?.maxScore ?? 100;
+
+      // ✅ Always patch rubric before publishing
+      // This fixes old drafts that were saved without rubrics
+      console.log(`📤 Patching rubric for assignment ${assignmentId}, maxScore: ${maxScore}`);
+      await assessmentService.updateAssessment(assignmentId, {
+        rubrics: [{ definition: "Overall Score", totalScore: maxScore }],
+      });
+      console.log("✅ Rubric patched");
+
+      // Now publish
       await assessmentService.publishAssessment(assignmentId);
+      console.log("✅ Published:", assignmentId);
+
+      // Update local state
       setAssignments((prev) =>
         prev.map((a) => a.id === assignmentId ? { ...a, isPublic: true } : a)
       );
-    } catch (err) {
-      console.error("❌ Publish failed:", err);
-      alert("Failed to publish. Please try again.");
+    } catch (err: any) {
+      const msg =
+        err?.response?.data?.message ??
+        err?.message ??
+        "Failed to publish.";
+      console.error("❌ Publish failed:", msg, err?.response?.data);
+      setPublishError(`Assignment #${assignmentId}: ${msg}`);
     } finally {
       setPublishingId(null);
     }
@@ -100,7 +120,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedAssignments = filteredAssignments.slice(startIndex, startIndex + itemsPerPage);
 
-  // ─── Sub-views ──────────────────────────────────────────────────────────────
+  // ─── Sub-views ───────────────────────────────────────────────────────────────
 
   if (isCreating) {
     return (
@@ -115,12 +135,13 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     );
   }
 
+  // Convert `editingAssignmentId` to string before passing it as a prop
   if (editingAssignmentId !== null) {
     return (
       <div className="p-8 mx-auto max-w-7xl">
         <AnimatedPage>
           <EditAssignmentDetail
-            assignmentId={editingAssignmentId?.toString()} // Convert number to string
+            assignmentId={editingAssignmentId.toString()} // Convert to string
             onBack={() => { setEditingAssignmentId(null); load(); }}
           />
         </AnimatedPage>
@@ -128,26 +149,13 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     );
   }
 
+  // Convert `selectedAssignmentId` to string before passing it as a prop
   if (selectedAssignmentId !== null) {
-    const assignmentData = assignments.find(a => a.id === selectedAssignmentId);
-    const transformedData: AssignmentDetailsData | undefined = assignmentData
-      ? {
-          assignment: {
-            id: assignmentData.id.toString(),
-            title: assignmentData.title,
-            description: assignmentData.instruction|| "No description available", // Adjusted for missing property
-            dueDate: assignmentData.dueDate.toString(), // Converted to string
-          },
-          students: [], // Add logic to populate students if needed
-        }
-      : undefined;
-
     return (
       <div className="p-8 mx-auto max-w-7xl">
         <AnimatedPage>
           <ViewAssignmentDetail
-            assignmentId={selectedAssignmentId}
-            data={transformedData}
+            assignmentId={selectedAssignmentId.toString()} // Convert to string
             onBack={() => setSelectedAssignmentId(null)}
           />
         </AnimatedPage>
@@ -155,17 +163,23 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     );
   }
 
-  // ─── Main list ──────────────────────────────────────────────────────────────
+  // ─── Main list ───────────────────────────────────────────────────────────────
 
   return (
     <div className="p-8 mx-auto max-w-7xl">
       <div className="flex items-start justify-between mb-8">
         <div>
           <h1 className="text-3xl font-bold text-slate-900">Assignment</h1>
-          <p className="mt-2 text-slate-600">Create, monitor, and grade your student assignments in one place.</p>
+          <p className="mt-2 text-slate-600">
+            Create, monitor, and grade your student assignments in one place.
+          </p>
         </div>
         <button
-          onClick={() => { setIsCreating(true); setSelectedAssignmentId(null); setEditingAssignmentId(null); }}
+          onClick={() => {
+            setIsCreating(true);
+            setSelectedAssignmentId(null);
+            setEditingAssignmentId(null);
+          }}
           className="flex items-center gap-2 px-4 py-2 font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
         >
           <Plus className="w-5 h-5" />
@@ -182,9 +196,14 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
         ].map((tab) => (
           <button
             key={tab.id}
-            onClick={() => { setActiveFilter(tab.id as typeof activeFilter); setCurrentPage(1); }}
+            onClick={() => {
+              setActiveFilter(tab.id as typeof activeFilter);
+              setCurrentPage(1);
+            }}
             className={`pb-3 px-1 text-sm font-medium transition-colors relative ${
-              activeFilter === tab.id ? "text-blue-600" : "text-slate-600 hover:text-slate-900"
+              activeFilter === tab.id
+                ? "text-blue-600"
+                : "text-slate-600 hover:text-slate-900"
             }`}
           >
             {tab.label}
@@ -194,6 +213,19 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
           </button>
         ))}
       </div>
+
+      {/* Publish error banner */}
+      {publishError && (
+        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+          <p className="text-sm text-red-600">{publishError}</p>
+          <button
+            onClick={() => setPublishError(null)}
+            className="text-red-400 hover:text-red-600 ml-4 text-lg leading-none"
+          >
+            ×
+          </button>
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
@@ -207,7 +239,9 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
       {error && !loading && (
         <div className="p-4 mb-4 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
           <p className="text-sm text-red-600">{error}</p>
-          <button onClick={load} className="text-sm text-red-600 underline">Retry</button>
+          <button onClick={load} className="text-sm text-red-600 underline">
+            Retry
+          </button>
         </div>
       )}
 
@@ -234,7 +268,10 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
                   </tr>
                 ) : (
                   paginatedAssignments.map((assignment) => (
-                    <tr key={assignment.id} className="transition-colors border-b border-slate-200 hover:bg-slate-50">
+                    <tr
+                      key={assignment.id}
+                      className="transition-colors border-b border-slate-200 hover:bg-slate-50"
+                    >
                       <td className="px-6 py-4">
                         <p className="font-medium text-slate-900">{assignment.title}</p>
                         <p className="mt-1 text-sm text-slate-500">
@@ -259,21 +296,30 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
                               disabled={publishingId === assignment.id}
                               className="px-2 py-1 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors"
                             >
-                              {publishingId === assignment.id
-                                ? <Loader2 className="w-3 h-3 animate-spin" />
-                                : "Publish"
-                              }
+                              {publishingId === assignment.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                "Publish"
+                              )}
                             </button>
                           )}
                           <button
-                            onClick={() => { setEditingAssignmentId(assignment.id); setSelectedAssignmentId(null); setIsCreating(false); }}
+                            onClick={() => {
+                              setEditingAssignmentId(assignment.id.toString()); // Convert to string
+                              setSelectedAssignmentId(null);
+                              setIsCreating(false);
+                            }}
                             className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
                             title="Edit"
                           >
                             <Edit2 className="w-4 h-4" />
                           </button>
                           <button
-                            onClick={() => { setSelectedAssignmentId(assignment.id); setEditingAssignmentId(null); setIsCreating(false); }}
+                            onClick={() => {
+                              setSelectedAssignmentId(assignment.id.toString()); // Convert to string
+                              setEditingAssignmentId(null);
+                              setIsCreating(false);
+                            }}
                             className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
                             title="View"
                           >
@@ -285,10 +331,11 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
                             className="p-2 rounded-lg hover:bg-red-50 text-slate-600 hover:text-red-600 disabled:opacity-50 transition-colors"
                             title="Delete"
                           >
-                            {deletingId === assignment.id
-                              ? <Loader2 className="w-4 h-4 animate-spin" />
-                              : <Trash2 className="w-4 h-4" />
-                            }
+                            {deletingId === assignment.id ? (
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="w-4 h-4" />
+                            )}
                           </button>
                         </div>
                       </td>
@@ -301,7 +348,10 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
 
           {/* Pagination */}
           <div className="flex items-center justify-between px-6 py-4 text-sm border-t border-slate-200 text-slate-600">
-            <p>Showing {filteredAssignments.length === 0 ? 0 : startIndex + 1} of {filteredAssignments.length} assignments</p>
+            <p>
+              Showing {filteredAssignments.length === 0 ? 0 : startIndex + 1} of{" "}
+              {filteredAssignments.length} assignments
+            </p>
             <div className="flex items-center gap-2">
               <button
                 onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
