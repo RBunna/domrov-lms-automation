@@ -1,0 +1,32 @@
+
+# Terraform state and crash logs
+*.tfstate
+*.tfstate.*
+crash.log
+crash.*.log
+
+# Terraform variable files containing secrets
+# *.tfvars
+# *.tfvars.json
+
+# .terraform directory
+.terraform/
+
+# Local .aws credentials (if present)
+.aws/
+
+# Ignore override files as they are usually local
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+# Ignore plan output files
+*.tfplan
+
+# VS Code settings
+.vscode/
+
+# Mac and Windows system files
+.DS_Store
+Thumbs.db

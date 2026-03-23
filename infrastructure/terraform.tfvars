@@ -1,0 +1,7 @@
+region      = "ap-southeast-1"
+ami_id      = "your-ami-id"
+key_name    = "your-key-name"
+db_user     = "your-db-username"
+db_pass     = "your-db-password"
+aws_access_key = "your-aws-access-key"
+aws_secret_key = "your-aws-secret-key"
