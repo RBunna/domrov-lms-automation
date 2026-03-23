@@ -2,21 +2,12 @@
 
 import { useEffect, useState } from "react";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import StudentSubmissionsTable from "@/features/assignment/components/StudentSubmissionsTable";
 import assessmentService from "@/services/assessmentService";
 import type { AssessmentDetailDto } from "@/types/assessment";
-import type { AssignmentDetailsData } from "@/data/mockAssignmentDetails"; // Imported AssignmentDetailsData
 
 interface ViewAssignmentDetailProps {
-  data?: AssignmentDetailsData; // Made data optional to handle undefined cases
+  assignmentId: number | string; // ✅ accepts both number and string
   onBack: () => void;
-  assignmentId?: number;
-}
-
-function formatDueDate(raw: string | Date): string {
-  const d = new Date(raw);
-  if (isNaN(d.getTime())) return String(raw);
-  return d.toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" });
 }
 
 export default function ViewAssignmentDetail({ assignmentId, onBack }: ViewAssignmentDetailProps) {
@@ -26,30 +17,27 @@ export default function ViewAssignmentDetail({ assignmentId, onBack }: ViewAssig
 
   useEffect(() => {
     let cancelled = false;
-    async function load() {
-      setLoading(true);
-      setError(null);
-      try {
-        if (!assignmentId) {
-          throw new Error("assignmentId is required");
-        }
-        const data = await assessmentService.getAssessmentDetails(assignmentId);
+    setLoading(true);
+    setError(null);
+
+    assessmentService.getAssessmentDetails(Number(assignmentId))
+      .then((data) => {
         if (!cancelled) setAssignment(data);
-      } catch (err: any) {
-        console.error("❌ Failed to load assignment details:", err);
-        if (!cancelled) setError("Could not load assignment details.");
-      } finally {
+      })
+      .catch(() => {
+        if (!cancelled) setError("Failed to load assignment details.");
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false);
-      }
-    }
-    load();
+      });
+
     return () => { cancelled = true; };
   }, [assignmentId]);
 
   const BackButton = () => (
     <button
       onClick={onBack}
-      className="flex items-center gap-2 mb-3 text-sm transition-colors text-slate-600 hover:text-slate-900"
+      className="flex items-center gap-2 text-slate-600 hover:text-slate-900 mb-6 text-sm transition-colors"
     >
       <ArrowLeft className="w-4 h-4" />
       Back to Assignments
@@ -58,13 +46,11 @@ export default function ViewAssignmentDetail({ assignmentId, onBack }: ViewAssig
 
   if (loading) {
     return (
-      <div className="space-y-4">
-        <div className="p-4 bg-white border rounded-lg border-slate-200">
-          <BackButton />
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
-            <span className="ml-2 text-sm text-slate-500">Loading assignment...</span>
-          </div>
+      <div className="p-6 max-w-4xl mx-auto">
+        <BackButton />
+        <div className="flex items-center justify-center py-20">
+          <Loader2 className="w-6 h-6 animate-spin text-blue-600" />
+          <span className="ml-2 text-sm text-slate-500">Loading assignment...</span>
         </div>
       </div>
     );
@@ -72,46 +58,122 @@ export default function ViewAssignmentDetail({ assignmentId, onBack }: ViewAssig
 
   if (error || !assignment) {
     return (
-      <div className="space-y-4">
-        <div className="p-4 bg-white border rounded-lg border-slate-200">
-          <BackButton />
-          <p className="text-sm text-red-500 text-center py-8">{error ?? "Assignment not found."}</p>
-        </div>
+      <div className="p-6 max-w-4xl mx-auto">
+        <BackButton />
+        <p className="text-red-500 text-sm text-center py-8">
+          {error ?? "Assignment not found."}
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-4">
-      {/* Header */}
-      <div className="p-4 bg-white border rounded-lg border-slate-200">
-        <BackButton />
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex-1">
-            <h2 className="mb-1 text-xl font-bold text-slate-900">{assignment.title}</h2>
-            <p className="text-sm text-slate-600 line-clamp-2">{assignment.instruction}</p>
-            <div className="flex items-center gap-4 mt-2 text-xs text-slate-500">
-              <span>Session {assignment.session}</span>
-              <span>Max Score: {assignment.maxScore}</span>
-              <span>{assignment.submissionType}</span>
-              <span>{assignment.allowedSubmissionMethod}</span>
-            </div>
+    <div className="p-6 max-w-4xl mx-auto">
+      <BackButton />
+
+      <div className="bg-white rounded-lg border border-slate-200 p-8">
+        {/* Title */}
+        <h1 className="text-3xl font-bold text-slate-900 mb-4">{assignment.title}</h1>
+
+        {/* Key info grid */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 pb-8 border-b border-slate-200">
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">Due Date</p>
+            <p className="text-sm font-semibold text-slate-900">
+              {assignment.dueDate
+                ? new Date(assignment.dueDate).toLocaleString("en-US", {
+                    month: "short", day: "numeric", year: "numeric",
+                    hour: "numeric", minute: "2-digit", hour12: true,
+                  })
+                : "—"}
+            </p>
           </div>
-          <div className="flex-shrink-0 text-right">
-            <div className="inline-block bg-blue-50 px-3 py-1.5 rounded-lg border border-blue-200">
-              <p className="text-xs font-medium text-blue-600">DUE DATE</p>
-              <p className="text-sm font-bold text-blue-700">{formatDueDate(assignment.dueDate)}</p>
-            </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">Session</p>
+            <p className="text-sm font-semibold text-slate-900">Session {assignment.session}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">Max Score</p>
+            <p className="text-sm font-semibold text-slate-900">{assignment.maxScore}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">Status</p>
+            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${
+              assignment.isPublic
+                ? "bg-green-100 text-green-700"
+                : "bg-gray-100 text-gray-700"
+            }`}>
+              {assignment.isPublic ? "Published" : "Draft"}
+            </span>
           </div>
         </div>
-      </div>
 
-      {/* Student Submissions */}
-      <div className="p-4 bg-white border rounded-lg border-slate-200">
-        {/* <StudentSubmissionsTable
-          
-          assignmentId={assignmentId!} 
-        /> */}
+        {/* Instructions */}
+        <div className="mb-6">
+          <h2 className="text-sm font-semibold uppercase text-slate-500 mb-2">Instructions</h2>
+          <p className="text-slate-700 whitespace-pre-wrap">
+            {assignment.instruction || "No instructions provided."}
+          </p>
+        </div>
+
+        {/* Submission info */}
+        <div className="grid grid-cols-2 gap-4 mb-6 pb-6 border-b border-slate-200">
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">Submission Type</p>
+            <p className="text-sm text-slate-900">{assignment.submissionType}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">Submission Method</p>
+            <p className="text-sm text-slate-900">{assignment.allowedSubmissionMethod}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">Late Submissions</p>
+            <p className="text-sm text-slate-900">{assignment.allowLate ? "Allowed" : "Not allowed"}</p>
+          </div>
+          <div>
+            <p className="text-xs font-medium text-slate-500 uppercase mb-1">AI Evaluation</p>
+            <p className="text-sm text-slate-900">{assignment.aiEvaluationEnable ? "Enabled" : "Disabled"}</p>
+          </div>
+        </div>
+
+        {/* Rubrics */}
+        {assignment.rubrics && assignment.rubrics.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold uppercase text-slate-500 mb-2">Rubrics</h3>
+            <div className="space-y-2">
+              {assignment.rubrics.map((rubric) => (
+                <div key={rubric.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <span className="text-sm text-slate-900">{rubric.definition}</span>
+                  <span className="text-sm font-semibold text-slate-700">{rubric.totalScore} pts</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Resources */}
+        {assignment.resources && assignment.resources.length > 0 && (
+          <div className="mb-6">
+            <h3 className="text-sm font-semibold uppercase text-slate-500 mb-2">Resources</h3>
+            <div className="space-y-2">
+              {assignment.resources.map((res) => (
+                <div key={res.id} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg border border-slate-200">
+                  <span className="text-sm text-slate-900">{res.resource.title ?? res.resource.url}</span>
+                  {res.resource.url && (
+                    <a
+                      href={res.resource.url}
+                      className="text-xs text-blue-600 hover:underline"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Open link
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

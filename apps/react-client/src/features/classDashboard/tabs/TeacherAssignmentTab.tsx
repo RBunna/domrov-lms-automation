@@ -6,7 +6,6 @@ import EditAssignmentDetail from "@/features/assignment/components/EditAssignmen
 import CreateAssignmentDetail from "@/features/assignment/components/CreateAssignmentDetail";
 import assessmentService from "@/services/assessmentService";
 import type { AssessmentListItemDto } from "@/types/assessment";
-import type { AssignmentDetailsData } from "@/data/mockAssignmentDetails"; // Imported AssignmentDetailsData
 
 function getStatusColor(isPublic: boolean): string {
   return isPublic ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-700";
@@ -34,11 +33,10 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
   const [error, setError] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<number | null>(null);
   const [publishingId, setPublishingId] = useState<number | null>(null);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   const [activeFilter, setActiveFilter] = useState<"all" | "published" | "drafts">("all");
   const [currentPage, setCurrentPage] = useState(1);
-
-  // ✅ Use number consistently — AssessmentListItemDto.id is number
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -75,16 +73,47 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     }
   };
 
+  // ── Publish: fetch full details, patch ALL required fields, then publish ───
   const handlePublish = async (assignmentId: number) => {
     setPublishingId(assignmentId);
+    setPublishError(null);
     try {
+      // Step 1 — fetch full details to check what's missing
+      console.log(`🔍 Fetching details for #${assignmentId}...`);
+      const details = await assessmentService.getAssessmentDetails(assignmentId);
+      const maxScore = details.maxScore ?? 100;
+      console.log("📋 Current details:", {
+        instruction: details.instruction,
+        dueDate: details.dueDate,
+        maxScore,
+        rubrics: details.rubrics,
+      });
+
+      // Step 2 — patch all required fields that may be missing on old drafts
+      // Backend requires: instruction, dueDate, rubric totalScore == maxScore
+      await assessmentService.updateAssessment(assignmentId, {
+        instruction: details.instruction?.trim()
+          ? details.instruction
+          : "No instructions provided.",
+        dueDate: details.dueDate
+          ? new Date(details.dueDate)
+          : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days from now
+        rubrics: [{ definition: "Overall Score", totalScore: maxScore }],
+      });
+      console.log("✅ Required fields patched");
+
+      // Step 3 — publish
+      console.log(`📤 Publishing #${assignmentId}...`);
       await assessmentService.publishAssessment(assignmentId);
+      console.log("✅ Published");
+
       setAssignments((prev) =>
         prev.map((a) => a.id === assignmentId ? { ...a, isPublic: true } : a)
       );
-    } catch (err) {
-      console.error("❌ Publish failed:", err);
-      alert("Failed to publish. Please try again.");
+    } catch (err: any) {
+      console.error("❌ Full error:", JSON.stringify(err?.response?.data, null, 2));
+      const msg = err?.response?.data?.message ?? err?.message ?? "Failed to publish.";
+      setPublishError(`Assignment #${assignmentId}: ${msg}`);
     } finally {
       setPublishingId(null);
     }
@@ -100,7 +129,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
   const startIndex = (currentPage - 1) * itemsPerPage;
   const paginatedAssignments = filteredAssignments.slice(startIndex, startIndex + itemsPerPage);
 
-  // ─── Sub-views ──────────────────────────────────────────────────────────────
+  // ─── Sub-views ───────────────────────────────────────────────────────────────
 
   if (isCreating) {
     return (
@@ -120,7 +149,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
       <div className="p-8 mx-auto max-w-7xl">
         <AnimatedPage>
           <EditAssignmentDetail
-            assignmentId={editingAssignmentId?.toString()} // Convert number to string
+            assignmentId={editingAssignmentId}
             onBack={() => { setEditingAssignmentId(null); load(); }}
           />
         </AnimatedPage>
@@ -129,25 +158,11 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
   }
 
   if (selectedAssignmentId !== null) {
-    const assignmentData = assignments.find(a => a.id === selectedAssignmentId);
-    const transformedData: AssignmentDetailsData | undefined = assignmentData
-      ? {
-          assignment: {
-            id: assignmentData.id.toString(),
-            title: assignmentData.title,
-            description: assignmentData.instruction|| "No description available", // Adjusted for missing property
-            dueDate: assignmentData.dueDate.toString(), // Converted to string
-          },
-          students: [], // Add logic to populate students if needed
-        }
-      : undefined;
-
     return (
       <div className="p-8 mx-auto max-w-7xl">
         <AnimatedPage>
           <ViewAssignmentDetail
             assignmentId={selectedAssignmentId}
-            data={transformedData}
             onBack={() => setSelectedAssignmentId(null)}
           />
         </AnimatedPage>
@@ -155,7 +170,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
     );
   }
 
-  // ─── Main list ──────────────────────────────────────────────────────────────
+  // ─── Main list ───────────────────────────────────────────────────────────────
 
   return (
     <div className="p-8 mx-auto max-w-7xl">
@@ -194,6 +209,14 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
           </button>
         ))}
       </div>
+
+      {/* Publish error */}
+      {publishError && (
+        <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
+          <p className="text-sm text-red-600">{publishError}</p>
+          <button onClick={() => setPublishError(null)} className="text-red-400 hover:text-red-600 ml-4 text-lg leading-none">×</button>
+        </div>
+      )}
 
       {/* Loading */}
       {loading && (
