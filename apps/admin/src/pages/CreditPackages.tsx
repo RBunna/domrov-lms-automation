@@ -107,111 +107,116 @@ const CreditPackages = () => {
 
   return (
     <MainLayout>
-      <PageHeader
-        title="Credit Packages"
-        description="Manage credit bundles available for users to purchase."
-        actions={
-          <BaseButton
-            variant="primary"
-            leftIcon={<Plus className="w-5 h-5" />}
-            onClick={handleCreate}
-          >
-            Create Package
-          </BaseButton>
-        }
-      />
-
-      {/* Error Alert */}
-      {error && (
-        <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex gap-3">
-          <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <span>{error}</span>
-        </div>
-      )}
-
-      {/* Success Alert */}
-      {successMessage && (
-        <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex gap-3">
-          <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
-          <span>{successMessage}</span>
-        </div>
-      )}
-
-      {/* Packages Table */}
-      <div className="mb-6">
-        <CreditPackageTable
-          packages={packages}
-          isLoading={isLoading}
-          onEdit={() => { }}
-          onToggle={handleToggle}
-          onDelete={() => { }}
-        />
-      </div>
-
-      {/* Create Package Modal */}
-      {modalOpen && (
-        <CreditPackageModal
-          isOpen={modalOpen}
-          onClose={closeModal}
-          onSave={handleCreatePackage}
-          isLoading={isCreating}
-        />
-      )}
-
-      {/* Toggle Status Modal */}
-      {toggleModalOpen && togglePackageId && (
-        <BaseModal
-          isOpen={toggleModalOpen}
-          onClose={closeToggleModal}
-          title="Change Package Status"
-          size="sm"
-          footer={
-            <div className="flex gap-2 justify-end">
-              <BaseButton
-                variant="ghost"
-                onClick={closeToggleModal}
-                disabled={isTogglingStatus}
-              >
-                Cancel
-              </BaseButton>
-              <BaseButton
-                variant="primary"
-                onClick={confirmToggle}
-                disabled={isTogglingStatus}
-              >
-                {isTogglingStatus ? 'Processing...' : 'Confirm'}
-              </BaseButton>
-            </div>
+      <div className="flex flex-col h-screen overflow-hidden">
+        <PageHeader
+          title="Credit Packages"
+          description="Manage credit bundles available for users to purchase."
+          actions={
+            <BaseButton
+              variant="primary"
+              leftIcon={<Plus className="w-5 h-5" />}
+              onClick={handleCreate}
+            >
+              Create Package
+            </BaseButton>
           }
-        >
-          {packages
-            .filter((pkg) => pkg.id === togglePackageId)
-            .map((pkg) => (
-              <div key={pkg.id} className="space-y-4">
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded">
-                  <p className="text-sm text-blue-900">
-                    Package: <strong>{pkg.name}</strong>
-                  </p>
-                  <p className="text-sm text-blue-900 mt-1">
-                    Current Status: <strong>{pkg.isActive ? 'Active' : 'Inactive'}</strong>
-                  </p>
-                </div>
-                <div>
-                  <p className="text-gray-700 font-medium mb-2">
-                    {pkg.isActive
-                      ? `Deactivate "${pkg.name}"?`
-                      : `Activate "${pkg.name}"?`}
-                  </p>
-                  <p className="text-gray-600 text-sm">
-                    {pkg.isActive
-                      ? 'This package will no longer be available for purchase. Existing users can still use their credits.'
-                      : 'This package will be available for purchase.'}
-                  </p>
-                </div>
+        />
+
+        {/* Scrollable Content Area */}
+        <div className="flex-1 overflow-y-auto">
+          {/* Error Alert */}
+          {error && (
+            <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm flex gap-3">
+              <AlertCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{error}</span>
+            </div>
+          )}
+
+          {/* Success Alert */}
+          {successMessage && (
+            <div className="mb-6 p-4 bg-green-50 border border-green-200 rounded-lg text-green-700 text-sm flex gap-3">
+              <CheckCircle className="w-5 h-5 flex-shrink-0 mt-0.5" />
+              <span>{successMessage}</span>
+            </div>
+          )}
+
+          {/* Packages Table */}
+          <div className="mb-6">
+            <CreditPackageTable
+              packages={packages}
+              isLoading={isLoading}
+              onEdit={() => { }}
+              onToggle={handleToggle}
+              onDelete={() => { }}
+            />
+          </div>
+        </div>
+
+        {/* Create Package Modal */}
+        {modalOpen && (
+          <CreditPackageModal
+            isOpen={modalOpen}
+            onClose={closeModal}
+            onSave={handleCreatePackage}
+            isLoading={isCreating}
+          />
+        )}
+
+        {/* Toggle Status Modal */}
+        {toggleModalOpen && togglePackageId && (
+          <BaseModal
+            isOpen={toggleModalOpen}
+            onClose={closeToggleModal}
+            title="Change Package Status"
+            size="sm"
+            footer={
+              <div className="flex gap-2 justify-end">
+                <BaseButton
+                  variant="ghost"
+                  onClick={closeToggleModal}
+                  disabled={isTogglingStatus}
+                >
+                  Cancel
+                </BaseButton>
+                <BaseButton
+                  variant="primary"
+                  onClick={confirmToggle}
+                  disabled={isTogglingStatus}
+                >
+                  {isTogglingStatus ? 'Processing...' : 'Confirm'}
+                </BaseButton>
               </div>
-            ))}
-        </BaseModal>
-      )}
+            }
+          >
+            {packages
+              .filter((pkg) => pkg.id === togglePackageId)
+              .map((pkg) => (
+                <div key={pkg.id} className="space-y-4">
+                  <div className="p-3 bg-blue-50 border border-blue-200 rounded">
+                    <p className="text-sm text-blue-900">
+                      Package: <strong>{pkg.name}</strong>
+                    </p>
+                    <p className="text-sm text-blue-900 mt-1">
+                      Current Status: <strong>{pkg.isActive ? 'Active' : 'Inactive'}</strong>
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-gray-700 font-medium mb-2">
+                      {pkg.isActive
+                        ? `Deactivate "${pkg.name}"?`
+                        : `Activate "${pkg.name}"?`}
+                    </p>
+                    <p className="text-gray-600 text-sm">
+                      {pkg.isActive
+                        ? 'This package will no longer be available for purchase. Existing users can still use their credits.'
+                        : 'This package will be available for purchase.'}
+                    </p>
+                  </div>
+                </div>
+              ))}
+          </BaseModal>
+        )}
+      </div>
     </MainLayout>
   );
 };

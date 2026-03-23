@@ -24,20 +24,25 @@ import { StaticSection } from '../components/sections';
 const Dashboard: React.FC = () => {
     return (
         <MainLayout>
-            {/* Static Section - Header never re-renders */}
-            <StaticSection ariaLabel="Dashboard header section">
-                <Header />
-            </StaticSection>
+            <div className="flex flex-col h-screen overflow-hidden">
+                {/* Static Section - Header never re-renders */}
+                <StaticSection ariaLabel="Dashboard header section">
+                    <Header />
+                </StaticSection>
 
-            {/* Dynamic Sections - Only update when their specific data changes */}
-            <div className="space-y-8">
-                {/* Key Statistics Section */}
-                <StatsCards />
+                {/* Scrollable Content Area */}
+                <div className="flex-1 overflow-y-auto">
+                    {/* Dynamic Sections - Only update when their specific data changes */}
+                    <div className="space-y-8">
+                        {/* Key Statistics Section */}
+                        <StatsCards />
 
-                {/* Charts and Activity Section */}
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                    <UserGrowthChart />
-                    <RecentActivity />
+                        {/* Charts and Activity Section */}
+                        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            <UserGrowthChart />
+                            <RecentActivity />
+                        </div>
+                    </div>
                 </div>
             </div>
         </MainLayout>
