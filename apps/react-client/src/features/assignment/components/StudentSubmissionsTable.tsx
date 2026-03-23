@@ -6,6 +6,7 @@ import type { StudentSubmission } from "@/data/mockAssignmentDetails";
 
 interface StudentSubmissionsTableProps {
   students: StudentSubmission[];
+  assignmentId: number; // Added assignmentId to the props
 }
 
 export default function StudentSubmissionsTable({ students }: StudentSubmissionsTableProps) {

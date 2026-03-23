@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { FileIcon, Upload, Loader2, Download } from "lucide-react";
+import { useRef, useState, useEffect } from "react";
+import { FileIcon, Upload, Loader2, Download, Trash2, ImageIcon, FileTextIcon, ArchiveIcon } from "lucide-react";
 import fileService from "@/services/fileService";
 
 interface UploadedFile {
@@ -7,8 +7,9 @@ interface UploadedFile {
   name: string;
   size: string;
   uploadDate: string;
-  secureUrl: string;  // Cloudinary secure_url for direct download
+  secureUrl: string;   // Cloudinary URL — used directly for download
   publicId: string;
+  fileType: string;    // mime type
 }
 
 interface FilesTabProps {
@@ -29,13 +30,65 @@ function formatDate(date: Date): string {
   });
 }
 
+function getStorageKey(classId: string) {
+  return `class_files_${classId}`;
+}
+
+function loadFilesFromStorage(classId: string): UploadedFile[] {
+  try {
+    const stored = localStorage.getItem(getStorageKey(classId));
+    return stored ? JSON.parse(stored) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveFilesToStorage(classId: string, files: UploadedFile[]) {
+  try {
+    localStorage.setItem(getStorageKey(classId), JSON.stringify(files));
+  } catch {
+    // ignore
+  }
+}
+
+/**
+ * Returns the correct Cloudinary upload endpoint based on file MIME type.
+ * - image/* → /image/upload
+ * - video/* → /video/upload
+ * - everything else (pdf, docx, zip...) → /raw/upload
+ */
+function getCloudinaryResourceType(mimeType: string): "image" | "video" | "raw" {
+  if (mimeType.startsWith("image/")) return "image";
+  if (mimeType.startsWith("video/")) return "video";
+  return "raw";
+}
+
+function FileTypeIcon({ mimeType }: { mimeType: string }) {
+  if (mimeType.startsWith("image/"))
+    return <ImageIcon className="w-5 h-5 text-blue-500" />;
+  if (mimeType.includes("pdf") || mimeType.includes("document"))
+    return <FileTextIcon className="w-5 h-5 text-red-500" />;
+  if (mimeType.includes("zip") || mimeType.includes("archive"))
+    return <ArchiveIcon className="w-5 h-5 text-amber-500" />;
+  return <FileIcon className="w-5 h-5 text-slate-500" />;
+}
+
 export default function FilesTab({ classId }: FilesTabProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const [files, setFiles] = useState<UploadedFile[]>([]);
+  const [files, setFiles] = useState<UploadedFile[]>(() =>
+    loadFilesFromStorage(classId)
+  );
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
-  // ─── Open file picker ─────────────────────────────────────────────────────
+  useEffect(() => {
+    saveFilesToStorage(classId, files);
+  }, [files, classId]);
+
+  useEffect(() => {
+    setFiles(loadFilesFromStorage(classId));
+  }, [classId]);
 
   function openFilePicker(e: React.MouseEvent) {
     e.preventDefault();
@@ -45,15 +98,15 @@ export default function FilesTab({ classId }: FilesTabProps) {
     }
   }
 
-  // ─── Upload flow ──────────────────────────────────────────────────────────
+  // ── Upload via Cloudinary ─────────────────────────────────────────────────
   // Step 1: GET /file/cloudinary-presigned-url
   //         → { signature, timestamp, folder, public_id, cloud_name, api_key }
   //
-  // Step 2: POST https://api.cloudinary.com/v1_1/{cloud_name}/image/upload
-  //         → { secure_url, public_id, asset_id, bytes, ... }
+  // Step 2: POST https://api.cloudinary.com/v1_1/{cloud_name}/{resourceType}/upload
+  //         Uses /image, /video, or /raw based on file mime type
+  //         → { secure_url, public_id, bytes, ... }
   //
-  // Step 3: POST /file/notify-upload { key: public_id, filename }
-  //         → registers upload in backend
+  // Download: uses secure_url directly from Cloudinary CDN (no backend needed)
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -65,33 +118,48 @@ export default function FilesTab({ classId }: FilesTabProps) {
     try {
       // Step 1 — get Cloudinary presigned params
       const params = await fileService.getCloudinaryPresignedUrl();
-      console.log("✅ Step 1 - Cloudinary params:", params);
+      console.log("✅ Step 1 - Cloudinary params received");
 
-      // Step 2 — upload to Cloudinary
-      const cloudinaryRes = await fileService.uploadToCloudinary(file, params);
-      console.log("✅ Step 2 - Cloudinary upload response:", cloudinaryRes);
+      // Step 2 — upload using correct resource type endpoint
+      const resourceType = getCloudinaryResourceType(file.type);
+      console.log(`📤 Uploading as Cloudinary resourceType: ${resourceType}`);
 
-      const { secure_url, public_id, bytes } = cloudinaryRes;
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("signature", params.signature);
+      formData.append("timestamp", params.timestamp.toString());
+      formData.append("folder", params.folder);
+      formData.append("public_id", params.public_id);
+      formData.append("api_key", params.api_key);
 
-      // Step 3 — notify backend
-      await fileService.notifyUpload({
-        key: public_id,
-        filename: file.name,
+      const uploadUrl = `https://api.cloudinary.com/v1_1/${params.cloud_name}/${resourceType}/upload`;
+      const uploadRes = await fetch(uploadUrl, {
+        method: "POST",
+        body: formData,
       });
-      console.log("✅ Step 3 - Backend notified, public_id:", public_id);
 
-      // Add to local file list
-      setFiles((prev) => [
-        {
-          id: public_id,
-          name: file.name,
-          size: formatBytes(bytes),
-          uploadDate: formatDate(new Date()),
-          secureUrl: secure_url,
-          publicId: public_id,
-        },
-        ...prev,
-      ]);
+      if (!uploadRes.ok) {
+        const errBody = await uploadRes.text();
+        throw new Error(`Cloudinary upload failed: ${uploadRes.status} — ${errBody}`);
+      }
+
+      const cloudinaryData = await uploadRes.json();
+      console.log("✅ Step 2 - Cloudinary upload complete:", cloudinaryData.secure_url);
+
+      const { secure_url, public_id, bytes } = cloudinaryData;
+
+      // Add to list — secureUrl is used directly for download
+      const newFile: UploadedFile = {
+        id: public_id,
+        name: file.name,
+        size: formatBytes(bytes ?? file.size),
+        uploadDate: formatDate(new Date()),
+        secureUrl: secure_url,
+        publicId: public_id,
+        fileType: file.type,
+      };
+
+      setFiles((prev) => [newFile, ...prev]);
     } catch (err: any) {
       console.error("❌ Upload error:", err);
       setUploadError(err?.message ?? "Upload failed. Please try again.");
@@ -101,23 +169,37 @@ export default function FilesTab({ classId }: FilesTabProps) {
     }
   }
 
-  // ─── Download — use Cloudinary secure_url directly ────────────────────────
+  // ── Download directly from Cloudinary CDN ────────────────────────────────
 
   function handleDownload(e: React.MouseEvent, file: UploadedFile) {
     e.preventDefault();
     e.stopPropagation();
-    // Open Cloudinary URL directly — no backend download endpoint needed
+    setDownloadingId(file.id);
+
+    // For raw files (PDF, DOCX etc), force download via fl_attachment
+    const downloadUrl = file.secureUrl.includes("/raw/upload/")
+      ? file.secureUrl.replace("/raw/upload/", "/raw/upload/fl_attachment/")
+      : file.secureUrl;
+
     const a = document.createElement("a");
-    a.href = file.secureUrl;
+    a.href = downloadUrl;
     a.download = file.name;
     a.target = "_blank";
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
-    console.log("✅ Download triggered:", file.secureUrl);
+    console.log("✅ Download triggered:", downloadUrl);
+
+    setTimeout(() => setDownloadingId(null), 1000);
   }
 
-  // ─── Render ───────────────────────────────────────────────────────────────
+  function handleRemove(e: React.MouseEvent, fileId: string) {
+    e.preventDefault();
+    e.stopPropagation();
+    setFiles((prev) => prev.filter((f) => f.id !== fileId));
+  }
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -127,9 +209,10 @@ export default function FilesTab({ classId }: FilesTabProps) {
         <div className="flex items-center justify-between mb-6">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Class Files</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Class {classId}</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              {files.length} file{files.length !== 1 ? "s" : ""} · Class {classId}
+            </p>
           </div>
-
           <button
             type="button"
             onClick={openFilePicker}
@@ -138,22 +221,15 @@ export default function FilesTab({ classId }: FilesTabProps) {
             className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-medium hover:bg-blue-700 disabled:opacity-60 transition-colors"
           >
             {uploading ? (
-              <>
-                <Loader2 className="w-4 h-4 animate-spin" />
-                Uploading...
-              </>
+              <><Loader2 className="w-4 h-4 animate-spin" />Uploading...</>
             ) : (
-              <>
-                <Upload className="w-4 h-4" />
-                Upload File
-              </>
+              <><Upload className="w-4 h-4" />Upload File</>
             )}
           </button>
-
           <input
             ref={fileInputRef}
             type="file"
-            accept="image/*,.pdf,.docx,.zip,.mp4"
+            accept="*/*"
             onChange={handleFileChange}
             style={{ display: "none", position: "absolute", visibility: "hidden" }}
           />
@@ -163,50 +239,51 @@ export default function FilesTab({ classId }: FilesTabProps) {
         {uploadError && (
           <div className="mb-4 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-center justify-between">
             <p className="text-sm text-red-600">{uploadError}</p>
-            <button
-              type="button"
-              onClick={() => setUploadError(null)}
-              className="text-red-400 hover:text-red-600 ml-4 text-lg leading-none"
-            >
-              ×
-            </button>
+            <button type="button" onClick={() => setUploadError(null)}
+              className="text-red-400 hover:text-red-600 ml-4 text-lg leading-none">×</button>
           </div>
         )}
 
-        {/* File list or empty state */}
+        {/* File list */}
         {files.length > 0 ? (
           <div className="space-y-2">
             <h3 className="text-sm font-semibold text-slate-600 mb-3">
               Uploaded Files ({files.length})
             </h3>
             {files.map((file) => (
-              <div
-                key={file.id}
+              <div key={file.id}
                 className="flex items-center justify-between p-3 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
               >
                 <div className="flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center shrink-0">
-                    <FileIcon className="w-5 h-5 text-slate-500" />
+                    <FileTypeIcon mimeType={file.fileType} />
                   </div>
                   <div className="min-w-0">
-                    <p className="font-medium text-slate-900 text-sm truncate">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-slate-500">
-                      {file.size} · {file.uploadDate}
-                    </p>
+                    <p className="font-medium text-slate-900 text-sm truncate">{file.name}</p>
+                    <p className="text-xs text-slate-500">{file.size} · {file.uploadDate}</p>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  onClick={(e) => handleDownload(e, file)}
-                  style={{ pointerEvents: "auto", cursor: "pointer" }}
-                  className="flex items-center gap-1.5 ml-4 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 transition-colors shrink-0"
-                >
-                  <Download className="w-3 h-3" />
-                  Download
-                </button>
+                <div className="flex items-center gap-2 ml-4 shrink-0">
+                  <button type="button"
+                    onClick={(e) => handleDownload(e, file)}
+                    disabled={downloadingId === file.id}
+                    style={{ pointerEvents: "auto", cursor: "pointer" }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium text-blue-600 border border-blue-200 rounded-lg hover:bg-blue-50 disabled:opacity-50 transition-colors"
+                  >
+                    {downloadingId === file.id
+                      ? <Loader2 className="w-3 h-3 animate-spin" />
+                      : <Download className="w-3 h-3" />}
+                    Download
+                  </button>
+                  <button type="button"
+                    onClick={(e) => handleRemove(e, file.id)}
+                    style={{ pointerEvents: "auto", cursor: "pointer" }}
+                    className="p-1.5 text-slate-400 hover:text-red-500 rounded-lg hover:bg-red-50 transition-colors"
+                    title="Remove from list"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -215,14 +292,9 @@ export default function FilesTab({ classId }: FilesTabProps) {
             <div className="w-14 h-14 bg-slate-100 rounded-xl flex items-center justify-center mb-4">
               <Upload className="w-7 h-7 text-slate-400" />
             </div>
-            <p className="text-sm font-medium text-slate-700 mb-1">
-              No files uploaded yet
-            </p>
-            <p className="text-xs text-slate-400 mb-4">
-              Upload files to share with your class
-            </p>
-            <button
-              type="button"
+            <p className="text-sm font-medium text-slate-700 mb-1">No files uploaded yet</p>
+            <p className="text-xs text-slate-400 mb-4">Upload any file — PDF, images, DOCX, ZIP, MP4</p>
+            <button type="button"
               onClick={openFilePicker}
               disabled={uploading}
               style={{ pointerEvents: "auto", cursor: "pointer" }}
@@ -232,7 +304,6 @@ export default function FilesTab({ classId }: FilesTabProps) {
             </button>
           </div>
         )}
-
       </div>
     </div>
   );
