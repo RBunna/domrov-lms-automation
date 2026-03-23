@@ -1,4 +1,21 @@
+import { saveAs } from "file-saver";
+import { useEffect, useState } from "react";
 import { FolderIcon, FileIcon } from "lucide-react";
+import fileService from "@/services/fileService";
+
+interface Folder {
+  id: string;
+  name: string;
+  fileCount: number;
+  type: string;
+}
+
+interface File {
+  id: string;
+  name: string;
+  size: string;
+  uploadDate: string;
+}
 
 interface FilesTabProps {
   classId: string;
@@ -8,16 +25,41 @@ interface FilesTabProps {
  * FilesTab - File management and sharing view.
  */
 export default function FilesTab({ classId: _classId }: FilesTabProps) {
-  const folders = [
-    { id: "1", name: "Lecture Notes", fileCount: 12, type: "folder" },
-    { id: "2", name: "Assignments", fileCount: 8, type: "folder" },
-    { id: "3", name: "Resources", fileCount: 5, type: "folder" },
-  ];
+  const [folders, setFolders] = useState<Folder[]>([]);
+  const [files, setFiles] = useState<File[]>([]);
 
-  const files = [
-    { id: "1", name: "Syllabus.pdf", size: "245 KB", uploadDate: "Nov 1, 2024" },
-    { id: "2", name: "Week1-Introduction.pdf", size: "1.2 MB", uploadDate: "Nov 5, 2024" },
-  ];
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        
+        await fileService.getPresignedUrl({
+          filename: "example.txt", 
+          contentType: "application/pdf", 
+          resourceType: "class", 
+          resourceId: parseInt(_classId),
+        });
+
+        // Simulate folder and file data
+        setFolders([{ id: "1", name: "Example Folder", fileCount: 1, type: "folder" }]); // Replace with actual folder data if available
+        setFiles([
+          { id: "1", name: "example.txt", size: "1 MB", uploadDate: "2026-03-22" },
+        ]);
+      } catch (error) {
+        console.error("Error fetching files and folders:", error);
+      }
+    }
+
+    fetchData();
+  }, [_classId]);
+
+  const handleDownload = async (resourceId: number) => {
+    try {
+      const blob = await fileService.downloadFile(resourceId);
+      saveAs(blob, "downloaded-file.pdf"); 
+    } catch (error) {
+      console.error("Error downloading file:", error);
+    }
+  };
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
@@ -72,7 +114,10 @@ export default function FilesTab({ classId: _classId }: FilesTabProps) {
                     </p>
                   </div>
                 </div>
-                <button className="text-blue-600 text-sm font-medium hover:underline">
+                <button
+                  onClick={() => handleDownload(parseInt(file.id))}
+                  className="text-blue-600 text-sm font-medium hover:underline"
+                >
                   Download
                 </button>
               </div>
