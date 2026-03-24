@@ -18,7 +18,7 @@ interface FormData {
   startDate: string;
   dueDate: string;
   maxScore: number;
-  allowedSubmissionMethod: "GITHUB" | "ZIP" | "ANY"; // ✅ matches backend accepted values
+  allowedSubmissionMethod: "GITHUB" | "UPLOAD" | "LINK";
   allowLateSubmissions: boolean;
   aiEvaluationEnabled: boolean;
 }
@@ -49,12 +49,10 @@ function mapToDto(data: FormData): UpdateAssessmentDto {
       ? SubmissionType.TEAM
       : SubmissionType.INDIVIDUAL,
     aiEvaluationEnable: data.aiEvaluationEnabled,
-    // ✅ Map form values directly to backend accepted values: ZIP | GITHUB | ANY
     allowedSubmissionMethod:
-      data.allowedSubmissionMethod === "ZIP" ? SubmissionMethod.ZIP
-      : data.allowedSubmissionMethod === "ANY" ? SubmissionMethod.ANY
-      : SubmissionMethod.GITHUB,
-    // ✅ Default rubric — totalScore must equal maxScore or backend rejects
+      data.allowedSubmissionMethod === "UPLOAD" ? SubmissionMethod.ZIP
+      : data.allowedSubmissionMethod === "LINK"   ? SubmissionMethod.GITHUB
+      : SubmissionMethod.ANY,
     rubrics: [
       { definition: "Overall Score", totalScore: data.maxScore }
     ],
@@ -95,6 +93,7 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
         type === "checkbox"
           ? (e.currentTarget as HTMLInputElement).checked
           : name === "maxScore"
+            // ✅ Clamp maxScore between 1 and 100
             ? Math.min(100, Math.max(1, Number(value)))
             : value,
     }));
@@ -115,7 +114,6 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
   // ─── Shared: Step 1 + Step 2 ─────────────────────────────────────────────
 
   async function createAndUpdate(): Promise<number> {
-    // Step 1 — create draft
     const draftRes = await assessmentService.createAssessmentDraft(
       Number(classId),
       Number(formData.session)
@@ -124,9 +122,8 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
     console.log("✅ Step 1 - Draft created, ID:", draftId);
     if (!draftId) throw new Error("No assessmentId returned from createAssessmentDraft");
 
-    // Step 2 — update with form data
     const dto = mapToDto(formData);
-    console.log("📤 Step 2 - Updating with:", JSON.stringify(dto, null, 2));
+    console.log("📤 Step 2 - Updating with:", dto);
     await assessmentService.updateAssessment(draftId, dto);
     console.log("✅ Step 2 - Updated");
     return draftId;
@@ -311,6 +308,7 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
                     max="100"
                     className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   />
+                  {/* ✅ Show warning if somehow over 100 */}
                   {formData.maxScore > 100 && (
                     <p className="mt-1 text-xs text-red-500">Maximum score is 100</p>
                   )}
@@ -323,10 +321,9 @@ export default function CreateAssignmentDetail({ classId, onBack }: CreateAssign
                     onChange={handleInputChange}
                     className="w-full px-3 py-2.5 text-sm bg-white text-slate-900 border border-slate-200 rounded-lg appearance-none cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
                   >
-                    {/* ✅ Values match backend: ZIP | GITHUB | ANY */}
                     <option value="GITHUB">GitHub</option>
-                    <option value="ZIP">ZIP Upload</option>
-                    <option value="ANY">Any Method</option>
+                    <option value="UPLOAD">File Upload</option>
+                    <option value="LINK">Link</option>
                   </select>
                 </div>
               </div>

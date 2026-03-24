@@ -194,6 +194,26 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
     setLoading(null);
   };
 
+  // ─── Create: create draft and navigate to assignment detail ────────────────
+
+  const handleCreate = async () => {
+    setLoading("publish");
+    try {
+      const response = await assessmentService.createAssessmentDraft(Number(classId), Number(formData.session));
+
+      // Use the correct property for assignment ID
+      const assignmentId = response.data.assessmentId; // Updated to use `id`
+      navigate(`/class/${classId}/assignment/${assignmentId}`);
+
+      showToast("Assignment created successfully.", "success");
+    } catch (error) {
+      console.error("Failed to create assignment:", error);
+      showToast("Failed to create assignment. Please try again.", "error");
+    } finally {
+      setLoading(null);
+    }
+  };
+
   // ─── Render ───────────────────────────────────────────────────────────────
 
   return (
@@ -435,6 +455,17 @@ export default function CreateAssignmentForm({ classId }: { classId: string }) {
                 {loading === "publish" ? "Publishing..." : "Publish"}
               </button>
             </div>
+          </div>
+
+          {/* Create Assignment button */}
+          <div className="pt-3">
+            <button
+              onClick={handleCreate}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+              disabled={loading === "publish"}
+            >
+              {loading === "publish" ? "Creating..." : "Create Assignment"}
+            </button>
           </div>
 
         </form>
