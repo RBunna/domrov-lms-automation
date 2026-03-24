@@ -12,3 +12,10 @@ provider "aws" {
 provider "random" {
   # Used for S3 bucket naming randomization
 }
+
+# Cloudflare Provider Configuration
+# CHANGE NOTES: Added for DNS management instead of AWS Route53
+# The API token is read from the TF_VAR_cloudflare_api_token environment variable
+provider "cloudflare" {
+  api_token = var.cloudflare_api_token
+}

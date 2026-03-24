@@ -1,6 +1,11 @@
 # Frontend Static Site Hosting with CloudFront
 # This configuration creates S3 buckets for each frontend domain,
-# with CloudFront distributions and Route53 DNS records
+# with CloudFront distributions and Cloudflare DNS records
+# 
+# CHANGE NOTES: 
+# - Removed AWS Route53 resources
+# - Added Cloudflare DNS records (CNAME → CloudFront)
+# - Cloudflare handles SSL/TLS with Full (Strict) mode
 
 locals {
   frontends = var.domain_names
@@ -135,17 +140,45 @@ resource "aws_cloudfront_distribution" "frontend" {
   }
 }
 
-# Route53 DNS records pointing to CloudFront
-resource "aws_route53_record" "frontend" {
+# ============================================================
+# CLOUDFLARE DNS RECORDS (CHANGED FROM ROUTE53)
+# ============================================================
+# These CNAME records point frontend domains to CloudFront.
+# Cloudflare proxy (orange cloud) is enabled for:
+#   - SSL/TLS termination (Full/Strict mode)
+#   - CDN caching and optimization
+#   - DDoS protection and WAF
+#
+# Requirements for Full (Strict) mode:
+#   - CloudFront distribution must have valid ACM certificate
+#   - SSL certificate must be valid for the domain
+#
+# NOTE: CNAME at root domain (example.com) is not allowed in DNS.
+# For root domain, use: CNAME @ pointing to CloudFront CNAME
+
+resource "cloudflare_record" "frontend" {
   for_each = toset(local.frontends)
 
-  zone_id = var.hosted_zone_id
+  zone_id = var.cloudflare_zone_id
   name    = each.key
-  type    = "A"
+  type    = "CNAME"
+  content = aws_cloudfront_distribution.frontend[each.key].domain_name
+  ttl     = 1 # 1 = auto (Cloudflare will optimize)
+  proxied = var.cloudflare_proxy_enabled
 
-  alias {
-    name                   = aws_cloudfront_distribution.frontend[each.key].domain_name
-    zone_id                = aws_cloudfront_distribution.frontend[each.key].hosted_zone_id
-    evaluate_target_health = false
+  comment = "CloudFront distribution for ${each.key}"
+}
+
+# Output Cloudflare DNS records for reference
+locals {
+  cloudflare_records = {
+    for domain, record in cloudflare_record.frontend :
+    domain => {
+      name    = record.name
+      type    = record.type
+      content = record.content
+      proxied = record.proxied
+      status  = record.status
+    }
   }
 }

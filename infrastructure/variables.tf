@@ -38,10 +38,34 @@ variable "domain_names" {
   default     = ["domrov.app", "admin.domrov.app"]
 }
 
-variable "hosted_zone_id" {
-  description = "Route53 hosted zone ID for DNS records"
+# CHANGE NOTES: Removed hosted_zone_id (Route53)
+# Now using Cloudflare for DNS management
+variable "cloudflare_api_token" {
+  description = "Cloudflare API token for DNS management"
   type        = string
+  sensitive   = true
+
+  # Set via environment variable: export TF_VAR_cloudflare_api_token="your-api-token"
 }
+
+variable "cloudflare_zone_id" {
+  description = "Cloudflare Zone ID for the root domain (e.g., domrov.app)"
+  type        = string
+  sensitive   = false
+
+  # Retrieve from Cloudflare dashboard: Zone ID is shown in the Overview page
+}
+
+variable "cloudflare_proxy_enabled" {
+  description = "Enable Cloudflare proxy (orange cloud) for DNS records"
+  type        = bool
+  default     = true
+
+  # When true: Cloudflare proxies all traffic (acts as CDN + WAF)
+  # When false: DNS only (CNAME bypass)
+  # Note: For Full (Strict) SSL mode, origin must have valid certificate
+}
+
 
 variable "admin_cidr_blocks" {
   description = "CIDR blocks allowed for SSH access (restrict to admin IPs)"
