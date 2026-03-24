@@ -4,14 +4,14 @@
 *.tfstate.*
 crash.log
 crash.*.log
-
+terraform.tfvars
 # Terraform variable files containing secrets
 *.tfvars
 *.tfvars.json
 
 # .terraform directory
 .terraform/
-
+*.pem
 # Local .aws credentials (if present)
 .aws/
 

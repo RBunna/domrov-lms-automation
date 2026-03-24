@@ -1,35 +1,34 @@
-# Remote state backend for team collaboration and disaster recovery
-# Uses S3 with file-based locking
+# Terraform Local Backend Configuration
+# 
+# WORKFLOW:
+# 1. terraform init && terraform apply
+#    ↓ Creates S3 bucket and DynamoDB table (in terraform_backend.tf)
+# 2. After apply, get bucket name from terraform state
+# 3. Uncomment remote backend config below
+# 4. terraform init -migrate-state
+#
+# See MIGRATE_TO_REMOTE_BACKEND.md for detailed steps
 
 terraform {
-  backend "s3" {
-    bucket       = "domrov-terraform-state"
-    key          = "prod/terraform.tfstate"
-    region       = "ap-southeast-1"
-    encrypt      = true
-    use_lockfile = true
-  }
+  # Local backend - uses terraform.tfstate file in current directory
+  # After first 'terraform apply', resources are created to support remote backend
 }
 
-# SETUP INSTRUCTIONS: Create the S3 backend before first terraform init
-# Run these commands in order:
-# 
-# 1. Create S3 bucket:
-#    aws s3api create-bucket --bucket domrov-terraform-state --region ap-southeast-1 --create-bucket-configuration LocationConstraint=ap-southeast-1
+# After first apply completes, follow these steps to migrate to remote backend:
+# 1. In powershell, run: terraform state show aws_s3_bucket.terraform_state
+# 2. Copy the bucket ID (e.g., "domrov-terraform-state-a1b2c3d4")
+# 3. Uncomment the backend config below and replace BUCKET_NAME with the actual bucket ID
+# 4. Run: terraform init -migrate-state
+# 5. Answer 'yes' to migrate existing state to S3
 #
-# 2. Enable versioning:
-#    aws s3api put-bucket-versioning --bucket domrov-terraform-state --versioning-configuration Status=Enabled
+# REMOTE BACKEND CONFIG (uncomment after first apply):
 #
-# 3. Enable encryption:
-#    aws s3api put-bucket-encryption --bucket domrov-terraform-state --server-side-encryption-configuration '{
-#      "Rules": [{
-#        "ApplyServerSideEncryptionByDefault": {
-#          "SSEAlgorithm": "AES256"
-#        }
-#      }]
-#    }'
-#
-# 4. Block public access:
-#    aws s3api put-public-access-block --bucket domrov-terraform-state --public-access-block-configuration BlockPublicAcls=true,IgnorePublicAcls=true,BlockPublicPolicy=true,RestrictPublicBuckets=true
-#
-# After running these commands, run: terraform init
+# terraform {
+#   backend "s3" {
+#     bucket         = "BUCKET_NAME_FROM_STEP_2"  # e.g., "domrov-terraform-state-a1b2c3d4"
+#     key            = "prod/terraform.tfstate"
+#     region         = "ap-southeast-1"
+#     encrypt        = true
+#     dynamodb_table = "domrov-terraform-locks"
+#   }
+# }
