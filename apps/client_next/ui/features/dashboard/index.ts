@@ -1,9 +1,0 @@
-export { default as ClassCard } from './components/ClassCard';
-export { default as ClassGrid } from './components/ClassGrid';
-export { default as CreateClassModal } from './components/CreateClassModal';
-export { default as DashboardHeader } from './components/DashboardHeader';
-export { default as DeleteConfirmModal } from './components/DeleteConfirmModal';
-export { default as IconButton } from './components/IconButton';
-export { default as JoinClassModal } from './components/JoinClassModal';
-export { default as Sidebar } from './components/Sidebar';
-export { default as TermFilters } from './components/TermFilters';

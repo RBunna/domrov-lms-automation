@@ -259,13 +259,173 @@ The system follows a distributed architecture composed of:
 - [x] Injection  
 - [x] Insecure Design  
 - [x] Security Misconfiguration  
-- [ ] Vulnerable and Outdated Components  
+- [x] Vulnerable and Outdated Components  
 - [x] Identification and Authentication Failures  
 - [x] Software and Data Integrity Failures  
-- [ ] Security Logging and Monitoring Failures  
-- [ ] Server-Side Request Forgery (SSRF)  
+- [x] Security Logging and Monitoring Failures  
+- [x] Server-Side Request Forgery (SSRF)  
 
 ---
+
+## Folder Structure
+
+```
+domrov-lms-automation/
+├── apps/                          # All application services
+│   ├── backend_nest/              # Core Backend API (NestJS)
+│   ├── react-client/              # Core UI (React)
+│   ├── admin/                     # Admin Dashboard (React)
+│   ├── code_eval/                 # Code Evaluation Engine (Python)
+│   └── shared/                    # Shared Code & APIs
+├── infrastructure/                # AWS Cloud Setup (Terraform)
+├── .github/                       # CI/CD & Automation
+
+```
+
+---
+
+## What Each Folder Does
+
+### **`apps/backend_nest/`** - Backend REST API Server 
+**Purpose:** Core backend serving all business logic and data  
+**Tech:** NestJS, TypeScript, TypeORM, PostgreSQL, Redis  
+
+**Modules:**
+| Module | Purpose |
+|--------|---------|
+| `auth/` | User login, registration, JWT tokens |
+| `user/` | User profiles, profile pictures, roles |
+| `class/` | Class creation, student enrollment, invitations |
+| `assessment/` | Assignment creation, deadlines, rubrics |
+| `evaluation/` | Code evaluation workflows, AI grading |
+| `submission/` | Student code submissions, versioning |
+| `tasks/` | Background job scheduling (Bull MQ) |
+| `wallet/` | Credits, payments, Stripe integration |
+| `admin/` | User management, analytics, monitoring |
+| `file/` | File uploads to S3, Cloudinary, R2 |
+
+**External Connections:** PostgreSQL DB, Redis cache, Python eval service (gRPC), OpenAI API, AWS S3
+
+---
+
+### **`apps/admin/`** - Admin Dashboard 
+**Purpose:** System administration and monitoring  
+**Tech:** React 19, Vite, Tailwind CSS  
+
+**Admin Features:**
+- User management (create, update, delete)
+- System analytics and usage metrics
+- Credit package management
+- Platform configuration
+- Performance monitoring
+- Security & access control
+
+---
+
+### **`apps/code_eval/`** - AI Code Evaluation Engine 
+**Purpose:** Automated code execution, evaluation, and intelligent feedback generation  
+**Tech:** Python, gRPC, OpenAI API, Google GenAI, Redis Queue  
+
+**Components:**
+| Component | Purpose |
+|-----------|---------|
+| `ai/` | LLM integration, feedback generation |
+| `grpc_services/` | gRPC server for backend communication |
+| `job_handler/` | Process eval jobs from Redis queue |
+| `server/` | gRPC service implementation |
+| `utils/` | Helpers, plagiarism detection, GitHub API |
+
+**What It Does:**
+1. Receives code from backend
+2. Executes code in isolated environment
+3. Checks for plagiarism (GitHub comparison)
+4. Generates AI feedback using LLMs
+5. Scores based on rubrics
+6. Returns results to backend
+
+---
+
+### **`infrastructure/`** - Cloud Infrastructure ☁️
+**Purpose:** Production deployment on AWS using Infrastructure-as-Code  
+**Tech:** Terraform, AWS services, Cloudflare DNS  
+
+**AWS Services Managed:**
+| Service | Purpose |
+|---------|---------|
+| **VPC** | Virtual networking & security |
+| **EC2 + ASG** | Compute instances with auto-scaling |
+| **RDS PostgreSQL** | Multi-AZ relational database |
+| **Application Load Balancer** | Request distribution & SSL |
+| **S3** | File storage (submissions, resources) |
+| **CloudFront** | CDN for static assets |
+| **CloudWatch** | Logging, monitoring, alerts |
+| **IAM** | Access control & security |
+| **Cloudflare** | DNS, DDoS protection, SSL/TLS |
+
+---
+
+### **`.github/`** - CI/CD Configuration 
+**Purpose:** Automated testing, building, and deployment  
+**Includes:**
+- GitHub Actions workflows
+- Build pipelines
+- Test automation
+- Deployment triggers
+
+---
+
+## 🔌 Service Communication Flow
+
+```
+┌─────────────────────┐
+│   React Apps        │
+│     (Users)         │
+└──────────┬──────────┘
+           │ REST API
+           │ WebSocket (real-time)
+           ▼
+┌──────────────────────────────────────┐
+│  NestJS Backend (Port 3000)          │
+│  ✓ REST endpoints                    │
+│  ✓ Real-time notifications           │         │
+│  ✓ Database: PostgreSQL + Redis      │
+└──────────┬───────────────────────────┘
+           │ gRPC (gRPC protocol)
+           ▼
+┌──────────────────────────────────────┐
+│  Python Code Eval (Port 50051)       │
+│  ✓ Code execution                    │
+│  ✓ AI feedback generation            │
+│  ✓ Result scoring                    │
+│  ✓ Plagiarism checks                 │
+└──────────────────────────────────────┘
+
+📦 DATA STORAGE:
+├─ PostgreSQL: User, class, assignment data
+├─ Redis: Caching & job queue
+├─ AWS S3: File uploads
+└─ Cloudinary/R2: Images & CDN
+```
+
+---
+
+## 🛠️ Technology Stack
+
+| Layer | Technology |
+|-------|-----------|
+| **Frontend** | React 19, Vite, TypeScript, Tailwind CSS, Socket.io |
+| **Backend API** | NestJS, TypeScript, TypeORM, Express.js |
+| **Eval Engine** | Python 3.10+, gRPC, LLM APIs |
+| **Database** | PostgreSQL 14+, Redis 6+ |
+| **Cloud** | AWS (EC2, RDS, S3, ALB, CloudFront) |
+| **DNS & CDN** | Cloudflare (proxy, DDoS, SSL) |
+| **AI Services** | OpenAI API, Google GenAI, Ollama |
+| **Storage** | AWS S3, Cloudinary, Cloudflare R2 |
+| **Queue** | Bull MQ (Node.js), RQ (Python) |
+| **IPC** | gRPC, REST APIs, WebSocket |
+| **DevOps** | Terraform, Docker, Docker Compose |
+| **CI/CD** | GitHub Actions |
+
 
 ## Additional Documentation
 
