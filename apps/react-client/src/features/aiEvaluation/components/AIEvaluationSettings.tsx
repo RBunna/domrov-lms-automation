@@ -136,7 +136,7 @@ export default function AIEvaluationSettings({
   // ── Derived ──────────────────────────────────────────────────────────────
 
   const isFreeTextModel  = FREE_TEXT_MODEL_PROVIDERS.includes(form.provider);
-  const isManaged        = MANAGED_PROVIDERS.includes(form.provider);  // only openai
+  // const isManaged        = MANAGED_PROVIDERS.includes(form.provider);  // only openai
   const showEndpointField = !MANAGED_PROVIDERS.includes(form.provider); // show for all except openai
   const presetModels     = PRESET_MODELS[form.provider] ?? [];
 
@@ -262,7 +262,7 @@ export default function AIEvaluationSettings({
     "w-full px-4 py-3 pr-10 border border-slate-300 rounded-lg bg-white text-slate-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all text-sm appearance-none cursor-pointer";
   const labelCls = "block text-sm font-semibold text-slate-700 mb-2";
   const chevron = (
-    <div className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-slate-400">
+    <div className="absolute -translate-y-1/2 pointer-events-none right-3 top-1/2 text-slate-400">
       <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
       </svg>
@@ -275,29 +275,29 @@ export default function AIEvaluationSettings({
     <div className="space-y-6">
 
       {/* ── FORM CARD ─────────────────────────────────────────────────────── */}
-      <div className="bg-white rounded-xl border border-slate-200 p-8">
+      <div className="p-8 bg-white border rounded-xl border-slate-200">
 
         {/* Header */}
         <div className="mb-8">
-          <h2 className="text-2xl font-bold text-slate-900 mb-1">
+          <h2 className="mb-1 text-2xl font-bold text-slate-900">
             {editingKey ? "Edit AI Configuration" : "AI Evaluation Configuration"}
           </h2>
-          <p className="text-slate-500 text-sm">
+          <p className="text-sm text-slate-500">
             Configure the AI model used for grading and student feedback. Your API key is stored securely.
           </p>
         </div>
 
         {/* Error */}
         {error && (
-          <div className="mb-6 px-4 py-3 bg-red-50 border border-red-200 rounded-lg flex items-start justify-between gap-4">
-            <p className="text-sm text-red-600 leading-relaxed">{error}</p>
+          <div className="flex items-start justify-between gap-4 px-4 py-3 mb-6 border border-red-200 rounded-lg bg-red-50">
+            <p className="text-sm leading-relaxed text-red-600">{error}</p>
             <button onClick={() => setError(null)} className="text-red-400 hover:text-red-600 text-xl leading-none shrink-0 mt-0.5">×</button>
           </div>
         )}
 
         {/* Success */}
         {success && (
-          <div className="mb-6 px-4 py-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
+          <div className="flex items-center gap-2 px-4 py-3 mb-6 border border-green-200 rounded-lg bg-green-50">
             <CheckCircle2 className="w-4 h-4 text-green-600 shrink-0" />
             <p className="text-sm text-green-700">{success}</p>
           </div>
@@ -311,7 +311,7 @@ export default function AIEvaluationSettings({
               <label className={labelCls}>API Provider</label>
               <div className="relative">
                 {loadingProviders ? (
-                  <div className="flex items-center gap-2 px-4 py-3 border border-slate-200 rounded-lg text-sm text-slate-400">
+                  <div className="flex items-center gap-2 px-4 py-3 text-sm border rounded-lg border-slate-200 text-slate-400">
                     <Loader2 className="w-4 h-4 animate-spin" /> Loading providers...
                   </div>
                 ) : (
@@ -341,7 +341,7 @@ export default function AIEvaluationSettings({
                     className={inputCls}
                   />
                   {MODEL_HELP[form.provider] && (
-                    <p className="text-xs text-slate-400 mt-2">{MODEL_HELP[form.provider]}</p>
+                    <p className="mt-2 text-xs text-slate-400">{MODEL_HELP[form.provider]}</p>
                   )}
                 </div>
               ) : (
@@ -367,7 +367,7 @@ export default function AIEvaluationSettings({
               <label className={labelCls}>
                 API Key{" "}
                 {editingKey && (
-                  <span className="text-slate-400 font-normal text-xs ml-1">(leave blank to keep existing)</span>
+                  <span className="ml-1 text-xs font-normal text-slate-400">(leave blank to keep existing)</span>
                 )}
               </label>
               <div className="relative">
@@ -378,7 +378,7 @@ export default function AIEvaluationSettings({
                   placeholder={editingKey ? "Enter new key to replace existing" : "Enter your API key"}
                   className={inputCls + " pr-20"}
                 />
-                <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+                <div className="absolute flex items-center gap-2 -translate-y-1/2 right-3 top-1/2">
                   {form.apiKey && (
                     <button type="button" onClick={() => setForm((p) => ({ ...p, apiKey: "" }))} className="text-slate-400 hover:text-slate-600">
                       <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 24 24">
@@ -391,13 +391,13 @@ export default function AIEvaluationSettings({
                   </button>
                 </div>
               </div>
-              <p className="text-xs text-slate-400 mt-2">Stored securely — never exposed in API responses.</p>
+              <p className="mt-2 text-xs text-slate-400">Stored securely — never exposed in API responses.</p>
             </div>
 
             <div>
               <label className={labelCls}>
                 Configuration Label{" "}
-                <span className="text-slate-400 font-normal text-xs ml-1">(optional)</span>
+                <span className="ml-1 text-xs font-normal text-slate-400">(optional)</span>
               </label>
               <input
                 type="text"
@@ -406,7 +406,7 @@ export default function AIEvaluationSettings({
                 placeholder="e.g. Production Grading, My Gemini Key"
                 className={inputCls}
               />
-              <p className="text-xs text-slate-400 mt-2">A friendly name to identify this configuration.</p>
+              <p className="mt-2 text-xs text-slate-400">A friendly name to identify this configuration.</p>
             </div>
           </div>
 
@@ -428,7 +428,7 @@ export default function AIEvaluationSettings({
                 placeholder={DEFAULT_ENDPOINTS[form.provider] ?? ""}
                 className={inputCls}
               />
-              <p className="text-xs text-slate-400 mt-2">
+              <p className="mt-2 text-xs text-slate-400">
                 
               </p>
             </div>
@@ -437,7 +437,7 @@ export default function AIEvaluationSettings({
         </div>
 
         {/* Buttons */}
-        <div className="flex justify-end items-center gap-3 mt-10 pt-6 border-t border-slate-100">
+        <div className="flex items-center justify-end gap-3 pt-6 mt-10 border-t border-slate-100">
           {onCancel && (
             <button
               onClick={onCancel}
@@ -459,8 +459,8 @@ export default function AIEvaluationSettings({
 
       {/* ── SAVED KEYS ────────────────────────────────────────────────────── */}
       {savedKeys.length > 0 && (
-        <div className="bg-white rounded-xl border border-slate-200 p-8">
-          <h3 className="text-lg font-semibold text-slate-900 mb-6">
+        <div className="p-8 bg-white border rounded-xl border-slate-200">
+          <h3 className="mb-6 text-lg font-semibold text-slate-900">
             Saved Configurations
             <span className="ml-2 text-sm font-normal text-slate-400">({savedKeys.length})</span>
           </h3>
@@ -468,15 +468,15 @@ export default function AIEvaluationSettings({
             {savedKeys.map((key) => (
               <div
                 key={key.id}
-                className="flex items-center justify-between p-5 border border-slate-200 rounded-lg hover:bg-slate-50 transition-colors"
+                className="flex items-center justify-between p-5 transition-colors border rounded-lg border-slate-200 hover:bg-slate-50"
               >
-                <div className="flex items-center gap-3 min-w-0">
+                <div className="flex items-center min-w-0 gap-3">
                   {key.isValid
                     ? <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
-                    : <XCircle      className="w-5 h-5 text-red-400   shrink-0" />
+                    : <XCircle      className="w-5 h-5 text-red-400 shrink-0" />
                   }
                   <div className="min-w-0">
-                    <p className="text-sm font-semibold text-slate-900 truncate">
+                    <p className="text-sm font-semibold truncate text-slate-900">
                       {key.label || `${key.provider} / ${key.model}`}
                     </p>
                     <p className="text-xs text-slate-500 mt-0.5 truncate">
@@ -498,7 +498,7 @@ export default function AIEvaluationSettings({
                 </div>
                 <button
                   onClick={() => handleDelete(key.id)}
-                  className="p-2 text-slate-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors shrink-0 ml-3"
+                  className="p-2 ml-3 transition-colors rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 shrink-0"
                   title="Delete"
                 >
                   <Trash2 className="w-4 h-4" />

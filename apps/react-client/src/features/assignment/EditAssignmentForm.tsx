@@ -1,15 +1,14 @@
 import { useState, useEffect } from "react";
 import { Upload, Link2, FileText, Video, Package, X, Eye, AlertTriangle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import type { AssignmentData } from "@/context/AssignmentContext";
-import { useAssignments } from "@/context/AssignmentContext";
+import assessmentService from "@/services/assessmentService";
 import { useToast } from "@/components/Toast";
 import Dialog from "@/components/Dialog";
 
 interface EditAssignmentFormProps {
   classId: string;
   assignmentId: string;
-  initialData?: AssignmentData;
+  initialData?: any;
 }
 
 export default function EditAssignmentForm({
@@ -18,14 +17,12 @@ export default function EditAssignmentForm({
   initialData,
 }: EditAssignmentFormProps) {
   const navigate = useNavigate();
-  const { updateAssignment, getAssignmentById } = useAssignments();
   const { showToast } = useToast();
   
-  // Get assignment data from context or use initialData
-  const assignmentFromContext = getAssignmentById(assignmentId);
-  const loadedData = initialData || assignmentFromContext;
+  // Use initialData or fetch from API if needed
+  const loadedData = initialData;
 
-  const [formData, setFormData] = useState<AssignmentData>(
+  const [formData, setFormData] = useState<any>(
     loadedData || {
       title: "",
       session: "2024",
@@ -84,12 +81,12 @@ export default function EditAssignmentForm({
     const { name, value, type } = e.currentTarget;
 
     if (type === "checkbox") {
-      setFormData((prev) => ({
+      setFormData((prev: any) => ({
         ...prev,
         [name]: (e.currentTarget as HTMLInputElement).checked,
       }));
     } else {
-      setFormData((prev) => ({
+      setFormData((prev: any) => ({
         ...prev,
         [name]: value,
       }));
@@ -98,7 +95,7 @@ export default function EditAssignmentForm({
 
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || []);
-    setFormData((prev) => ({
+    setFormData((prev: any) => ({
       ...prev,
       learningResources: [...prev.learningResources, ...files],
     }));
@@ -113,25 +110,34 @@ export default function EditAssignmentForm({
   };
 
   const handleRemoveFile = (index: number) => {
-    setFormData((prev) => ({
+    setFormData((prev: any) => ({
       ...prev,
-      learningResources: prev.learningResources.filter((_, i) => i !== index),
+      learningResources: prev.learningResources.filter((_: any, i: number) => i !== index),
     }));
-    setUploadedFiles((prev) => prev.filter((_, i) => i !== index));
+    setUploadedFiles((prev: any) => prev.filter((_: any, i: number) => i !== index));
   };
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    // Update assignment in context
-    const success = updateAssignment(assignmentId, formData);
-    if (success) {
+    try {
+      // Update assignment via API
+      await assessmentService.updateAssessment(Number(assignmentId), {
+        title: formData.title,
+        instruction: formData.instructions,
+        dueDate: formData.dueDate ? new Date(formData.dueDate) : undefined,
+        maxScore: formData.maxScore,
+        session: Number(formData.session),
+        allowLate: formData.allowLateSubmissions,
+        aiEvaluationEnable: formData.aiEvaluationEnabled,
+      });
       showToast("✅ Assignment updated successfully!", "success", 3000);
       // Navigate back to assignment tab after brief delay to show toast
       setTimeout(() => {
         navigate(`/class/${classId}`, { state: { activeTab: "assignment" } });
       }, 500);
-    } else {
+    } catch (error) {
+      console.error("Failed to update assignment:", error);
       showToast("❌ Failed to update assignment", "error", 3000);
     }
   };

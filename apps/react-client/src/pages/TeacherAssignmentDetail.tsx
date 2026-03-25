@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { Calendar, Clock, FileText, Trash2, Edit, Eye } from "lucide-react";
+import { Calendar, Clock, FileText, Trash2, Edit, Eye, Users } from "lucide-react";
 import MainNavigation from "@/components/navigation/Navigation";
 import { ClassSidebar } from "@/features/classDashboard";
 import { getAssessmentDetails, deleteAssessment } from "@/services/assessmentService";
@@ -61,16 +61,16 @@ export default function TeacherAssignmentDetail() {
   };
 
   const handleViewSubmissions = () => {
-    navigate(`/assignment/${id}/submissions`);
+    navigate(`/class/${classId}/assignment/${id}/view`);
   };
 
   if (loading) {
     return (
       <div className="flex min-h-screen bg-slate-50">
         <MainNavigation activeId="classes" />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex items-center justify-center flex-1">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto"></div>
+            <div className="w-12 h-12 mx-auto border-b-2 border-blue-600 rounded-full animate-spin"></div>
             <p className="mt-4 text-slate-600">Loading assignment details...</p>
           </div>
         </div>
@@ -82,12 +82,12 @@ export default function TeacherAssignmentDetail() {
     return (
       <div className="flex min-h-screen bg-slate-50">
         <MainNavigation activeId="classes" />
-        <div className="flex-1 flex items-center justify-center">
+        <div className="flex items-center justify-center flex-1">
           <div className="text-center">
-            <p className="text-red-600 text-lg">{error || "Assignment not found"}</p>
+            <p className="text-lg text-red-600">{error || "Assignment not found"}</p>
             <button
               onClick={() => navigate(-1)}
-              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+              className="px-4 py-2 mt-4 text-white bg-blue-600 rounded-md hover:bg-blue-700"
             >
               Go Back
             </button>
@@ -100,26 +100,26 @@ export default function TeacherAssignmentDetail() {
   return (
     <div className="flex min-h-screen bg-slate-50">
       <MainNavigation activeId="classes" />
-      <div className="flex-1 flex flex-col min-w-0">
-        <div className="h-screen bg-white flex overflow-hidden">
+      <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex h-screen overflow-hidden bg-white">
           <ClassSidebar classId={classId} activeTab={activeTab} onTabChange={handleTabChange} />
 
-          <div className="flex-1 flex flex-col min-w-0 overflow-y-auto">
+          <div className="flex flex-col flex-1 min-w-0 overflow-y-auto">
             {/* Breadcrumb */}
-            <div className="px-8 py-4 border-b border-slate-200 bg-white">
+            <div className="px-8 py-4 bg-white border-b border-slate-200">
               <div className="flex items-center gap-2 text-sm text-slate-600">
                 <span>Assignments</span>
                 <span>/</span>
-                <span className="text-slate-900 font-medium">Assignment {id}</span>
+                <span className="font-medium text-slate-900">Assignment {id}</span>
               </div>
             </div>
 
-            <div className="flex-1 bg-slate-50 p-8">
-              <div className="max-w-7xl mx-auto space-y-6">
+            <div className="flex-1 p-8 bg-slate-50">
+              <div className="mx-auto space-y-6 max-w-7xl">
                 {/* Header with Actions */}
                 <div className="flex items-start justify-between">
                   <div>
-                    <h1 className="text-3xl font-bold text-slate-900 mb-2">
+                    <h1 className="mb-2 text-3xl font-bold text-slate-900">
                       {assignment.title}
                     </h1>
                     <div className="flex items-center gap-3">
@@ -137,17 +137,24 @@ export default function TeacherAssignmentDetail() {
                   <div className="flex gap-3">
                     <button
                       onClick={handleEditAssignment}
-                      className="px-4 py-2 text-sm font-medium text-slate-700 bg-white border border-slate-300 rounded-md hover:bg-slate-50 flex items-center gap-2"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-white border rounded-md text-slate-700 border-slate-300 hover:bg-slate-50"
                     >
                       <Edit className="w-4 h-4" />
                       Edit Assignment
                     </button>
                     <button
                       onClick={handleViewSubmissions}
-                      className="px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 flex items-center gap-2"
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
                     >
                       <Eye className="w-4 h-4" />
                       View Submissions
+                    </button>
+                    <button
+                      onClick={handleViewSubmissions}
+                      className="flex items-center gap-2 px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700"
+                    >
+                      <Users className="w-4 h-4" />
+                      View Students
                     </button>
                   </div>
                 </div>
@@ -156,24 +163,24 @@ export default function TeacherAssignmentDetail() {
                   {/* Left Column - Main Content */}
                   <div className="space-y-6">
                     {/* Assignment Overview */}
-                    <div className="bg-white rounded-lg border border-slate-200 p-6">
+                    <div className="p-6 bg-white border rounded-lg border-slate-200">
                       <div className="flex items-center gap-2 mb-4">
                         <FileText className="w-5 h-5 text-slate-700" />
                         <h2 className="text-lg font-semibold text-slate-900">
                           Assignment Overview
                         </h2>
                       </div>
-                      <p className="text-slate-700 whitespace-pre-wrap mb-6">
+                      <p className="mb-6 whitespace-pre-wrap text-slate-700">
                         {assignment.instruction}
                       </p>
 
                       {/* Key Details - 4 columns */}
                       <div className="grid grid-cols-2 gap-4">
                         <div className="flex items-start gap-3">
-                          <Calendar className="w-5 h-5 text-slate-400 mt-1" />
+                          <Calendar className="w-5 h-5 mt-1 text-slate-400" />
                           <div>
-                            <p className="text-xs text-slate-500 uppercase">DUE DATE</p>
-                            <p className="text-slate-900 font-medium">
+                            <p className="text-xs uppercase text-slate-500">DUE DATE</p>
+                            <p className="font-medium text-slate-900">
                               {(() => {
                                 const dueDate = new Date(assignment.dueDate);
                                 if (isNaN(dueDate.getTime())) {
@@ -192,10 +199,10 @@ export default function TeacherAssignmentDetail() {
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
-                          <Clock className="w-5 h-5 text-slate-400 mt-1" />
+                          <Clock className="w-5 h-5 mt-1 text-slate-400" />
                           <div>
-                            <p className="text-xs text-slate-500 uppercase">METHOD</p>
-                            <p className="text-slate-900 font-medium">
+                            <p className="text-xs uppercase text-slate-500">METHOD</p>
+                            <p className="font-medium text-slate-900">
                               {assignment.allowedSubmissionMethod === "GITHUB" 
                                 ? "GitHub Repository Submission" 
                                 : assignment.allowedSubmissionMethod === "ZIP"
@@ -205,23 +212,23 @@ export default function TeacherAssignmentDetail() {
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
-                          <div className="w-5 h-5 flex items-center justify-center mt-1">
+                          <div className="flex items-center justify-center w-5 h-5 mt-1">
                             <span className="text-lg">📊</span>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500 uppercase">MAX SCORE</p>
-                            <p className="text-slate-900 font-medium">
+                            <p className="text-xs uppercase text-slate-500">MAX SCORE</p>
+                            <p className="font-medium text-slate-900">
                               {assignment.maxScore || 0} Points
                             </p>
                           </div>
                         </div>
                         <div className="flex items-start gap-3">
-                          <div className="w-5 h-5 flex items-center justify-center mt-1">
+                          <div className="flex items-center justify-center w-5 h-5 mt-1">
                             <span className="text-lg">⚠️</span>
                           </div>
                           <div>
-                            <p className="text-xs text-slate-500 uppercase">LATE PENALTY</p>
-                            <p className="text-slate-900 font-medium">
+                            <p className="text-xs uppercase text-slate-500">LATE PENALTY</p>
+                            <p className="font-medium text-slate-900">
                               {assignment.penaltyCriteria || "10% off per day"}
                             </p>
                           </div>
@@ -231,9 +238,9 @@ export default function TeacherAssignmentDetail() {
 
                     {/* Resources */}
                     {assignment.resources && assignment.resources.length > 0 && (
-                      <div className="bg-white rounded-lg border border-slate-200 p-6">
+                      <div className="p-6 bg-white border rounded-lg border-slate-200">
                         <div className="flex items-center justify-between mb-4">
-                          <h2 className="text-lg font-semibold text-slate-900 flex items-center gap-2">
+                          <h2 className="flex items-center gap-2 text-lg font-semibold text-slate-900">
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                             </svg>
@@ -247,20 +254,20 @@ export default function TeacherAssignmentDetail() {
                           {assignment.resources.map((resource) => (
                             <div
                               key={resource.id}
-                              className="flex items-center gap-3 p-3 bg-yellow-50 rounded-lg border border-yellow-200"
+                              className="flex items-center gap-3 p-3 border border-yellow-200 rounded-lg bg-yellow-50"
                             >
-                              <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
+                              <div className="flex items-center justify-center w-10 h-10 bg-yellow-100 rounded-lg">
                                 <FileText className="w-5 h-5 text-yellow-700" />
                               </div>
                               <div className="flex-1">
                                 <p className="font-medium text-slate-900">
                                   {resource.resource.title || "Untitled Resource"}
                                 </p>
-                                <p className="text-xs text-slate-500 uppercase">
+                                <p className="text-xs uppercase text-slate-500">
                                   {resource.resource.type || "FILE"}
                                 </p>
                               </div>
-                              <button className="p-2 hover:bg-yellow-100 rounded transition-colors">
+                              <button className="p-2 transition-colors rounded hover:bg-yellow-100">
                                 <svg
                                   className="w-5 h-5 text-slate-600"
                                   fill="none"
@@ -285,7 +292,7 @@ export default function TeacherAssignmentDetail() {
                   {/* Right Column - AI Evaluation & Rubrics */}
                   <div className="space-y-6">
                     {/* AI Evaluation Card */}
-                    <div className="bg-blue-600 rounded-lg p-6 text-white">
+                    <div className="p-6 text-white bg-blue-600 rounded-lg">
                       <div className="flex items-center gap-2 mb-4">
                         <svg
                           className="w-6 h-6"
@@ -305,7 +312,7 @@ export default function TeacherAssignmentDetail() {
 
                       <div className="space-y-4">
                         <div>
-                          <p className="text-blue-100 text-sm mb-1">Status</p>
+                          <p className="mb-1 text-sm text-blue-100">Status</p>
                           <div className="flex items-center gap-2">
                             <div
                               className={`w-2 h-2 rounded-full ${
@@ -323,17 +330,17 @@ export default function TeacherAssignmentDetail() {
                         {assignment.aiEvaluationEnable && (
                           <>
                             <div>
-                              <p className="text-blue-100 text-sm mb-1">ASSIGNED MODEL</p>
+                              <p className="mb-1 text-sm text-blue-100">ASSIGNED MODEL</p>
                               <p className="font-semibold">
                                 {assignment.aiModel?.name || "GPT-4o Educator"}
                               </p>
-                              <p className="text-blue-100 text-xs">
+                              <p className="text-xs text-blue-100">
                                 {assignment.aiModel?.provider || "v2.1"}
                               </p>
                             </div>
 
                             <div>
-                              <p className="text-blue-100 text-sm mb-1">EVALUATION FOCUS</p>
+                              <p className="mb-1 text-sm text-blue-100">EVALUATION FOCUS</p>
                               <p className="text-sm">
                                 Logical structure, edge-case handling, and algorithmic complexity.
                               </p>
@@ -345,7 +352,7 @@ export default function TeacherAssignmentDetail() {
 
                     {/* Grading Rubrics */}
                     {assignment.rubrics && assignment.rubrics.length > 0 && (
-                      <div className="bg-white rounded-lg border border-slate-200 p-6">
+                      <div className="p-6 bg-white border rounded-lg border-slate-200">
                         <div className="flex items-center gap-2 mb-4">
                           <svg className="w-5 h-5 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
@@ -377,7 +384,7 @@ export default function TeacherAssignmentDetail() {
                             </div>
                           ))}
                           <div className="flex items-center justify-between pt-4 border-t-2 border-slate-200">
-                            <p className="text-sm font-semibold text-slate-500 uppercase">TOTAL WEIGHT</p>
+                            <p className="text-sm font-semibold uppercase text-slate-500">TOTAL WEIGHT</p>
                             <p className="text-2xl font-bold text-blue-600">
                               {assignment.maxScore} Points
                             </p>
@@ -387,15 +394,15 @@ export default function TeacherAssignmentDetail() {
                     )}
 
                     {/* Delete Assignment */}
-                    <div className="bg-white rounded-lg border border-red-200 p-6">
+                    <div className="p-6 bg-white border border-red-200 rounded-lg">
                       <button
                         onClick={handleDeleteAssignment}
-                        className="w-full flex items-center justify-center gap-2 px-4 py-3 text-red-600 hover:bg-red-50 rounded-md transition-colors"
+                        className="flex items-center justify-center w-full gap-2 px-4 py-3 text-red-600 transition-colors rounded-md hover:bg-red-50"
                       >
                         <Trash2 className="w-5 h-5" />
                         <span className="font-medium">Delete Assignment</span>
                       </button>
-                      <p className="text-xs text-slate-500 mt-2 text-center">
+                      <p className="mt-2 text-xs text-center text-slate-500">
                         Warning: This action cannot be undone.
                       </p>
                     </div>
