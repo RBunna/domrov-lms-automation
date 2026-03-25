@@ -1,7 +1,6 @@
 
 import { Routes, Route } from 'react-router-dom';
 import { AuthProvider } from '@/context/AuthContext';
-import { AssignmentProvider } from '@/context/AssignmentContext';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import PublicRoute from '@/components/PublicRoute';
 import Landing from '@/pages/Landing';
@@ -15,6 +14,7 @@ import Docs from '@/pages/Docs';
 import About from '@/pages/About';
 import Pricing from '@/pages/Pricing';
 import AssignmentDetail from '@/pages/AssignmentDetail';
+import ViewAssignmentPage from '@/pages/ViewAssignmentPage';
 import CreditPurchasePage from './pages/CreditPurchase';
 import AIEvaluationPage from '@/pages/AIEvaluationPage';
 
@@ -50,6 +50,7 @@ const AppRoutes: React.FC = () => {
         }
       />
       <Route path="/class/:id/assignment/:assignmentId/edit" element={<ProtectedRoute><EditAssignmentPage /></ProtectedRoute>} />
+      <Route path="/class/:id/assignment/:assignmentId/view" element={<ProtectedRoute><ViewAssignmentPage /></ProtectedRoute>} />
       <Route path="/assignment/:id" element={<ProtectedRoute><AssignmentDetail /></ProtectedRoute>} />
       <Route path="/profile" element={<ProtectedRoute><UserProfilePage /></ProtectedRoute>} />
       <Route path="/creditPurchase" element={<ProtectedRoute><CreditPurchasePage /></ProtectedRoute>} />
@@ -63,9 +64,7 @@ const AppRoutes: React.FC = () => {
 const App: React.FC = () => {
   return (
     <AuthProvider>
-      <AssignmentProvider>
-        <AppRoutes />
-      </AssignmentProvider>
+      <AppRoutes />
     </AuthProvider>
   );
 };
