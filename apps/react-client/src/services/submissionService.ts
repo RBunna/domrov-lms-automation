@@ -150,19 +150,19 @@ export async function unsubmitAssignment(
 }
 
 const submissionService = {
-  getMySubmissionStatusInClass,
-  getMySubmissionStatus,
-  getSubmissionRoster,
-  getSubmissionStats,
-  gradeSubmission,
-  addFeedback,
-  updateFeedback,
-  getSubmissionForTeacher,
-  getSubmissionForStudent,
-  approveSubmission,
-  saveDraftSubmission,
-  submitAssignment,
-  unsubmitAssignment,
+    getMySubmissionStatusInClass,
+    getMySubmissionStatus,
+    getSubmissionRoster,
+    getSubmissionStats,
+    gradeSubmission,
+    addFeedback,
+    updateFeedback,
+    getSubmissionForTeacher,
+    getSubmissionForStudent,
+    approveSubmission,
+    saveDraftSubmission,
+    submitAssignment,
+    unsubmitAssignment,
 };
 
 export default submissionService;
