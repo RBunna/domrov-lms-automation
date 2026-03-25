@@ -11,13 +11,17 @@ import type {
     UpdateFeedbackResponseDto,
     FeedbackItemDto,
     GradeSubmissionDTO,
+    SubmitAssignmentDto,
+    SubmitAssignmentResponseDto,
+    SubmissionViewerResponseDto,
+    ApproveSubmissionResponseDto,
 } from '@/types/submission';
 
 /**
  * Get my submission status for all assessments in a class (Student)
  */
 export async function getMySubmissionStatusInClass(classId: number): Promise<ApiResponse<SubmissionStatusItemDto[]>> {
-    const response = await axiosInstance.get<ApiResponse<SubmissionStatusItemDto[]>>(`/submissions/class/${classId}/my-status`);
+    const response = await axiosInstance.get<ApiResponse<SubmissionStatusItemDto[]>>(`/submissions/my-status/class/${classId}`);
     return response.data;
 }
 
@@ -69,14 +73,96 @@ export async function updateFeedback(feedbackId: string, data: FeedbackItemDto):
     return response.data;
 }
 
+/**
+ * Get submission details (Teacher)
+ */
+export async function getSubmissionForTeacher(
+    submissionId: number
+): Promise<ApiResponse<SubmissionViewerResponseDto>> {
+    const response = await axiosInstance.get<ApiResponse<SubmissionViewerResponseDto>>(
+        `/submissions/${submissionId}/teacher`
+    );
+    return response.data;
+}
+
+/**
+ * Get submission details (Student)
+ */
+export async function getSubmissionForStudent(
+    submissionId: number
+): Promise<ApiResponse<SubmissionViewerResponseDto>> {
+    const response = await axiosInstance.get<ApiResponse<SubmissionViewerResponseDto>>(
+        `/submissions/${submissionId}/student`
+    );
+    return response.data;
+}
+
+/**
+ * Approve submission evaluation (Teacher)
+ */
+export async function approveSubmission(
+    submissionId: number
+): Promise<ApiResponse<ApproveSubmissionResponseDto>> {
+    const response = await axiosInstance.patch<ApiResponse<ApproveSubmissionResponseDto>>(
+        `/submissions/approve/${submissionId}`
+    );
+    return response.data;
+}
+
+/**
+ * Save or update draft assignment (Student)
+ */
+export async function saveDraftSubmission(
+    assessmentId: number,
+    data: SubmitAssignmentDto
+): Promise<ApiResponse<SubmitAssignmentResponseDto>> {
+    const response = await axiosInstance.patch<ApiResponse<SubmitAssignmentResponseDto>>(
+        `/submissions/${assessmentId}/submit`,
+        data
+    );
+    return response.data;
+}
+
+/**
+ * Submit assignment (final) (Student)
+ */
+export async function submitAssignment(
+    assessmentId: number,
+    data: SubmitAssignmentDto
+): Promise<ApiResponse<SubmitAssignmentResponseDto>> {
+    const response = await axiosInstance.post<ApiResponse<SubmitAssignmentResponseDto>>(
+        `/submissions/${assessmentId}/submit`,
+        data
+    );
+    return response.data;
+}
+
+/**
+ * Unsubmit assignment (Student)
+ */
+export async function unsubmitAssignment(
+    assessmentId: number
+): Promise<ApiResponse<{ message: string }>> {
+    const response = await axiosInstance.post<ApiResponse<{ message: string }>>(
+        `/submissions/${assessmentId}/unsubmit`
+    );
+    return response.data;
+}
+
 const submissionService = {
-    getMySubmissionStatusInClass,
-    getMySubmissionStatus,
-    getSubmissionRoster,
-    getSubmissionStats,
-    gradeSubmission,
-    addFeedback,
-    updateFeedback,
+  getMySubmissionStatusInClass,
+  getMySubmissionStatus,
+  getSubmissionRoster,
+  getSubmissionStats,
+  gradeSubmission,
+  addFeedback,
+  updateFeedback,
+  getSubmissionForTeacher,
+  getSubmissionForStudent,
+  approveSubmission,
+  saveDraftSubmission,
+  submitAssignment,
+  unsubmitAssignment,
 };
 
 export default submissionService;
