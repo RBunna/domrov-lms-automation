@@ -1,6 +1,6 @@
 # Nestjs specific
 /dist
-/node_modules
+node_modules
 /build
 /tmp
 /files_cache_data
@@ -20,7 +20,11 @@ lerna-debug.log*
 .env.development
 .env.test
 .env.production
+apps/client_next/next-env.d.ts
 
 # temp directory
 .temp
 .tmp
+
+# NextJS specific
+.next
