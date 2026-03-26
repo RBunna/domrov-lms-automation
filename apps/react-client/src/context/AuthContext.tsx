@@ -31,6 +31,7 @@ interface AuthContextType {
     isAuthenticated: boolean;
     isLoading: boolean;
     token: string | null;
+    refreshProfile: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -132,6 +133,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             isAuthenticated: !!token,
             isLoading,
             token,
+            refreshProfile,
         }),
         [user, token, isLoading]
     );
