@@ -23,7 +23,7 @@ export default function FormInput({
       </label>
       <input
         id={id}
-        className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all ${
+        className={`w-full px-4 py-2.5 border rounded-lg focus:ring-2 focus:ring-primary focus:border-primary outline-none transition-all text-slate-900 placeholder-slate-500 ${
           error ? "border-red-500" : "border-slate-300"
         }`}
         {...props}

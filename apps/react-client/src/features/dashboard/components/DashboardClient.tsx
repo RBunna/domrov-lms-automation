@@ -9,11 +9,13 @@ import StatusFilters from "@/features/dashboard/components/TermFilters";
 import JoinClassModal from "@/features/dashboard/components/JoinClassModal";
 import DeleteConfirmModal from "@/features/dashboard/components/DeleteConfirmModal";
 import { useDashboardFilters } from "@/hooks";
+import { useAuth } from "@/context/AuthContext";
 import classService from "@/services/classService";
 import type { ClassCard } from "@/types/classCard";
 
 export default function DashboardClient() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isViewingClasses, setIsViewingClasses] = useState(false);
   const [classList, setClassList] = useState<ClassCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -98,11 +100,17 @@ export default function DashboardClient() {
     if (!deleteModalState.classId) return;
     try {
       await classService.deleteClass(parseInt(deleteModalState.classId));
-      // Remove from local state
       setClassList(prev => prev.filter(c => c.id.toString() !== deleteModalState.classId));
       setDeleteModalState({ isOpen: false, classId: null, className: "" });
-    } catch (err) {
-      alert("Error deleting class: " + (err instanceof Error ? err.message : err));
+      alert("Class deleted successfully");
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || err?.message || "Failed to delete class";
+      
+      if (errorMsg.includes("dependencies") || errorMsg.includes("existing")) {
+        alert(`Cannot delete class: ${errorMsg}\n\nPlease ensure all assignments, submissions, and enrollments have been removed first.`);
+      } else {
+        alert("Error deleting class: " + errorMsg);
+      }
     }
   }, [deleteModalState.classId]);
 
@@ -110,11 +118,38 @@ export default function DashboardClient() {
     setDeleteModalState({ isOpen: false, classId: null, className: "" });
   }, []);
 
+  const handleEdit = useCallback((id: string) => {
+    navigate(`/class/${id}/edit`);
+  }, [navigate]);
+
+  const handleLeaveClass = useCallback(async (id: string) => {
+    try {
+      const classItem = classList.find(c => c.id.toString() === id);
+      if (confirm(`Are you sure you want to leave "${classItem?.name}"?`)) {
+        const userId = user?.id || 0;
+        await classService.removeMember(parseInt(id), userId);
+        setClassList(prev => prev.filter(c => c.id.toString() !== id));
+        alert("Successfully left the class");
+      }
+    } catch (err) {
+      alert("Error leaving class: " + (err instanceof Error ? err.message : err));
+    }
+  }, [classList, user?.id]);
+
+  const handleDeleteClass = useCallback((id: string) => {
+    const classItem = classList.find(c => c.id.toString() === id);
+    setDeleteModalState({
+      isOpen: true,
+      classId: id,
+      className: classItem?.name || "",
+    });
+  }, [classList]);
+
   if (isLoading) {
     return (
       <div className="flex items-center justify-center flex-1">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mb-4 mx-auto"></div>
+          <div className="w-8 h-8 mx-auto mb-4 border-4 rounded-full animate-spin border-primary-500 border-t-transparent"></div>
           <p className="text-slate-500">Loading classes...</p>
         </div>
       </div>
@@ -132,11 +167,10 @@ export default function DashboardClient() {
         activeStatus={activeStatus}
         onChangeStatus={setActiveStatus}
         onJoinClass={() => setIsJoinModalOpen(true)}
-        onViewAllClasses={() => setIsViewingClasses(true)}
       />
 
       <main className="px-6 py-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Classes</h2>
             <p className="text-sm text-slate-500">
@@ -147,7 +181,7 @@ export default function DashboardClient() {
         </div>
 
         {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          <div className="p-4 mt-4 text-red-700 border border-red-200 rounded-lg bg-red-50">
             {error}
           </div>
         )}
@@ -160,31 +194,14 @@ export default function DashboardClient() {
               handleOpen(id, classItem?.role);
             }}
             activeClassId={activeClassId}
-            onEdit={(id) => {
-              console.log("Edit class:", id);
-              // TODO: Implement edit class functionality
-            }}
-            onViewMembers={(id) => {
-              console.log("View members for class:", id);
-              // TODO: Implement view members functionality
-            }}
-            onLeaveClass={(id) => {
-              console.log("Leave class:", id);
-              // TODO: Implement leave class functionality
-            }}
-            onDeleteClass={(id) => {
-              console.log("Delete class:", id);
-              // TODO: Implement delete class functionality
-            }}
-            onShareClass={(id) => {
-              console.log("Share class:", id);
-              // TODO: Implement share class functionality
-            }}
+            onEdit={handleEdit}
+            onLeaveClass={handleLeaveClass}
+            onDeleteClass={handleDeleteClass}
           />
         </div>
 
         {!error && filteredClasses.length === 0 && (
-          <div className="text-center py-12">
+          <div className="py-12 text-center">
             <p className="text-slate-500">No classes found. Join or create a class to get started.</p>
           </div>
         )}

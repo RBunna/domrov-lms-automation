@@ -3,9 +3,10 @@ import { ChevronLeft } from "lucide-react";
 import EditAssignmentForm from "@/features/assignment/EditAssignmentForm";
 import ClassSidebar from "@/features/classDashboard/ClassSidebar";
 import MainNavigation from "@/components/navigation/Navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/components/Toast";
 import { Toast } from "@/components/Toast";
+import classService from "@/services/classService";
 
 type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
 
@@ -16,6 +17,24 @@ export default function EditAssignmentPage() {
   const assignmentId = params.assignmentId as string;
   const [activeTab, setActiveTab] = useState<TabId>("assignment");
   const { toast } = useToast();
+  const [role, setRole] = useState<string | null>(null);
+
+  // Fetch the class role
+  useEffect(() => {
+    const fetchClassRole = async () => {
+      try {
+        const classData = await classService.getClass(parseInt(classId));
+        setRole(classData.role || "Student"); // Default to Student, not Teacher
+      } catch (err) {
+        console.error("Failed to fetch class role:", err);
+        setRole("Student"); // Default to Student on error
+      }
+    };
+
+    if (classId) {
+      fetchClassRole();
+    }
+  }, [classId]);
 
   if (!classId || !assignmentId) {
     return (
@@ -25,6 +44,12 @@ export default function EditAssignmentPage() {
     );
   }
 
+  // Determine allowed tabs based on role
+  const normalizedRole = role === "Teacher" || role === "Instructor" ? "Teacher" : "Student";
+  const allowedTabs: TabId[] = normalizedRole === "Teacher"
+    ? ["general", "assignment", "posts", "students", "files", "grades"]
+    : ["general", "assignment", "posts", "files", "grades"];
+
   return (
     <div className="flex min-h-screen bg-slate-50">
       <MainNavigation activeId="classes" />
@@ -32,7 +57,7 @@ export default function EditAssignmentPage() {
         classId={classId} 
         activeTab={activeTab} 
         onTabChange={setActiveTab}
-        allowedTabs={["general", "assignment", "posts", "students", "files", "grades"]}
+        allowedTabs={allowedTabs}
       />
       <div className="flex flex-col flex-1">
         <div className="flex items-center gap-4 px-6 py-4 bg-white border-b border-slate-200">

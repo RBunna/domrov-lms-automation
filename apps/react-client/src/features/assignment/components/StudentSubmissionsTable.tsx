@@ -1,29 +1,65 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { ChevronLeft, ChevronRight, Search, Filter } from "lucide-react";
-import type { StudentSubmission } from "@/data/mockAssignmentDetails";
+import { getSubmissionRoster } from "@/services/submissionService";
+import type { TeamRosterItemDto, IndividualRosterItemDto } from "@/types/submission";
 
 interface StudentSubmissionsTableProps {
-  students: StudentSubmission[];
-  assignmentId: number; // Added assignmentId to the props
+  assignmentId: number;
 }
 
-export default function StudentSubmissionsTable({ students }: StudentSubmissionsTableProps) {
+export default function StudentSubmissionsTable({ assignmentId }: StudentSubmissionsTableProps) {
+  const [submissions, setSubmissions] = useState<(TeamRosterItemDto | IndividualRosterItemDto)[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const [searchTerm, setSearchTerm] = useState("");
   const itemsPerPage = 5;
 
-  // Filter students based on search
-  const filteredStudents = students.filter((student) =>
-    student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    student.studentId.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Fetch submission roster on mount
+  useEffect(() => {
+    const fetchSubmissions = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        console.log("Fetching submissions for assessmentId:", assignmentId);
+        const response = await getSubmissionRoster(assignmentId);
+        console.log("Submissions API response:", response);
+        
+        // Handle different response formats
+        const data = response?.data || response || [];
+        const submissionArray = Array.isArray(data) ? data : [];
+        
+        if (submissionArray.length === 0) {
+          console.warn("No submissions found in response");
+        }
+        setSubmissions(submissionArray);
+      } catch (err: any) {
+        const errorMessage = err?.response?.data?.message || err?.message || "Failed to load submissions";
+        const status = err?.response?.status;
+        setError(`Error (${status}): ${errorMessage}`);
+        console.error("Error fetching submissions:", err);
+        console.error("Error details:", err?.response?.data);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSubmissions();
+  }, [assignmentId]);
+
+  // Filter submissions based on search
+  const filteredSubmissions = submissions.filter((submission: any) => {
+    const name = submission.name || submission.studentName || "";
+    const id = submission.studentId || "";
+    return name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+           id.toLowerCase().includes(searchTerm.toLowerCase());
+  });
 
   // Paginate
-  const totalPages = Math.ceil(filteredStudents.length / itemsPerPage);
+  const totalPages = Math.ceil(filteredSubmissions.length / itemsPerPage);
   const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedStudents = filteredStudents.slice(startIndex, startIndex + itemsPerPage);
+  const paginatedSubmissions = filteredSubmissions.slice(startIndex, startIndex + itemsPerPage);
 
   // Get status badge styles
   const getSubmissionStatusColor = (status: "submitted" | "missing") => {
@@ -98,10 +134,25 @@ export default function StudentSubmissionsTable({ students }: StudentSubmissions
             </tr>
           </thead>
           <tbody>
-            {paginatedStudents.length > 0 ? (
-              paginatedStudents.map((student, index) => (
+            {loading ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-8 text-center text-slate-500">
+                  Loading submissions...
+                </td>
+              </tr>
+            ) : error ? (
+              <tr>
+                <td colSpan={6} className="px-6 py-8 text-center text-red-600">
+                  <div>
+                    <p className="font-semibold mb-2">{error}</p>
+                    <p className="text-sm text-slate-600">Check browser console for details. API endpoint: /submissions/assessment/{assignmentId}/roster</p>
+                  </div>
+                </td>
+              </tr>
+            ) : paginatedSubmissions.length > 0 ? (
+              paginatedSubmissions.map((submission: any, index: number) => (
                 <tr
-                  key={student.studentId}
+                  key={submission.studentId || submission.id}
                   className={`border-b border-slate-200 hover:bg-slate-50 transition-colors ${
                     index % 2 === 0 ? "bg-white" : "bg-slate-50"
                   }`}
@@ -110,29 +161,29 @@ export default function StudentSubmissionsTable({ students }: StudentSubmissions
                   <td className="px-6 py-4">
                     <div className="flex items-center gap-3">
                       <div className="flex items-center justify-center w-8 h-8 text-xs font-semibold text-blue-700 bg-blue-100 rounded-full">
-                        {student.name
+                        {(submission.name || submission.studentName || "")
                           .split(" ")
-                          .map((n) => n[0])
+                          .map((n: string) => n[0])
                           .join("")
                           .slice(0, 2)
                           .toUpperCase()}
                       </div>
-                      <span className="font-medium text-slate-900">{student.name}</span>
+                      <span className="font-medium text-slate-900">{submission.name || submission.studentName}</span>
                     </div>
                   </td>
 
                   {/* Student ID */}
-                  <td className="px-6 py-4 text-slate-600">{student.studentId}</td>
+                  <td className="px-6 py-4 text-slate-600">{submission.studentId || submission.id}</td>
 
                   {/* Submission Status */}
                   <td className="px-6 py-4">
                     <div
                       className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-medium ${getSubmissionStatusColor(
-                        student.submissionStatus
+                        submission.submissionStatus || "missing"
                       )}`}
                     >
-                      {getSubmissionStatusIcon(student.submissionStatus)}
-                      <span>{student.submissionStatus === "submitted" ? "Submitted" : "Missing"}</span>
+                      {getSubmissionStatusIcon(submission.submissionStatus || "missing")}
+                      <span>{submission.submissionStatus === "submitted" ? "Submitted" : "Missing"}</span>
                     </div>
                   </td>
 
@@ -140,12 +191,12 @@ export default function StudentSubmissionsTable({ students }: StudentSubmissions
                   <td className="px-6 py-4">
                     <div
                       className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${getAIStatusColor(
-                        student.aiStatus
+                        submission.aiStatus || "pending"
                       )}`}
                     >
-                      {student.aiStatus === "checked"
+                      {submission.aiStatus === "checked"
                         ? "AI Checked"
-                        : student.aiStatus === "pending"
+                        : submission.aiStatus === "pending"
                           ? "AI Pending"
                           : "AI Flagged"}
                     </div>
@@ -153,7 +204,7 @@ export default function StudentSubmissionsTable({ students }: StudentSubmissions
 
                   {/* Submission Time */}
                   <td className="px-6 py-4 text-slate-600">
-                    {student.submissionTime || "Not available"}
+                    {submission.submissionTime || "Not available"}
                   </td>
 
                   {/* Action */}
@@ -179,8 +230,8 @@ export default function StudentSubmissionsTable({ students }: StudentSubmissions
       {totalPages > 1 && (
         <div className="flex items-center justify-between mt-6 text-sm">
           <span className="text-slate-600">
-            Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredStudents.length)} of{" "}
-            {filteredStudents.length} students
+            Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredSubmissions.length)} of{" "}
+            {filteredSubmissions.length} students
           </span>
           <div className="flex items-center gap-2">
             <button

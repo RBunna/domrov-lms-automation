@@ -3,17 +3,15 @@
 import { useState } from "react";
 import DropdownMenu from "@/components/ui/DropdownMenu";
 import type { ClassCard as ClassCardType } from "@/types/classCard";
-import { MoreVertical, Edit2, Users, LogOut, Trash2, Share2 } from "lucide-react";
+import { MoreVertical, Edit2, LogOut, Trash2 } from "lucide-react";
 
 interface ClassCardProps {
   classItem: ClassCardType;
   onOpen?: (id: string) => void;
   isActive?: boolean;
   onEdit?: (id: string) => void;
-  onViewMembers?: (id: string) => void;
   onLeaveClass?: (id: string) => void;
   onDeleteClass?: (id: string) => void;
-  onShareClass?: (id: string) => void;
 }
 
 /**
@@ -24,10 +22,8 @@ export default function ClassCard({
   onOpen, 
   isActive = false,
   onEdit,
-  onViewMembers,
   onLeaveClass,
   onDeleteClass,
-  onShareClass,
 }: ClassCardProps) {
   const [copied, setCopied] = useState(false);
 
@@ -112,22 +108,11 @@ export default function ClassCard({
           <DropdownMenu
               trigger={<MoreVertical className="w-4 h-4 text-slate-600" />}
               items={[
-                {
+                ...(classItem.role === "Teacher" ? [{
                   label: "Edit Class",
                   icon: <Edit2 className="w-4 h-4" />,
                   onClick: () => onEdit?.(classItem.id?.toString?.() ?? ""),
-                },
-                {
-                  label: "View Members",
-                  icon: <Users className="w-4 h-4" />,
-                  onClick: () => onViewMembers?.(classItem.id?.toString?.() ?? ""),
-                },
-                {
-                  label: "Share Class",
-                  icon: <Share2 className="w-4 h-4" />,
-                  onClick: () => onShareClass?.(classItem.id?.toString?.() ?? ""),
-                  divider: true,
-                },
+                }] : []),
                 {
                   label: "Leave Class",
                   icon: <LogOut className="w-4 h-4" />,

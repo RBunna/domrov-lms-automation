@@ -1,7 +1,7 @@
 "use client";
 
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types/enums";
 import MainNavigation from "@/components/navigation/Navigation";
@@ -17,6 +17,7 @@ import {
 } from "@/features/classDashboard";
 import TeacherAssignmentTab from "@/features/classDashboard/tabs/TeacherAssignmentTab";
 import { useParams, useLocation } from "react-router-dom";
+import classService from "@/services/classService";
 
 type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";
 
@@ -28,12 +29,42 @@ export default function ClassDashboardClient() {
   const location = useLocation();
   const initialTab = (location.state?.activeTab as TabId) || "general";
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
-  // Get role from location.state (passed from ClassCard) or default to Teacher
-  const role = (location.state && location.state.role) || UserRole.Teacher;
+  // Use role from location.state if available (passed from ClassCard), otherwise null
+  const [role, setRole] = useState<string | null>(location.state?.role || null);
+  const [isLoadingRole, setIsLoadingRole] = useState(!location.state?.role);
   const [error] = useState<string | null>(null);
 
+  // Fetch the class role from API to verify and keep up-to-date
+  useEffect(() => {
+    // If we already have role from location.state, don't need to fetch
+    if (location.state?.role) {
+      setIsLoadingRole(false);
+      return;
+    }
+
+    const fetchClassRole = async () => {
+      try {
+        const classData = await classService.getClass(parseInt(classId));
+        setRole(classData.role || "Student"); // Default to Student, not Teacher
+      } catch (err) {
+        console.error("Failed to fetch class role:", err);
+        // Default to Student role on error (prevents showing error message)
+        setRole("Student");
+      } finally {
+        setIsLoadingRole(false);
+      }
+    };
+
+    if (classId) {
+      fetchClassRole();
+    }
+  }, [classId, location.state?.role]);
+
   const renderTabContent = () => {
-    if (role === UserRole.Teacher) {
+    // Normalize role to match UserRole enum (API returns "Teacher" or "Student")
+    const normalizedRole = role === "Teacher" || role === UserRole.Teacher ? UserRole.Teacher : UserRole.Student;
+    
+    if (normalizedRole === UserRole.Teacher) {
       switch (activeTab) {
         case "general":
           return <GeneralTab classId={classId} />;
@@ -50,7 +81,7 @@ export default function ClassDashboardClient() {
         default:
           return <GeneralTab classId={classId} />;
       }
-    } else if (role === UserRole.Student) {
+    } else if (normalizedRole === UserRole.Student) {
       switch (activeTab) {
         case "general":
           return <GeneralTab classId={classId} />;
@@ -70,7 +101,7 @@ export default function ClassDashboardClient() {
     return null;
   };
 
-  if (authLoading) {
+  if (authLoading || isLoadingRole) {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="text-lg text-slate-600">Loading class dashboard...</div>
@@ -95,8 +126,11 @@ export default function ClassDashboardClient() {
     );
   }
 
+  // Normalize role for tab access control
+  const normalizedRole = role === "Teacher" || role === UserRole.Teacher ? UserRole.Teacher : UserRole.Student;
+  
   // Teacher: all tabs, Student: no Students tab
-  const allowedTabs: TabId[] = role === UserRole.Teacher
+  const allowedTabs: TabId[] = normalizedRole === UserRole.Teacher
     ? ["general", "assignment", "posts", "students", "files", "grades"]
     : ["general", "assignment", "posts", "files", "grades"];
 
