@@ -163,25 +163,19 @@ export default function ClassesDetail({ onBack }: ClassesDetailProps) {
           <div className="grid gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
             <ClassGrid 
               items={filteredClasses} 
-              onOpen={(id) => {
+              onOpen={(id: string) => {
                 const classItem = filteredClasses.find(c => c.id.toString() === id);
                 handleOpen(id, classItem?.role);
               }}
               activeClassId={activeClassId}
-              onEdit={(id) => {
+              onEdit={(id: string) => {
                 console.log("Edit class:", id);
               }}
-              onViewMembers={(id) => {
-                console.log("View members for class:", id);
-              }}
-              onLeaveClass={(id) => {
+              onLeaveClass={(id: string) => {
                 console.log("Leave class:", id);
               }}
-              onDeleteClass={(id) => {
+              onDeleteClass={(id: string) => {
                 console.log("Delete class:", id);
-              }}
-              onShareClass={(id) => {
-                console.log("Share class:", id);
               }}
             />
           </div>

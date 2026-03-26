@@ -149,7 +149,7 @@ export default function DashboardClient() {
     return (
       <div className="flex items-center justify-center flex-1">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-4 border-primary-500 border-t-transparent mb-4 mx-auto"></div>
+          <div className="w-8 h-8 mx-auto mb-4 border-4 rounded-full animate-spin border-primary-500 border-t-transparent"></div>
           <p className="text-slate-500">Loading classes...</p>
         </div>
       </div>
@@ -167,11 +167,10 @@ export default function DashboardClient() {
         activeStatus={activeStatus}
         onChangeStatus={setActiveStatus}
         onJoinClass={() => setIsJoinModalOpen(true)}
-        onViewAllClasses={() => setIsViewingClasses(true)}
       />
 
       <main className="px-6 py-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h2 className="text-lg font-semibold text-slate-900">Classes</h2>
             <p className="text-sm text-slate-500">
@@ -182,7 +181,7 @@ export default function DashboardClient() {
         </div>
 
         {error && (
-          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg text-red-700">
+          <div className="p-4 mt-4 text-red-700 border border-red-200 rounded-lg bg-red-50">
             {error}
           </div>
         )}
@@ -202,7 +201,7 @@ export default function DashboardClient() {
         </div>
 
         {!error && filteredClasses.length === 0 && (
-          <div className="text-center py-12">
+          <div className="py-12 text-center">
             <p className="text-slate-500">No classes found. Join or create a class to get started.</p>
           </div>
         )}
