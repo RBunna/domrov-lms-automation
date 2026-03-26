@@ -7,10 +7,8 @@ interface ClassGridProps {
   onOpen?: (id: string) => void;
   activeClassId?: string | number | null;
   onEdit?: (id: string) => void;
-  onViewMembers?: (id: string) => void;
   onLeaveClass?: (id: string) => void;
   onDeleteClass?: (id: string) => void;
-  onShareClass?: (id: string) => void;
 }
 
 /**
@@ -22,10 +20,8 @@ export default function ClassGrid({
   onOpen, 
   activeClassId,
   onEdit,
-  onViewMembers,
   onLeaveClass,
   onDeleteClass,
-  onShareClass,
 }: ClassGridProps) {
   if (items.length === 0) {
     return (
@@ -44,10 +40,8 @@ export default function ClassGrid({
           onOpen={onOpen}
           isActive={classItem.id?.toString() === activeClassId?.toString()}
           onEdit={onEdit}
-          onViewMembers={onViewMembers}
           onLeaveClass={onLeaveClass}
           onDeleteClass={onDeleteClass}
-          onShareClass={onShareClass}
         />
       ))}
     </>

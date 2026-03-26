@@ -9,11 +9,13 @@ import StatusFilters from "@/features/dashboard/components/TermFilters";
 import JoinClassModal from "@/features/dashboard/components/JoinClassModal";
 import DeleteConfirmModal from "@/features/dashboard/components/DeleteConfirmModal";
 import { useDashboardFilters } from "@/hooks";
+import { useAuth } from "@/context/AuthContext";
 import classService from "@/services/classService";
 import type { ClassCard } from "@/types/classCard";
 
 export default function DashboardClient() {
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [isViewingClasses, setIsViewingClasses] = useState(false);
   const [classList, setClassList] = useState<ClassCard[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -98,17 +100,50 @@ export default function DashboardClient() {
     if (!deleteModalState.classId) return;
     try {
       await classService.deleteClass(parseInt(deleteModalState.classId));
-      // Remove from local state
       setClassList(prev => prev.filter(c => c.id.toString() !== deleteModalState.classId));
       setDeleteModalState({ isOpen: false, classId: null, className: "" });
-    } catch (err) {
-      alert("Error deleting class: " + (err instanceof Error ? err.message : err));
+      alert("Class deleted successfully");
+    } catch (err: any) {
+      const errorMsg = err?.response?.data?.message || err?.message || "Failed to delete class";
+      
+      if (errorMsg.includes("dependencies") || errorMsg.includes("existing")) {
+        alert(`Cannot delete class: ${errorMsg}\n\nPlease ensure all assignments, submissions, and enrollments have been removed first.`);
+      } else {
+        alert("Error deleting class: " + errorMsg);
+      }
     }
   }, [deleteModalState.classId]);
 
   const handleDeleteCancel = useCallback(() => {
     setDeleteModalState({ isOpen: false, classId: null, className: "" });
   }, []);
+
+  const handleEdit = useCallback((id: string) => {
+    navigate(`/class/${id}/edit`);
+  }, [navigate]);
+
+  const handleLeaveClass = useCallback(async (id: string) => {
+    try {
+      const classItem = classList.find(c => c.id.toString() === id);
+      if (confirm(`Are you sure you want to leave "${classItem?.name}"?`)) {
+        const userId = user?.id || 0;
+        await classService.removeMember(parseInt(id), userId);
+        setClassList(prev => prev.filter(c => c.id.toString() !== id));
+        alert("Successfully left the class");
+      }
+    } catch (err) {
+      alert("Error leaving class: " + (err instanceof Error ? err.message : err));
+    }
+  }, [classList, user?.id]);
+
+  const handleDeleteClass = useCallback((id: string) => {
+    const classItem = classList.find(c => c.id.toString() === id);
+    setDeleteModalState({
+      isOpen: true,
+      classId: id,
+      className: classItem?.name || "",
+    });
+  }, [classList]);
 
   if (isLoading) {
     return (
@@ -160,26 +195,9 @@ export default function DashboardClient() {
               handleOpen(id, classItem?.role);
             }}
             activeClassId={activeClassId}
-            onEdit={(id) => {
-              console.log("Edit class:", id);
-              // TODO: Implement edit class functionality
-            }}
-            onViewMembers={(id) => {
-              console.log("View members for class:", id);
-              // TODO: Implement view members functionality
-            }}
-            onLeaveClass={(id) => {
-              console.log("Leave class:", id);
-              // TODO: Implement leave class functionality
-            }}
-            onDeleteClass={(id) => {
-              console.log("Delete class:", id);
-              // TODO: Implement delete class functionality
-            }}
-            onShareClass={(id) => {
-              console.log("Share class:", id);
-              // TODO: Implement share class functionality
-            }}
+            onEdit={handleEdit}
+            onLeaveClass={handleLeaveClass}
+            onDeleteClass={handleDeleteClass}
           />
         </div>
 

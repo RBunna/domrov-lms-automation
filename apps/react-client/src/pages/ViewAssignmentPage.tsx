@@ -1,9 +1,13 @@
 "use client";
 
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import StudentSubmissionsTable from "@/features/assignment/components/StudentSubmissionsTable";
-import { mockAssignmentDetails, getAssignmentStats } from "@/data/mockAssignmentDetails";
+import { getAssessmentDetails } from "@/services/assessmentService";
+import { getSubmissionStats } from "@/services/submissionService";
+import type { AssessmentDetailDto } from "@/types/assessment";
+import type { AssessmentStatsResponseDto } from "@/types/submission";
 
 interface ViewAssignmentPageProps {
   onBack?: () => void;
@@ -11,19 +15,42 @@ interface ViewAssignmentPageProps {
 
 export default function ViewAssignmentPage({ onBack }: ViewAssignmentPageProps = {}) {
   const navigate = useNavigate();
+  const params = useParams();
+  const assignmentId = Number(params.assignmentId) || 0;
 
-  const handleBack = () => {
-    if (onBack) {
-      onBack();
-    } else {
-      navigate(-1);
+  const [assignment, setAssignment] = useState<AssessmentDetailDto | null>(null);
+  const [stats, setStats] = useState<AssessmentStatsResponseDto | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        console.log("Fetching assignment data for ID:", assignmentId);
+        
+        // Fetch assignment details
+        const assignmentData = await getAssessmentDetails(assignmentId);
+        setAssignment(assignmentData);
+        
+        // Fetch stats
+        const statsData = await getSubmissionStats(assignmentId);
+        setStats(statsData?.data || null);
+        
+      } catch (err: any) {
+        const errorMsg = err?.response?.data?.message || err?.message || "Failed to load assignment";
+        setError(errorMsg);
+        console.error("Error fetching assignment:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (assignmentId > 0) {
+      fetchData();
     }
-  };
-
-  // In a real app, you'd fetch data based on assignmentId
-  // For now, we use mock data
-  const data = mockAssignmentDetails;
-  const stats = getAssignmentStats(data);
+  }, [assignmentId]);
 
   return (
     <div className="min-h-screen bg-slate-50">
@@ -32,7 +59,7 @@ export default function ViewAssignmentPage({ onBack }: ViewAssignmentPageProps =
         <div className="px-6 py-6 mx-auto max-w-7xl">
           <div className="flex items-start justify-between mb-6">
             <button
-              onClick={handleBack}
+              onClick={() => onBack ? onBack() : navigate(-1)}
               className="flex items-center gap-2 mb-4 transition-colors text-slate-600 hover:text-slate-900"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -40,22 +67,30 @@ export default function ViewAssignmentPage({ onBack }: ViewAssignmentPageProps =
             </button>
           </div>
 
-          <div className="flex items-start justify-between">
-            <div className="flex-1">
-              <h1 className="mb-2 text-3xl font-bold text-slate-900">
-                {data.assignment.title}
-              </h1>
-              <p className="text-slate-600">
-                {data.assignment.description}
-              </p>
-            </div>
-            <div className="text-right">
-              <div className="inline-block px-4 py-2 border border-blue-200 rounded-lg bg-blue-50">
-                <p className="text-xs font-medium text-blue-600">DUE DATE</p>
-                <p className="text-lg font-bold text-blue-700">{data.assignment.dueDate}</p>
+          {loading ? (
+            <div className="text-slate-600">Loading assignment...</div>
+          ) : error ? (
+            <div className="text-red-600">Error: {error}</div>
+          ) : assignment ? (
+            <div className="flex items-start justify-between">
+              <div className="flex-1">
+                <h1 className="mb-2 text-3xl font-bold text-slate-900">
+                  {assignment.title}
+                </h1>
+                <p className="text-slate-600">
+                  {assignment.instruction}
+                </p>
+              </div>
+              <div className="text-right">
+                <div className="inline-block px-4 py-2 border border-blue-200 rounded-lg bg-blue-50">
+                  <p className="text-xs font-medium text-blue-600">DUE DATE</p>
+                  <p className="text-lg font-bold text-blue-700">
+                    {assignment.dueDate ? new Date(assignment.dueDate).toLocaleDateString() : "N/A"}
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          ) : null}
         </div>
       </div>
 
@@ -63,12 +98,12 @@ export default function ViewAssignmentPage({ onBack }: ViewAssignmentPageProps =
       <div className="px-6 py-8 mx-auto max-w-7xl">
         {/* Stats Cards */}
         <div className="grid grid-cols-1 gap-6 mb-8 md:grid-cols-3">
-          {/* Total Students */}
+          {/* Total Submissions */}
           <div className="p-6 transition-shadow bg-white border rounded-lg shadow-sm border-slate-200 hover:shadow-md">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="mb-1 text-sm font-medium text-slate-600">Total Students</p>
-                <p className="text-3xl font-bold text-slate-900">{stats.totalStudents}</p>
+                <p className="mb-1 text-sm font-medium text-slate-600">Total Submissions</p>
+                <p className="text-3xl font-bold text-slate-900">{stats?.totalSubmissions || 0}</p>
               </div>
               <div className="flex items-center justify-center w-12 h-12 bg-blue-100 rounded-lg">
                 <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -78,12 +113,12 @@ export default function ViewAssignmentPage({ onBack }: ViewAssignmentPageProps =
             </div>
           </div>
 
-          {/* Submissions */}
+          {/* Graded Submissions */}
           <div className="p-6 transition-shadow bg-white border rounded-lg shadow-sm border-slate-200 hover:shadow-md">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="mb-1 text-sm font-medium text-slate-600">Submissions</p>
-                <p className="text-3xl font-bold text-slate-900">{stats.submittedCount}</p>
+                <p className="mb-1 text-sm font-medium text-slate-600">Graded</p>
+                <p className="text-3xl font-bold text-slate-900">{stats?.gradedSubmissions || 0}</p>
               </div>
               <div className="flex items-center justify-center w-12 h-12 bg-green-100 rounded-lg">
                 <svg className="w-6 h-6 text-green-600" fill="currentColor" viewBox="0 0 20 20">
@@ -93,12 +128,12 @@ export default function ViewAssignmentPage({ onBack }: ViewAssignmentPageProps =
             </div>
           </div>
 
-          {/* Missing */}
+          {/* Pending */}
           <div className="p-6 transition-shadow bg-white border rounded-lg shadow-sm border-slate-200 hover:shadow-md">
             <div className="flex items-start justify-between mb-4">
               <div>
-                <p className="mb-1 text-sm font-medium text-slate-600">Missing</p>
-                <p className="text-3xl font-bold text-slate-900">{stats.missingCount}</p>
+                <p className="mb-1 text-sm font-medium text-slate-600">Pending</p>
+                <p className="text-3xl font-bold text-slate-900">{stats?.pendingSubmissions || 0}</p>
               </div>
               <div className="flex items-center justify-center w-12 h-12 bg-red-100 rounded-lg">
                 <svg className="w-6 h-6 text-red-600" fill="currentColor" viewBox="0 0 20 20">
@@ -111,7 +146,7 @@ export default function ViewAssignmentPage({ onBack }: ViewAssignmentPageProps =
 
         {/* Student Submissions Table */}
         <div className="p-6 bg-white border rounded-lg shadow-sm border-slate-200">
-          <StudentSubmissionsTable students={data.students} assignmentId={1} />
+          <StudentSubmissionsTable assignmentId={assignmentId} />
         </div>
       </div>
     </div>

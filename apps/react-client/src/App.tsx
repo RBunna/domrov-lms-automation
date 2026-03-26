@@ -8,6 +8,7 @@ import Dashboard from '@/pages/Dashboard';
 import Login from '@/pages/Login';
 import ClassDashboard from '@/pages/ClassDashboard';
 import CreateClass from '@/pages/CreateClass';
+import EditClass from '@/pages/EditClass';
 import CreateAssignmentPage from '@/pages/CreateAssignmentPage';
 import EditAssignmentPage from '@/pages/EditAssignmentPage';
 import Docs from '@/pages/Docs';
@@ -40,6 +41,7 @@ const AppRoutes: React.FC = () => {
       {/* Protected pages - require authentication */}
       <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
       <Route path="/class/create" element={<ProtectedRoute><CreateClass /></ProtectedRoute>} />
+      <Route path="/class/:id/edit" element={<ProtectedRoute><EditClass /></ProtectedRoute>} />
       <Route path="/class/:id" element={<ProtectedRoute><ClassDashboard /></ProtectedRoute>} />
       <Route
         path="/class/:id/assignment/create"
