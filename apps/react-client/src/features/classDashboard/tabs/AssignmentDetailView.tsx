@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import AnimatedPage from "@/components/AnimatedPage";
 import type { AssessmentDetailDto } from "@/types/assessment";
@@ -24,7 +24,7 @@ export default function AssignmentDetailView({ assessmentId, onBack }: Assignmen
         setAssignment(data);
         setLoading(false);
       })
-      .catch(err => {
+      .catch(() => {
         setError("Failed to load assignment details.");
         setLoading(false);
       });
@@ -32,10 +32,10 @@ export default function AssignmentDetailView({ assessmentId, onBack }: Assignmen
 
   return (
     <AnimatedPage>
-      <div className="p-6 max-w-4xl mx-auto">
+      <div className="max-w-4xl p-6 mx-auto">
         <button
           onClick={onBack}
-          className="flex items-center gap-2 text-blue-600 hover:text-blue-700 mb-6"
+          className="flex items-center gap-2 mb-6 text-blue-600 hover:text-blue-700"
         >
           <ArrowLeft className="w-5 h-5" />
           Back to Assignments
@@ -45,14 +45,14 @@ export default function AssignmentDetailView({ assessmentId, onBack }: Assignmen
         {error && <div className="text-red-600">{error}</div>}
 
         {assignment && (
-          <div className="bg-white rounded-lg border border-slate-200 p-8">
-            <h1 className="text-3xl font-bold text-slate-900 mb-4">
+          <div className="p-8 bg-white border rounded-lg border-slate-200">
+            <h1 className="mb-4 text-3xl font-bold text-slate-900">
               {assignment.title}
             </h1>
 
-            <div className="grid grid-cols-2 gap-6 mb-8 pb-8 border-b border-slate-200">
+            <div className="grid grid-cols-2 gap-6 pb-8 mb-8 border-b border-slate-200">
               <div>
-                <p className="text-sm text-slate-600 mb-1">Due Date</p>
+                <p className="mb-1 text-sm text-slate-600">Due Date</p>
                 <p className="text-lg font-semibold text-slate-900">
                   {assignment.dueDate
                     ? new Date(assignment.dueDate).toLocaleString()
@@ -60,7 +60,7 @@ export default function AssignmentDetailView({ assessmentId, onBack }: Assignmen
                 </p>
               </div>
               <div>
-                <p className="text-sm text-slate-600 mb-1">Session</p>
+                <p className="mb-1 text-sm text-slate-600">Session</p>
                 <p className="text-lg font-semibold text-slate-900">
                   Session {assignment.session}
                 </p>
@@ -68,23 +68,23 @@ export default function AssignmentDetailView({ assessmentId, onBack }: Assignmen
             </div>
 
             <div className="mb-6">
-              <h2 className="text-xl font-semibold text-slate-900 mb-4">Details</h2>
-              <p className="text-slate-700 mb-2">Assignment ID: {assignment.id}</p>
-              <p className="text-slate-700 mb-2">Instruction: {assignment.instruction}</p>
-              <p className="text-slate-700 mb-2">Max Score: {assignment.maxScore}</p>
-              <p className="text-slate-700 mb-2">AI Evaluation: {assignment.aiEvaluationEnable ? "Enabled" : "Disabled"}</p>
+              <h2 className="mb-4 text-xl font-semibold text-slate-900">Details</h2>
+              <p className="mb-2 text-slate-700">Assignment ID: {assignment.id}</p>
+              <p className="mb-2 text-slate-700">Instruction: {assignment.instruction}</p>
+              <p className="mb-2 text-slate-700">Max Score: {assignment.maxScore}</p>
+              <p className="mb-2 text-slate-700">AI Evaluation: {assignment.aiEvaluationEnable ? "Enabled" : "Disabled"}</p>
               {assignment.class && (
-                <p className="text-slate-700 mb-2">Class: {assignment.class.name || assignment.class.id}</p>
+                <p className="mb-2 text-slate-700">Class: {assignment.class.name || assignment.class.id}</p>
               )}
               {assignment.aiModel && (
-                <p className="text-slate-700 mb-2">AI Model: {assignment.aiModel.name}</p>
+                <p className="mb-2 text-slate-700">AI Model: {assignment.aiModel.name}</p>
               )}
             </div>
 
             {assignment.rubrics && assignment.rubrics.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Rubrics</h3>
-                <ul className="list-disc pl-5">
+                <h3 className="mb-2 text-lg font-semibold text-slate-900">Rubrics</h3>
+                <ul className="pl-5 list-disc">
                   {assignment.rubrics.map(rubric => (
                     <li key={rubric.id} className="mb-1">
                       {rubric.definition} (Total Score: {rubric.totalScore})
@@ -96,11 +96,11 @@ export default function AssignmentDetailView({ assessmentId, onBack }: Assignmen
 
             {assignment.resources && assignment.resources.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">Resources</h3>
-                <ul className="list-disc pl-5">
+                <h3 className="mb-2 text-lg font-semibold text-slate-900">Resources</h3>
+                <ul className="pl-5 list-disc">
                   {assignment.resources.map(res => (
                     <li key={res.id} className="mb-1">
-                      {res.resource.title} {res.resource.url && (<a href={res.resource.url} className="text-blue-600 underline ml-2" target="_blank" rel="noopener noreferrer">Link</a>)}
+                      {res.resource.title} {res.resource.url && (<a href={res.resource.url} className="ml-2 text-blue-600 underline" target="_blank" rel="noopener noreferrer">Link</a>)}
                     </li>
                   ))}
                 </ul>
@@ -109,8 +109,8 @@ export default function AssignmentDetailView({ assessmentId, onBack }: Assignmen
 
             {assignment.user_include_files && assignment.user_include_files.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">User Include Files</h3>
-                <ul className="list-disc pl-5">
+                <h3 className="mb-2 text-lg font-semibold text-slate-900">User Include Files</h3>
+                <ul className="pl-5 list-disc">
                   {assignment.user_include_files.map((file, idx) => (
                     <li key={idx}>{file}</li>
                   ))}
@@ -120,8 +120,8 @@ export default function AssignmentDetailView({ assessmentId, onBack }: Assignmen
 
             {assignment.user_exclude_files && assignment.user_exclude_files.length > 0 && (
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-slate-900 mb-2">User Exclude Files</h3>
-                <ul className="list-disc pl-5">
+                <h3 className="mb-2 text-lg font-semibold text-slate-900">User Exclude Files</h3>
+                <ul className="pl-5 list-disc">
                   {assignment.user_exclude_files.map((file, idx) => (
                     <li key={idx}>{file}</li>
                   ))}

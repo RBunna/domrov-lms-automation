@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
-import { Plus, Edit2, Eye, Trash2, Loader2 } from "lucide-react";
+import { Plus, Edit2, Eye, Trash2, Loader2, Users } from "lucide-react";
 import AnimatedPage from "@/components/AnimatedPage";
 import ViewAssignmentDetail from "@/features/assignment/components/ViewAssignmentDetail";
 import EditAssignmentDetail from "@/features/assignment/components/EditAssignmentDetail";
 import CreateAssignmentDetail from "@/features/assignment/components/CreateAssignmentDetail";
+import ViewAssignmentPage from "@/pages/ViewAssignmentPage";
 import assessmentService from "@/services/assessmentService";
 import type { AssessmentListItemDto } from "@/types/assessment";
 
@@ -39,6 +40,7 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
   const [currentPage, setCurrentPage] = useState(1);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
   const [editingAssignmentId, setEditingAssignmentId] = useState<number | null>(null);
+  const [viewingStudentsAssignmentId, setViewingStudentsAssignmentId] = useState<number | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const itemsPerPage = 4;
 
@@ -165,6 +167,16 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
             assignmentId={selectedAssignmentId}
             onBack={() => setSelectedAssignmentId(null)}
           />
+        </AnimatedPage>
+      </div>
+    );
+  }
+
+  if (viewingStudentsAssignmentId !== null) {
+    return (
+      <div className="p-8 mx-auto max-w-7xl">
+        <AnimatedPage>
+          <ViewAssignmentPage onBack={() => setViewingStudentsAssignmentId(null)} />
         </AnimatedPage>
       </div>
     );
@@ -301,6 +313,13 @@ export default function TeacherAssignmentTab({ classId }: { classId: string }) {
                             title="View"
                           >
                             <Eye className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => { setViewingStudentsAssignmentId(assignment.id); setSelectedAssignmentId(null); setEditingAssignmentId(null); setIsCreating(false); }}
+                            className="p-2 rounded-lg hover:bg-slate-100 text-slate-600 hover:text-slate-900 transition-colors"
+                            title="View Students Submissions"
+                          >
+                            <Users className="w-4 h-4" />
                           </button>
                           <button
                             onClick={() => handleDelete(assignment.id)}

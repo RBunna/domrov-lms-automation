@@ -8,7 +8,7 @@ import AssignmentHeader from "@/features/assignment/AssignmentHeader";
 import AssignmentInstructions from "@/features/assignment/AssignmentInstructions";
 import CodeEditorView from "@/features/assignment/CodeEditorView";
 import ReferenceMaterials from "@/features/assignment/ReferenceMaterials";
-import StudentPortal from "@/features/assignment/StudentPortal";
+import StudentPortal from "@/features/assignment/StudentSubmission";
 import type { UploadedFile } from "@/features/assignment/UploadSection";
 
 type TabId = "general" | "assignment" | "posts" | "students" | "files" | "grades";

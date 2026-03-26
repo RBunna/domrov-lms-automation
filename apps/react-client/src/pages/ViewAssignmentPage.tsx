@@ -5,8 +5,20 @@ import { ArrowLeft } from "lucide-react";
 import StudentSubmissionsTable from "@/features/assignment/components/StudentSubmissionsTable";
 import { mockAssignmentDetails, getAssignmentStats } from "@/data/mockAssignmentDetails";
 
-export default function ViewAssignmentPage() {
+interface ViewAssignmentPageProps {
+  onBack?: () => void;
+}
+
+export default function ViewAssignmentPage({ onBack }: ViewAssignmentPageProps = {}) {
   const navigate = useNavigate();
+
+  const handleBack = () => {
+    if (onBack) {
+      onBack();
+    } else {
+      navigate(-1);
+    }
+  };
 
   // In a real app, you'd fetch data based on assignmentId
   // For now, we use mock data
@@ -20,7 +32,7 @@ export default function ViewAssignmentPage() {
         <div className="px-6 py-6 mx-auto max-w-7xl">
           <div className="flex items-start justify-between mb-6">
             <button
-              onClick={() => navigate(-1)}
+              onClick={handleBack}
               className="flex items-center gap-2 mb-4 transition-colors text-slate-600 hover:text-slate-900"
             >
               <ArrowLeft className="w-5 h-5" />
@@ -99,7 +111,7 @@ export default function ViewAssignmentPage() {
 
         {/* Student Submissions Table */}
         <div className="p-6 bg-white border rounded-lg shadow-sm border-slate-200">
-          <StudentSubmissionsTable students={data.students} />
+          <StudentSubmissionsTable students={data.students} assignmentId={1} />
         </div>
       </div>
     </div>
