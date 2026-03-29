@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import StatusBadge from "@/components/primitives/StatusBadge";
 import { ClipboardIcon } from "./icons";
 
@@ -36,14 +35,13 @@ export default function AssignmentCard({ assignment }: AssignmentCardProps) {
   };
 
   return (
-    <Link
-      to={`/assignment/${assignment.id}`}
+    <div
       className="block bg-white border border-slate-300 rounded-xl p-5 hover:shadow-lg hover:border-slate-400 transition-all"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 space-y-3">
           <h4 className="font-semibold text-slate-900 text-lg">{assignment.title}</h4>
-          <p className="text-sm text-red-600 font-medium">
+          <p className="text-sm text-grey-600 font-medium">
             Due at {assignment.dueTime}
           </p>
           <div className="flex items-center gap-2 text-sm text-slate-600">
@@ -53,6 +51,6 @@ export default function AssignmentCard({ assignment }: AssignmentCardProps) {
         </div>
         {getStatusBadges()}
       </div>
-    </Link>
+    </div>
   );
 }

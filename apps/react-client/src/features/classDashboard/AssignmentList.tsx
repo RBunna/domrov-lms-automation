@@ -9,8 +9,8 @@ import { useToast } from "@/components/Toast";
 interface AssignmentListProps {
   classId: string;
   filter: "upcoming" | "past-due" | "completed" | "draft";
+  onSelectAssignment?: (assignmentId: string) => void; 
 }
-
 interface NormalizedAssignment {
   id: string;
   title: string;
@@ -77,9 +77,15 @@ function getRelativeDate(raw: string): string {
 
 // ─── Component ────────────────────────────────────────────────────────────────
 
-export default function AssignmentList({ classId, filter }: AssignmentListProps) {
+export default function AssignmentList({
+  classId,
+  filter,
+  onSelectAssignment,
+}: AssignmentListProps) {
   const { showToast } = useToast();
-  const [allAssignments, setAllAssignments] = useState<NormalizedAssignment[]>([]);
+  const [allAssignments, setAllAssignments] = useState<NormalizedAssignment[]>(
+    [],
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [publishingId, setPublishingId] = useState<string | null>(null);
@@ -133,7 +139,9 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
     try {
       // Step 1 — patch rubric so backend validation passes
       await assessmentService.updateAssessment(Number(assignment.id), {
-        rubrics: [{ definition: "Overall Score", totalScore: assignment.maxScore }],
+        rubrics: [
+          { definition: "Overall Score", totalScore: assignment.maxScore },
+        ],
       });
       console.log("✅ Rubric patched for", assignment.id);
 
@@ -159,9 +167,10 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
   // The assignment then appears in "upcoming" if dueDate is in the future
 
   const assignments = allAssignments.filter((a) => {
-    if (filter === "draft")                              return a.isDraft;
-    if (filter === "upcoming")                           return !a.isDraft && !a.isPastDue;
-    if (filter === "past-due" || filter === "completed") return !a.isDraft && a.isPastDue;
+    if (filter === "draft") return a.isDraft;
+    if (filter === "upcoming") return !a.isDraft && !a.isPastDue;
+    if (filter === "past-due" || filter === "completed")
+      return !a.isDraft && a.isPastDue;
     return false;
   });
 
@@ -186,7 +195,10 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
     return (
       <div className="text-center py-12">
         <p className="text-red-500 text-sm">{error}</p>
-        <button className="mt-2 text-slate-600 text-sm underline" onClick={load}>
+        <button
+          className="mt-2 text-slate-600 text-sm underline"
+          onClick={load}
+        >
           Retry
         </button>
       </div>
@@ -227,7 +239,6 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
     <div className="space-y-4">
       {assignments.map((assignment) => (
         <div key={assignment.id} className="space-y-2">
-
           {/* Date row */}
           <div className="flex items-center gap-2">
             <h3 className="text-sm font-bold text-slate-900">
@@ -252,8 +263,13 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
           </div>
 
           {/* Card */}
-          <AssignmentCard assignment={assignment} />
-
+          <div
+            className="cursor-pointer transition-transform hover:scale-[1.01]"
+            onClick={() => onSelectAssignment?.(assignment.id)}
+          >
+            <AssignmentCard assignment={assignment} />
+          </div>
+          
           {/* Publish button — only in draft tab, patches rubric then publishes */}
           {filter === "draft" && (
             <div className="flex justify-end">
@@ -266,7 +282,6 @@ export default function AssignmentList({ classId, filter }: AssignmentListProps)
               </button>
             </div>
           )}
-
         </div>
       ))}
     </div>

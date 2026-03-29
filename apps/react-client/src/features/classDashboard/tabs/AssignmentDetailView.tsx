@@ -21,7 +21,7 @@ export default function AssignmentDetailView({ assessmentId, onBack }: Assignmen
     setError(null);
     getAssessmentDetails(assessmentId)
       .then(data => {
-        setAssignment(data);
+        setAssignment(data.data);
         setLoading(false);
       })
       .catch(() => {
